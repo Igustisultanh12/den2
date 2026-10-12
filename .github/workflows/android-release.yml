@@ -73,18 +73,24 @@ jobs:
       - name: Prepare APK Artifact
         run: |
           mkdir -p release-output
-          APK_FILE=$(find . -name "*.apk" | grep -E "release.*\.apk|app.*\.apk" | head -n 1)
-          if [ -z "$APK_FILE" ]; then
-            APK_FILE=$(find . -name "*.apk" | head -n 1)
-          fi
-          if [ -z "$APK_FILE" ]; then
-            echo "### Error: No APK file found in repository" >> $GITHUB_STEP_SUMMARY
-            find android -maxdepth 5 >> $GITHUB_STEP_SUMMARY || true
+          shopt -s globstar nullglob
+          apk_found=false
+          for apk in android/app/build/**/*.apk; do
+            if [ -f "$apk" ]; then
+              echo "Processing APK: $apk"
+              cp "$apk" release-output/SISINDEN-Release.apk
+              cp "$apk" release-output/SISINDEN-v1.0.0.apk
+              apk_found=true
+              echo "### APK File Generated Successfully" >> $GITHUB_STEP_SUMMARY
+              echo "File: \`$apk\`" >> $GITHUB_STEP_SUMMARY
+              break
+            fi
+          done
+          if [ "$apk_found" = false ]; then
+            echo "### Error: No APK file found under android/app/build/" >> $GITHUB_STEP_SUMMARY
+            find android/app -maxdepth 5 >> $GITHUB_STEP_SUMMARY || true
             exit 1
           fi
-          echo "### APK File Found: $APK_FILE" >> $GITHUB_STEP_SUMMARY
-          cp "$APK_FILE" release-output/SISINDEN-Release.apk
-          cp "$APK_FILE" release-output/SISINDEN-v1.0.0.apk
           ls -la release-output/
 
       - name: Upload APK Artifact
