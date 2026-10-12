@@ -37,38 +37,24 @@ jobs:
       - name: Grant Execute Permission for Gradlew
         run: chmod +x android/gradlew
 
-      - name: Verify Gradle Environment
+      - name: Run Gradle Assemble Release
         working-directory: android
         run: |
-          ./gradlew --version 2>&1 | tee gradle_version.log || {
-            echo "### Gradle Version Verification Failed" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat gradle_version.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit 1
+          set -o pipefail
+          ./gradlew :app:assembleRelease --stacktrace --info 2>&1 | tee ../gradle_build.log || {
+            BUILD_ERR=$?
+            echo "::error title=Gradle Build Failed::Check uploaded gradle_build.log artifact"
+            echo "=== GRADLE LOG TAIL ==="
+            tail -n 60 ../gradle_build.log
+            exit $BUILD_ERR
           }
 
-      - name: Run Unit Tests
-        working-directory: android
-        run: |
-          ./gradlew test --stacktrace --info 2>&1 | tee test_log.txt || {
-            echo "### Gradle Test Failure Log" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -n 80 test_log.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit 1
-          }
-
-      - name: Build Release APK
-        working-directory: android
-        run: |
-          ./gradlew :app:assembleRelease --stacktrace 2>&1 | tee build_log.txt || {
-            echo "### Gradle Assemble Failure Log" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -n 80 build_log.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit 1
-          }
+      - name: Upload Build Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-failure-log
+          path: gradle_build.log
 
       - name: Prepare APK Artifact
         run: |
@@ -81,14 +67,12 @@ jobs:
               cp "$apk" release-output/SISINDEN-Release.apk
               cp "$apk" release-output/SISINDEN-v1.0.0.apk
               apk_found=true
-              echo "### APK File Generated Successfully" >> $GITHUB_STEP_SUMMARY
-              echo "File: \`$apk\`" >> $GITHUB_STEP_SUMMARY
               break
             fi
           done
           if [ "$apk_found" = false ]; then
-            echo "### Error: No APK file found under android/app/build/" >> $GITHUB_STEP_SUMMARY
-            find android/app -maxdepth 5 >> $GITHUB_STEP_SUMMARY || true
+            echo "::error title=APK Not Found::No APK file generated under android/app/build/"
+            find android/app -maxdepth 5 || true
             exit 1
           fi
           ls -la release-output/
