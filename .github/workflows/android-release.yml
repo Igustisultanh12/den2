@@ -43,9 +43,12 @@ jobs:
           set -o pipefail
           ./gradlew :app:assembleRelease --stacktrace --info 2>&1 | tee ../gradle_build.log || {
             BUILD_ERR=$?
-            echo "::error title=Gradle Build Failed::Check uploaded gradle_build.log artifact"
-            echo "=== GRADLE LOG TAIL ==="
-            tail -n 60 ../gradle_build.log
+            grep -E "e: |FAILURE:|Caused by:|Error:|error:" ../gradle_build.log | head -n 10 | while IFS= read -r line; do
+              echo "::error title=GradleDiag::$line"
+            done
+            tail -n 8 ../gradle_build.log | while IFS= read -r line; do
+              echo "::error title=GradleTail::$line"
+            done
             exit $BUILD_ERR
           }
 
