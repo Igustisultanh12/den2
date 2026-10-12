@@ -62,7 +62,7 @@ jobs:
       - name: Build Release APK
         working-directory: android
         run: |
-          ./gradlew assembleRelease --stacktrace 2>&1 | tee build_log.txt || {
+          ./gradlew :app:assembleRelease --stacktrace 2>&1 | tee build_log.txt || {
             echo "### Gradle Assemble Failure Log" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             tail -n 80 build_log.txt >> $GITHUB_STEP_SUMMARY
@@ -73,12 +73,16 @@ jobs:
       - name: Prepare APK Artifact
         run: |
           mkdir -p release-output
-          APK_FILE=$(find android/app/build/outputs/apk -type f -name "*.apk" | head -n 1)
+          APK_FILE=$(find . -name "*.apk" | grep -E "release.*\.apk|app.*\.apk" | head -n 1)
           if [ -z "$APK_FILE" ]; then
-            echo "Error: No APK file found in android/app/build/outputs/apk"
+            APK_FILE=$(find . -name "*.apk" | head -n 1)
+          fi
+          if [ -z "$APK_FILE" ]; then
+            echo "### Error: No APK file found in repository" >> $GITHUB_STEP_SUMMARY
+            find android -maxdepth 5 >> $GITHUB_STEP_SUMMARY || true
             exit 1
           fi
-          echo "Found APK: $APK_FILE"
+          echo "### APK File Found: $APK_FILE" >> $GITHUB_STEP_SUMMARY
           cp "$APK_FILE" release-output/SISINDEN-Release.apk
           cp "$APK_FILE" release-output/SISINDEN-v1.0.0.apk
           ls -la release-output/
