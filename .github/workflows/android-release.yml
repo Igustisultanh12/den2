@@ -27,27 +27,20 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Ensure Gradle Wrapper Jar Exists
-        run: |
-          if [ ! -f "android/gradle/wrapper/gradle-wrapper.jar" ]; then
-            curl -sSL "https://raw.githubusercontent.com/gradle/gradle/v8.9.0/gradle/wrapper/gradle-wrapper.jar" -o "android/gradle/wrapper/gradle-wrapper.jar"
-          fi
-
-      - name: Grant Execute Permission for Gradlew
-        run: chmod +x android/gradlew
+        with:
+          gradle-version: '8.9'
+          validate-wrappers: false
 
       - name: Verify Gradle Environment
-        working-directory: android
-        run: ./gradlew --version
+        run: gradle --version
 
       - name: Run Unit Tests
         working-directory: android
-        run: ./gradlew :app:test --stacktrace
+        run: gradle :app:test --stacktrace
 
       - name: Build Application APK
         working-directory: android
-        run: ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
+        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
 
       - name: Prepare APK Artifact
         run: |
