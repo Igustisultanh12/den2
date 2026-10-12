@@ -60,15 +60,7 @@ fun NotificationsScreen(
         topBar = {
             SindenTopBar(
                 title = "Notifikasi Dinas",
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Kembali",
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                },
+                onBackClick = onBack,
                 actions = {
                     IconButton(onClick = { viewModel.loadNotifications() }) {
                         Icon(
