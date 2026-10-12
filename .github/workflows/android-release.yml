@@ -54,6 +54,29 @@ jobs:
             exit 1
           }
 
+      - name: Save Error Log to Git Branch on Failure
+        if: failure()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B ci-debug-log
+          echo "# CI FAILURE LOG" > CI_LOG.md
+          if [ -f "android/test_log.txt" ]; then
+            echo "## test_log.txt" >> CI_LOG.md
+            echo '```' >> CI_LOG.md
+            cat android/test_log.txt >> CI_LOG.md
+            echo '```' >> CI_LOG.md
+          fi
+          if [ -f "android/build_log.txt" ]; then
+            echo "## build_log.txt" >> CI_LOG.md
+            echo '```' >> CI_LOG.md
+            cat android/build_log.txt >> CI_LOG.md
+            echo '```' >> CI_LOG.md
+          fi
+          git add CI_LOG.md
+          git commit -m "ci: capture failure logs"
+          git push -f origin ci-debug-log
+
       - name: Prepare APK Artifact
         run: |
           mkdir -p release-output
