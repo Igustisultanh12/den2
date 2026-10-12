@@ -36,11 +36,23 @@ jobs:
 
       - name: Run Unit Tests
         working-directory: android
-        run: gradle :app:test --stacktrace
+        run: |
+          set -o pipefail
+          gradle :app:testDebugUnitTest --stacktrace 2>&1 | tee test_log.txt || {
+            ERR_MSG=$(tail -n 25 test_log.txt | tr '\n' ' ' | sed 's/"//g')
+            echo "::error title=UnitTestFailure::$ERR_MSG"
+            exit 1
+          }
 
       - name: Build Application APK
         working-directory: android
-        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug :app:assembleRelease --stacktrace 2>&1 | tee build_log.txt || {
+            ERR_MSG=$(tail -n 25 build_log.txt | tr '\n' ' ' | sed 's/"//g')
+            echo "::error title=BuildFailure::$ERR_MSG"
+            exit 1
+          }
 
       - name: Prepare APK Artifact
         run: |
