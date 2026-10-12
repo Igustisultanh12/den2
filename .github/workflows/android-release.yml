@@ -37,53 +37,36 @@ jobs:
       - name: Grant Execute Permission for Gradlew
         run: chmod +x android/gradlew
 
-      - name: Run Gradle Assemble Release
+      - name: Verify Gradle Environment
         working-directory: android
-        run: |
-          set -o pipefail
-          ./gradlew :app:assembleRelease --stacktrace --info 2>&1 | tee ../gradle_build.log || {
-            BUILD_ERR=$?
-            grep -E "e: |FAILURE:|Caused by:|Error:|error:" ../gradle_build.log | head -n 10 | while IFS= read -r line; do
-              echo "::error title=GradleDiag::$line"
-            done
-            tail -n 8 ../gradle_build.log | while IFS= read -r line; do
-              echo "::error title=GradleTail::$line"
-            done
-            exit $BUILD_ERR
-          }
+        run: ./gradlew --version
 
-      - name: Upload Build Log on Failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-build-failure-log
-          path: gradle_build.log
+      - name: Run Unit Tests
+        working-directory: android
+        run: ./gradlew :app:test --stacktrace
+
+      - name: Build Application APK
+        working-directory: android
+        run: ./gradlew :app:assembleDebug :app:assembleRelease --stacktrace
 
       - name: Prepare APK Artifact
         run: |
           mkdir -p release-output
           shopt -s globstar nullglob
-          apk_found=false
           for apk in android/app/build/**/*.apk; do
             if [ -f "$apk" ]; then
-              echo "Processing APK: $apk"
-              cp "$apk" release-output/SISINDEN-Release.apk
+              echo "Found APK: $apk"
+              base=$(basename "$apk")
+              cp "$apk" "release-output/$base"
               cp "$apk" release-output/SISINDEN-v1.0.0.apk
-              apk_found=true
-              break
             fi
           done
-          if [ "$apk_found" = false ]; then
-            echo "::error title=APK Not Found::No APK file generated under android/app/build/"
-            find android/app -maxdepth 5 || true
-            exit 1
-          fi
           ls -la release-output/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SISINDEN-Android-Release-APK
+          name: SISINDEN-Android-APKs
           path: release-output/*.apk
 
       - name: Publish GitHub Release
@@ -112,7 +95,7 @@ jobs:
             - Kerangka Kerja: Kotlin Jetpack Compose (Material 3)
             - Min SDK: Android 8.0 (API 26)
             - Target SDK: Android 14 (API 34)
-            - Berkas APK: SISINDEN-Release.apk dan SISINDEN-v1.0.0.apk
+            - Berkas APK: SISINDEN-v1.0.0.apk, app-debug.apk, app-release.apk
           files: release-output/*.apk
           make_latest: true
         env:

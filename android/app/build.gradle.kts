@@ -28,8 +28,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Menggunakan debug signing sebagai fallback aman agar APK dapat langsung dipasang
-            signingConfig = signingConfigs.getByName("debug")
+            // Menggunakan debug signing sebagai fallback aman jika tersedia
+            signingConfig = signingConfigs.findByName("debug")
         }
         debug {
             applicationIdSuffix = ".debug"
