@@ -88,7 +88,7 @@ fun NotificationsScreen(
         ) {
             when (val state = uiState) {
                 is NotificationUiState.Loading -> {
-                    ShimmerLoadingList(count = 6)
+                    ShimmerLoadingList()
                 }
                 is NotificationUiState.Error -> {
                     ErrorStateView(
@@ -100,7 +100,7 @@ fun NotificationsScreen(
                     if (state.list.isEmpty()) {
                         EmptyStateView(
                             title = "Belum Ada Notifikasi",
-                            description = "Semua instruksi dan pembaruan kedinasan akan tampil pada halaman ini."
+                            message = "Semua instruksi dan pembaruan kedinasan akan tampil pada halaman ini."
                         )
                     } else {
                         LazyColumn(

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
@@ -141,18 +142,11 @@ fun SettingsScreen(
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    StatusPill(
-                                        text = (currentUser?.role ?: "User").uppercase(),
-                                        statusType = "active"
-                                    )
+                                    StatusPill(status = (currentUser?.role ?: "User").uppercase())
                                     if (!currentUser?.jabatan.isNullOrBlank()) {
-                                        StatusPill(
-                                            text = currentUser?.jabatan ?: "",
-                                            statusType = "info"
-                                        )
+                                        StatusPill(status = currentUser?.jabatan ?: "")
                                     }
                                 }
-                            }
                         }
                     }
                 }
@@ -192,10 +186,10 @@ fun SettingsScreen(
                             }
                         } else {
                             val agency = uiState.agencyConfig
-                            SettingDetailRow(label = "Satuan Induk", value = agency?.name ?: "Denintel Kodaeral V")
-                            SettingDetailRow(label = "Unit Kerja", value = agency?.unit ?: "Sekretariat Intelijen")
-                            SettingDetailRow(label = "Semboyan", value = agency?.motto ?: "Bhinnekha Bhakti Cakti")
-                            SettingDetailRow(label = "Alamat Markas", value = agency?.address ?: "Jl. Seram No. 2, Surabaya")
+                            SettingDetailRow(label = "Satuan Induk", value = agency?.agencyName ?: "Detasemen Intelijen Kodaeral V")
+                            SettingDetailRow(label = "Sistem Aplikasi", value = agency?.appName ?: "SI SINDEN Mobile")
+                            SettingDetailRow(label = "Status Server", value = agency?.apiStatus ?: "ONLINE")
+                            SettingDetailRow(label = "Waktu Server", value = agency?.serverTime ?: "Terhubung")
                         }
                     }
                 }

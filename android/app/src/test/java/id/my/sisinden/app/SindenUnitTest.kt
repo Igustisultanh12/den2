@@ -1,7 +1,6 @@
 package id.my.sisinden.app
 
 import com.google.gson.Gson
-import id.my.sisinden.app.data.model.AgencyConfigDto
 import id.my.sisinden.app.data.model.CashResponse
 import id.my.sisinden.app.data.model.CashTransactionDto
 import id.my.sisinden.app.data.model.ConfigResponse
@@ -45,20 +44,17 @@ class SindenUnitTest {
         val json = """
             {
                 "status": "success",
-                "agency": {
-                    "name": "Denintel Kodaeral V",
-                    "unit": "Sekretariat Intelijen",
-                    "motto": "Bhinnekha Bhakti Cakti",
-                    "address": "Jl. Seram No. 2, Surabaya"
-                }
+                "app_name": "SI SINDEN",
+                "agency_name": "Detasemen Intelijen Kodaeral V",
+                "api_status": "ONLINE"
             }
         """.trimIndent()
 
         val config = gson.fromJson(json, ConfigResponse::class.java)
         assertEquals("success", config.status)
-        assertNotNull(config.agency)
-        assertEquals("Denintel Kodaeral V", config.agency?.name)
-        assertEquals("Bhinnekha Bhakti Cakti", config.agency?.motto)
+        assertEquals("SI SINDEN", config.appName)
+        assertEquals("Detasemen Intelijen Kodaeral V", config.agencyName)
+        assertEquals("ONLINE", config.apiStatus)
     }
 
     @Test

@@ -2,7 +2,7 @@ package id.my.sisinden.app.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import id.my.sisinden.app.data.model.AgencyConfigDto
+import id.my.sisinden.app.data.model.ConfigResponse
 import id.my.sisinden.app.data.model.UserDto
 import id.my.sisinden.app.data.repository.NetworkResult
 import id.my.sisinden.app.data.repository.SindenRepository
@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class SettingsUiState(
-    val agencyConfig: AgencyConfigDto? = null,
+    val agencyConfig: ConfigResponse? = null,
     val isLoadingConfig: Boolean = false,
     val saveUrlSuccess: Boolean = false,
     val errorMessage: String? = null
@@ -44,7 +44,7 @@ class SettingsViewModel(private val repository: SindenRepository) : ViewModel() 
             when (val res = repository.getConfig()) {
                 is NetworkResult.Success -> {
                     _uiState.value = _uiState.value.copy(
-                        agencyConfig = res.data.agency,
+                        agencyConfig = res.data,
                         isLoadingConfig = false
                     )
                 }
