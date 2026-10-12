@@ -135,10 +135,10 @@ fun TechnicalCashScreen(
                                             )
                                         }
                                         Text(
-                                            text = "-${formatter.format(tx.amount)}",
+                                            text = "${if (tx.isIncome) "+" else "-"}${formatter.format(tx.effectiveAmount)}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.Black,
-                                            color = MaterialTheme.colorScheme.primary
+                                            color = if (tx.isIncome) Color(0xFF16A34A) else Color(0xFFE11D48)
                                         )
                                     }
                                 }

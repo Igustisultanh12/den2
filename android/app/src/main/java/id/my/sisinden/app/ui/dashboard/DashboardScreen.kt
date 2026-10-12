@@ -14,18 +14,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.my.sisinden.app.core.ui.components.*
 import id.my.sisinden.app.core.ui.theme.*
+import id.my.sisinden.app.data.model.CashTransactionDto
+import id.my.sisinden.app.data.model.LetterLogDto
 import id.my.sisinden.app.data.model.UserDto
 import java.text.NumberFormat
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
@@ -40,31 +45,144 @@ fun DashboardScreen(
     onNavigateToNotifications: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
+    val context = LocalContext.current
     val currentUser by viewModel.currentUser.collectAsState(initial = null)
     val uiState by viewModel.uiState.collectAsState()
+    val isPrivacyHidden by viewModel.isPrivacyHidden.collectAsState()
+    val config by viewModel.configState.collectAsState()
+
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    var deniedModuleName by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadDashboardData(context)
+    }
+
+    val formatter = remember {
+        NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
+            maximumFractionDigits = 0
+        }
+    }
 
     Scaffold(
         topBar = {
-            SindenTopBar(
-                title = "SI SINDEN",
-                subtitle = "Detasemen Intelijen Kodaeral V",
-                actions = {
-                    IconButton(onClick = onNavigateToNotifications) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifikasi",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                // Header Profil Pengguna & Aksi Cepat (Sesuai Referensi 2)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = SindenOceanPrimary,
+                            modifier = Modifier.size(46.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = (currentUser?.name?.take(2) ?: "DI").uppercase(),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
+                                )
+                            }
+                        }
+
+                        Column {
+                            Text(
+                                text = "Halo, ${currentUser?.name?.ifEmpty { "Personel Intel" } ?: "Personel"}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "Mencatat sebagai ${currentUser?.pangkat ?: "Prajurit"} (${currentUser?.role?.uppercase() ?: "USER"})",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Pengaturan",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        IconButton(onClick = onNavigateToNotifications) {
+                            BadgedBox(
+                                badge = {
+                                    if (uiState is DashboardUiState.Success && (uiState as DashboardUiState.Success).stats.unreadNotifCount > 0) {
+                                        Badge(containerColor = Color(0xFFEF4444)) {
+                                            Text("${(uiState as DashboardUiState.Success).stats.unreadNotifCount}")
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Notifikasi",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Pengaturan",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
-            )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Filter Pill Periode (Referensi 2)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier.clickable { viewModel.loadDashboardData(context) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                            Text("Bulan", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("Oktober 2026", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
@@ -72,93 +190,383 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Kartu Profil & Sambutan Personel
-            item {
-                UserProfileCard(user = currentUser)
-            }
-
-            // 2. Statistik Cepat Kedinasan
-            item {
-                when (val state = uiState) {
-                    is DashboardUiState.Loading -> {
-                        ShimmerPlaceholder(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(96.dp)
-                        )
+            when (val state = uiState) {
+                is DashboardUiState.Loading -> {
+                    item {
+                        ShimmerPlaceholder(modifier = Modifier.fillMaxWidth().height(180.dp))
                     }
-                    is DashboardUiState.Success -> {
-                        StatsSection(
-                            stats = state.stats,
-                            onCashClick = onNavigateToCash,
-                            onLettersClick = onNavigateToLetters,
-                            onSkhppClick = onNavigateToSkhpp
-                        )
+                    item {
+                        ShimmerPlaceholder(modifier = Modifier.fillMaxWidth().height(120.dp))
                     }
-                    is DashboardUiState.Error -> {
+                }
+                is DashboardUiState.Error -> {
+                    item {
                         ErrorStateView(
                             message = state.message,
-                            onRetry = { viewModel.loadDashboardData() }
+                            onRetry = { viewModel.loadDashboardData(context) }
                         )
                     }
                 }
-            }
-
-            // 3. Grid Menu Modul Kedinasan
-            item {
-                Text(
-                    text = "MODUL UTAMA KEDINASAN",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 1.sp
-                )
-            }
-
-            item {
-                QuickActionsGrid(
-                    user = currentUser,
-                    onNavigateToLetters = onNavigateToLetters,
-                    onNavigateToSkhpp = onNavigateToSkhpp,
-                    onNavigateToCash = onNavigateToCash,
-                    onNavigateToTechnicalCash = onNavigateToTechnicalCash,
-                    onNavigateToMitra = onNavigateToMitra,
-                    onNavigateToSignature = onNavigateToSignature,
-                    onNavigateToViolations = onNavigateToViolations,
-                    onNavigateToPersonnel = onNavigateToPersonnel
-                )
-            }
-
-            // 4. Riwayat Agenda Surat Terkini
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "AGENDA SURAT TERBARU",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.sp
-                    )
-                    TextButton(onClick = onNavigateToLetters) {
-                        Text(
-                            text = "Lihat Semua",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            when (val state = uiState) {
                 is DashboardUiState.Success -> {
+                    // 1. KARTU SALDO UTAMA (DEEP NAVY GRADIENT DENGAN PRIVASI TOGGLE SESUAI REFERENSI 2)
+                    if (config?.mobileShowBalanceCard != false) {
+                        item {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onNavigateToCash() },
+                                shape = RoundedCornerShape(24.dp),
+                                shadowElevation = 6.dp
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color(0xFF0F2042),
+                                                    Color(0xFF1E3A8A)
+                                                )
+                                            )
+                                        )
+                                        .padding(22.dp)
+                                ) {
+                                    Column {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Saldo Kas Satuan",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color.White.copy(alpha = 0.85f)
+                                            )
+
+                                            IconButton(
+                                                onClick = { viewModel.togglePrivacy() },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isPrivacyHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                    contentDescription = "Toggle Privasi",
+                                                    tint = Color.White.copy(alpha = 0.85f),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Text(
+                                            text = if (isPrivacyHidden) "IDR •••••••" else formatter.format(state.stats.cashBalance),
+                                            style = MaterialTheme.typography.headlineLarge,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color.White,
+                                            letterSpacing = 0.5.sp
+                                        )
+
+                                        Spacer(modifier = Modifier.height(14.dp))
+
+                                        // Trend Pill
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = Color.White.copy(alpha = 0.15f)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ArrowUpward,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF67E8F9),
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = "${state.stats.totalTransactions} Transaksi Terverifikasi",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. TRIO RINGKASAN KEUANGAN (SESUAI REFERENSI 2)
+                    if (config?.mobileShowSummaryTrio != false) {
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // Pemasukan (White Card, Green Arrow Down)
+                                Surface(
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(18.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    shadowElevation = 2.dp
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = Color(0xFFDCFCE7),
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ArrowDownward,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF16A34A),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text("Pemasukan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = if (isPrivacyHidden) "IDR •••••••" else formatter.format(state.stats.totalIncome),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Black,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text("Dasar perbandingan", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+
+                                // Pengeluaran (Warm/Peach Card, Orange Arrow Up)
+                                Surface(
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(18.dp),
+                                    color = Color(0xFFFFF7ED),
+                                    shadowElevation = 2.dp
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = Color(0xFFFFEDD5),
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ArrowUpward,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFEA580C),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text("Pengeluaran", style = MaterialTheme.typography.labelSmall, color = Color(0xFF9A3412))
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = if (isPrivacyHidden) "IDR •••••••" else formatter.format(state.stats.totalExpense),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color(0xFF7C2D12),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        val expensePct = if (state.stats.totalIncome > 0) ((state.stats.totalExpense / state.stats.totalIncome) * 100).toInt() else 0
+                                        Text("$expensePct% dari pemasukan", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, color = Color(0xFFC2410C))
+                                    }
+                                }
+
+                                // Kas Taktis (Cool Grey/Lavender Card, Wallet Icon)
+                                Surface(
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(18.dp),
+                                    color = Color(0xFFF1F5F9),
+                                    shadowElevation = 2.dp
+                                ) {
+                                    Column(modifier = Modifier.padding(14.dp)) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = Color(0xFFE2E8F0),
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Default.AccountBalanceWallet,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF475569),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text("Kas Taktis", style = MaterialTheme.typography.labelSmall, color = Color(0xFF334155))
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = if (isPrivacyHidden) "IDR •••••••" else formatter.format(state.stats.technicalCashBalance),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color(0xFF0F172A),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text("Dana cadangan dinas", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, color = Color(0xFF64748B))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. KONDISI HARI INI (SESUAI REFERENSI 2)
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            shadowElevation = 2.dp
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Color(0xFFEFF6FF),
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(Icons.Default.Home, contentDescription = null, tint = SindenOceanPrimary, modifier = Modifier.size(16.dp))
+                                            }
+                                        }
+                                        Text(
+                                            text = "KONDISI HARI INI",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Black,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = { onNavigateToCash() },
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color.Transparent,
+                                            contentColor = MaterialTheme.colorScheme.primary
+                                        ),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Text("Kelola Kas", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = if (isPrivacyHidden) "IDR •••••••" else formatter.format(state.stats.cashBalance),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Black,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text("Saldo operasional berjalan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant
+                                    ) {
+                                        Text(
+                                            text = "${state.stats.totalTransactions} Transaksi",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 4. MODUL AKSI CEPAT KEDINASAN (SEMUA MENU BISA DIKLIK, TIDAK ADA DEAD CLICK!)
+                    if (config?.mobileShowQuickActions != false) {
+                        item {
+                            Text(
+                                text = "MODUL UTAMA KEDINASAN",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                letterSpacing = 1.sp
+                            )
+                        }
+
+                        item {
+                            QuickActionsGridRedesign(
+                                user = currentUser,
+                                onActionClick = { title, permitted, navigate ->
+                                    if (permitted) {
+                                        navigate()
+                                    } else {
+                                        deniedModuleName = title
+                                        showPermissionDialog = true
+                                    }
+                                },
+                                onNavigateToLetters = onNavigateToLetters,
+                                onNavigateToSkhpp = onNavigateToSkhpp,
+                                onNavigateToCash = onNavigateToCash,
+                                onNavigateToTechnicalCash = onNavigateToTechnicalCash,
+                                onNavigateToMitra = onNavigateToMitra,
+                                onNavigateToSignature = onNavigateToSignature,
+                                onNavigateToViolations = onNavigateToViolations,
+                                onNavigateToPersonnel = onNavigateToPersonnel
+                            )
+                        }
+                    }
+
+                    // 5. AGENDA SURAT TERBARU
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "AGENDA SURAT TERBARU",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                letterSpacing = 1.sp
+                            )
+                            TextButton(onClick = onNavigateToLetters) {
+                                Text("Lihat Semua", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
                     if (state.recentLetters.isEmpty()) {
                         item {
                             EmptyStateView(
@@ -193,7 +601,6 @@ fun DashboardScreen(
                                         text = letter.subject.ifEmpty { "Perihal Surat Kedinasan" },
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -201,165 +608,60 @@ fun DashboardScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text(
-                                            text = "Dari: ${letter.sender.ifEmpty { "-" }}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = letter.date,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Text("Dari: ${letter.sender.ifEmpty { "-" }}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(letter.date, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
                             }
                         }
                     }
                 }
-                else -> {}
-            }
-        }
-    }
-}
-
-@Composable
-fun UserProfileCard(user: UserDto?) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(SindenTealPrimary),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = (user?.name?.take(2) ?: "DE").uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White
-                )
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "${user?.pangkat ?: "Personel"} ${user?.name ?: "Denintel"}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "NRP: ${user?.nrp ?: "-"} | Korps: ${user?.korps?.ifEmpty { "-" } ?: "-"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "Jabatan: ${user?.jabatan ?: "Staf Denintel"}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun StatsSection(
-    stats: DashboardStats,
-    onCashClick: () -> Unit,
-    onLettersClick: () -> Unit,
-    onSkhppClick: () -> Unit
-) {
-    val formatter = NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
-        maximumFractionDigits = 0
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // Saldo Kas Utama
-        ElevatedCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onCashClick() },
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.elevatedCardColors(containerColor = SindenTealPrimary)
-        ) {
-            Column(modifier = Modifier.padding(18.dp)) {
-                Text(
-                    text = "SALDO KAS DENINTEL",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White.copy(alpha = 0.85f),
-                    letterSpacing = 1.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatter.format(stats.cashBalance),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Klik untuk rincian arus kas masuk & keluar",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.75f)
-                )
             }
         }
 
-        // Row Statistik Surat & SKHPP
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onLettersClick() },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text(text = "Total Surat", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(text = "${stats.totalLetters}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = SindenOceanPrimary)
-                    Text(text = "Agenda terdaftar", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // DIALOG INFORMASI HAK AKSES RAMAH (MENGATASI MENU TIDAK BISA DIKLIK)
+        if (showPermissionDialog) {
+            AlertDialog(
+                onDismissRequest = { showPermissionDialog = false },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        text = "Akses Modul Terbatas",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Akun Anda saat ini belum memiliki izin khusus untuk membuka modul '$deniedModuleName'. Silakan berkoordinasi dengan Komandan Satuan atau Administrator Denintel untuk pembukaan hak akses.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { showPermissionDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = SindenTealPrimary)
+                    ) {
+                        Text("MENGERTI", fontWeight = FontWeight.Bold)
+                    }
                 }
-            }
-
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onSkhppClick() },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text(text = "SKHPP Tertunda", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(text = "${stats.pendingSkhpp}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, color = SindenGold)
-                    Text(text = "Menunggu verifikasi", style = MaterialTheme.typography.labelSmall, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            )
         }
     }
 }
 
 @Composable
-fun QuickActionsGrid(
+fun QuickActionsGridRedesign(
     user: UserDto?,
+    onActionClick: (String, Boolean, () -> Unit) -> Unit,
     onNavigateToLetters: () -> Unit,
     onNavigateToSkhpp: () -> Unit,
     onNavigateToCash: () -> Unit,
@@ -369,23 +671,25 @@ fun QuickActionsGrid(
     onNavigateToViolations: () -> Unit,
     onNavigateToPersonnel: () -> Unit
 ) {
-    data class MenuItem(
+    val isAdmin = user?.isAdminOrOfficer == true
+
+    data class ActionItem(
         val title: String,
         val icon: ImageVector,
         val color: Color,
-        val enabled: Boolean,
+        val permitted: Boolean,
         val onClick: () -> Unit
     )
 
     val items = listOf(
-        MenuItem("Agenda Surat", Icons.Default.Email, SindenOceanPrimary, user?.canAccessAgenda ?: true, onNavigateToLetters),
-        MenuItem("Penerbitan SKHPP", Icons.Default.Assignment, SindenTealPrimary, user?.canAccessSkhpp ?: true, onNavigateToSkhpp),
-        MenuItem("Kas Denintel", Icons.Default.AccountBalanceWallet, SindenGold, user?.canAccessCash ?: false, onNavigateToCash),
-        MenuItem("Kas Taktis", Icons.Default.Security, Color(0xFF8B5CF6), user?.canAccessTechnicalCash ?: false, onNavigateToTechnicalCash),
-        MenuItem("Mitra Intel", Icons.Default.Group, Color(0xFF0D9488), user?.canAccessMitra ?: false, onNavigateToMitra),
-        MenuItem("Tanda Tangan", Icons.Default.Draw, Color(0xFFE11D48), user?.canAccessSignature ?: true, onNavigateToSignature),
-        MenuItem("Pelanggaran", Icons.Default.Report, Color(0xFFDC2626), user?.canAccessViolations ?: true, onNavigateToViolations),
-        MenuItem("Personel", Icons.Default.Badge, SindenOceanPrimary, user?.canAccessUsers ?: true, onNavigateToPersonnel)
+        ActionItem("Kas Denintel", Icons.Default.AccountBalanceWallet, SindenGold, isAdmin || user?.canAccessCash == true, onNavigateToCash),
+        ActionItem("Kas Taktis", Icons.Default.Security, Color(0xFF8B5CF6), isAdmin || user?.canAccessTechnicalCash == true, onNavigateToTechnicalCash),
+        ActionItem("Mitra Intel", Icons.Default.Group, Color(0xFF0D9488), isAdmin || user?.canAccessMitra == true, onNavigateToMitra),
+        ActionItem("Agenda Surat", Icons.Default.Email, SindenOceanPrimary, true, onNavigateToLetters),
+        ActionItem("Penerbitan SKHPP", Icons.Default.Assignment, SindenTealPrimary, true, onNavigateToSkhpp),
+        ActionItem("Tanda Tangan", Icons.Default.Draw, Color(0xFFE11D48), isAdmin || user?.canAccessSignature == true, onNavigateToSignature),
+        ActionItem("Pelanggaran", Icons.Default.Report, Color(0xFFDC2626), true, onNavigateToViolations),
+        ActionItem("Personel", Icons.Default.Badge, Color(0xFF3B82F6), true, onNavigateToPersonnel)
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -395,14 +699,15 @@ fun QuickActionsGrid(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 rowItems.forEach { item ->
-                    Card(
+                    Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .clickable(enabled = item.enabled) { item.onClick() },
+                            .clickable {
+                                onActionClick(item.title, item.permitted, item.onClick)
+                            },
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (item.enabled) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 2.dp
                     ) {
                         Column(
                             modifier = Modifier
@@ -411,26 +716,26 @@ fun QuickActionsGrid(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(item.color.copy(alpha = if (item.enabled) 0.12f else 0.05f)),
-                                contentAlignment = Alignment.Center
+                            Surface(
+                                shape = CircleShape,
+                                color = item.color.copy(alpha = if (item.permitted) 0.15f else 0.08f),
+                                modifier = Modifier.size(42.dp)
                             ) {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.title,
-                                    tint = if (item.enabled) item.color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                    modifier = Modifier.size(22.dp)
-                                )
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = item.title,
+                                        tint = if (item.permitted) item.color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = item.title,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = if (item.enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                color = if (item.permitted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )

@@ -42,6 +42,8 @@ class SettingController extends Controller
         $textFields = [
             'agency_name', 'copyright', 'start_number', 'wa_notifications_enabled', 
             'mobile_api_base_url', 'mobile_apk_download_url', 'mobile_api_status', 'mobile_min_version',
+            'mobile_theme_mode', 'mobile_primary_color', 'mobile_accent_color', 'mobile_card_radius',
+            'mobile_show_balance_card', 'mobile_show_summary_trio', 'mobile_show_quick_actions',
             'google_client_id', 'google_client_secret', 'google_login_enabled',
             'agora_app_id', 'agora_app_certificate'
         ];

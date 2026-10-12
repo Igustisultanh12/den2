@@ -18,6 +18,7 @@ class SindenApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        id.my.sisinden.app.core.notification.NotificationHelper.createNotificationChannel(this)
         dataStoreManager = DataStoreManager(this)
         apiClient = ApiClient(dataStoreManager)
         repository = SindenRepository(dataStoreManager, apiClient)

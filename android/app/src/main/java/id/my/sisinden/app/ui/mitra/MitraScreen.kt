@@ -3,17 +3,25 @@ package id.my.sisinden.app.ui.mitra
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import id.my.sisinden.app.core.ui.components.*
+import id.my.sisinden.app.core.ui.theme.SindenOceanPrimary
+import id.my.sisinden.app.core.ui.theme.SindenTealPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,15 +37,15 @@ fun MitraScreen(
         topBar = {
             SindenTopBar(
                 title = "Mitra Intelijen",
-                subtitle = "Pembinaan Jaringan Lapangan",
+                subtitle = "Pembinaan Jaringan Kerja Lapangan",
                 onBackClick = onBackClick
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddModal = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                containerColor = SindenTealPrimary,
+                contentColor = Color.White,
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Tambah Mitra")
@@ -50,7 +58,7 @@ fun MitraScreen(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { viewModel.setSearchQuery(it) },
-                    placeholder = { Text("Cari nama samaran, sektor, nomor HP...") },
+                    placeholder = { Text("Cari nama mitra, perusahaan, no HP...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
@@ -67,7 +75,7 @@ fun MitraScreen(
                         if (state.list.isEmpty()) {
                             EmptyStateView(
                                 title = "Belum Ada Mitra Terdaftar",
-                                message = "Belum ada catatan pembinaan mitra intelijen."
+                                message = "Belum ada catatan pembinaan mitra intelijen yang cocok."
                             )
                         } else {
                             LazyColumn(
@@ -79,7 +87,8 @@ fun MitraScreen(
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(16.dp),
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                                     ) {
                                         Column(
                                             modifier = Modifier.padding(16.dp),
@@ -90,43 +99,92 @@ fun MitraScreen(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(
-                                                    text = mitra.codeName.ifEmpty { "Agen Rahasia" },
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.primary
-                                                )
-                                                StatusPill(status = mitra.paymentStatus)
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    Surface(
+                                                        shape = CircleShape,
+                                                        color = Color(0xFF0D9488).copy(alpha = 0.12f),
+                                                        modifier = Modifier.size(38.dp)
+                                                    ) {
+                                                        Box(contentAlignment = Alignment.Center) {
+                                                            Text(
+                                                                text = mitra.name.take(2).uppercase(),
+                                                                fontWeight = FontWeight.Black,
+                                                                color = Color(0xFF0D9488),
+                                                                fontSize = 13.sp
+                                                            )
+                                                        }
+                                                    }
+                                                    Column {
+                                                        Text(
+                                                            text = mitra.name,
+                                                            style = MaterialTheme.typography.titleMedium,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                        Text(
+                                                            text = mitra.sector,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
+                                                }
+
+                                                val isPaid = mitra.isPaidThisMonth
+                                                Surface(
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    color = if (isPaid) Color(0xFFDCFCE7) else Color(0xFFFEF3C7)
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (isPaid) Icons.Default.CheckCircle else Icons.Default.Pending,
+                                                            contentDescription = null,
+                                                            tint = if (isPaid) Color(0xFF16A34A) else Color(0xFFD97706),
+                                                            modifier = Modifier.size(14.dp)
+                                                        )
+                                                        Text(
+                                                            text = if (isPaid) "Lunas" else "Belum",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = if (isPaid) Color(0xFF16A34A) else Color(0xFFD97706)
+                                                        )
+                                                    }
+                                                }
                                             }
 
-                                            Text(
-                                                text = "Nama: ${mitra.name} | Kontak: ${mitra.phone}",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-
-                                            Text(
-                                                text = "Sektor / Wilayah: ${mitra.sector.ifEmpty { "-" }}",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
+                                            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), thickness = 0.5.dp)
 
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(
-                                                    text = "Kontak terakhir: ${mitra.lastContact}",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Call, contentDescription = null, tint = SindenOceanPrimary, modifier = Modifier.size(16.dp))
+                                                    Text(
+                                                        text = mitra.phone,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                }
 
                                                 TextButton(
-                                                    onClick = { viewModel.togglePayment(mitra.id, mitra.paymentStatus) }
+                                                    onClick = {
+                                                        val current = if (mitra.isPaidThisMonth) "sudah_dibayar" else "belum_dibayar"
+                                                        viewModel.togglePayment(mitra.id, current)
+                                                    }
                                                 ) {
                                                     Text(
-                                                        text = if (mitra.paymentStatus == "sudah_dibayar") "Tandai Belum" else "Tandai Dibayar",
+                                                        text = if (mitra.isPaidThisMonth) "Tandai Belum" else "Tandai Lunas",
                                                         style = MaterialTheme.typography.labelSmall,
                                                         fontWeight = FontWeight.Bold
                                                     )
@@ -151,15 +209,15 @@ fun MitraScreen(
                 ModalBottomSheet(onDismissRequest = { showAddModal = false }) {
                     var name by remember { mutableStateOf("") }
                     var phone by remember { mutableStateOf("") }
-                    var codeName by remember { mutableStateOf("") }
                     var sector by remember { mutableStateOf("") }
+                    var notes by remember { mutableStateOf("") }
 
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(24.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Text(
-                            text = "Tambah Mitra Intelijen Baru",
+                            text = "Daftarkan Mitra Lapangan Baru",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -167,25 +225,8 @@ fun MitraScreen(
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it },
-                            label = { Text("Nama Asli Mitra *") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        OutlinedTextField(
-                            value = codeName,
-                            onValueChange = { codeName = it },
-                            label = { Text("Nama Samaran / Kode Sandi *") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        OutlinedTextField(
-                            value = phone,
-                            onValueChange = { phone = it },
-                            label = { Text("Nomor HP / WhatsApp") },
+                            label = { Text("Nama Mitra *") },
+                            placeholder = { Text("Contoh: Pak Rahman") },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
@@ -194,25 +235,45 @@ fun MitraScreen(
                         OutlinedTextField(
                             value = sector,
                             onValueChange = { sector = it },
-                            label = { Text("Sektor Penugasan") },
+                            label = { Text("Perusahaan / Sektor *") },
+                            placeholder = { Text("Contoh: PT. Ocean Energi") },
                             singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = phone,
+                            onValueChange = { phone = it },
+                            label = { Text("Nomor HP / WhatsApp *") },
+                            placeholder = { Text("Contoh: 08123456789") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedTextField(
+                            value = notes,
+                            onValueChange = { notes = it },
+                            label = { Text("Keterangan Tambahan") },
+                            minLines = 2,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
 
                         Button(
                             onClick = {
-                                if (name.isNotEmpty() && codeName.isNotEmpty()) {
-                                    viewModel.createMitra(name, phone, codeName, sector) {
+                                if (name.isNotEmpty() && sector.isNotEmpty() && phone.isNotEmpty()) {
+                                    viewModel.createMitra(name, phone, sector, notes) {
                                         showAddModal = false
                                     }
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            colors = ButtonDefaults.buttonColors(containerColor = SindenTealPrimary),
                             modifier = Modifier.fillMaxWidth().height(48.dp)
                         ) {
-                            Text("DAFTARKAN MITRA", fontWeight = FontWeight.Bold)
+                            Text("SIMPAN DATA MITRA", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

@@ -10,9 +10,12 @@ interface SindenApiService {
     @GET("/api/mobile/config")
     suspend fun getConfig(): Response<ConfigResponse>
 
-    // 2. Autentikasi
+    // 2. Autentikasi & Aktivasi
     @POST("/api/mobile/login")
     suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
+
+    @POST("/api/mobile/activate")
+    suspend fun activateAccount(@Body request: ActivateRequest): Response<SimpleResponse>
 
     // 3. Agenda & Log Surat
     @GET("/api/mobile/letter-logs")

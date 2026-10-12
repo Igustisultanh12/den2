@@ -2,6 +2,7 @@ package id.my.sisinden.app.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import id.my.sisinden.app.data.model.ActivateRequest
 import id.my.sisinden.app.data.model.ConfigResponse
 import id.my.sisinden.app.data.model.UserDto
 import id.my.sisinden.app.data.repository.NetworkResult
@@ -18,10 +19,20 @@ sealed interface LoginUiState {
     data class Error(val message: String) : LoginUiState
 }
 
+sealed interface ActivateUiState {
+    data object Idle : ActivateUiState
+    data object Loading : ActivateUiState
+    data class Success(val message: String) : ActivateUiState
+    data class Error(val message: String) : ActivateUiState
+}
+
 class AuthViewModel(private val repository: SindenRepository) : ViewModel() {
 
     private val _loginState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val loginState: StateFlow<LoginUiState> = _loginState.asStateFlow()
+
+    private val _activateState = MutableStateFlow<ActivateUiState>(ActivateUiState.Idle)
+    val activateState: StateFlow<ActivateUiState> = _activateState.asStateFlow()
 
     private val _configState = MutableStateFlow<ConfigResponse?>(null)
     val configState: StateFlow<ConfigResponse?> = _configState.asStateFlow()
@@ -67,14 +78,37 @@ class AuthViewModel(private val repository: SindenRepository) : ViewModel() {
         }
     }
 
+    fun activate(nrp: String, name: String, pass: String) {
+        val trimmedNrp = nrp.trim()
+        val trimmedName = name.trim()
+        if (trimmedNrp.isEmpty() || pass.isEmpty()) {
+            _activateState.value = ActivateUiState.Error("NRP dan Kata Sandi baru wajib diisi.")
+            return
+        }
+
+        _activateState.value = ActivateUiState.Loading
+        viewModelScope.launch {
+            when (val result = repository.activateAccount(ActivateRequest(trimmedNrp, trimmedName, pass))) {
+                is NetworkResult.Success -> {
+                    _activateState.value = ActivateUiState.Success(result.data.message ?: "Aktivasi berhasil.")
+                }
+                is NetworkResult.Error -> {
+                    _activateState.value = ActivateUiState.Error(result.message)
+                }
+            }
+        }
+    }
+
     fun resetState() {
         _loginState.value = LoginUiState.Idle
+        _activateState.value = ActivateUiState.Idle
     }
 
     fun logout() {
         viewModelScope.launch {
             repository.logout()
             _loginState.value = LoginUiState.Idle
+            _activateState.value = ActivateUiState.Idle
         }
     }
 }

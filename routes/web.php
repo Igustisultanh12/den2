@@ -609,18 +609,18 @@ Route::post('/api/mobile/login', function (\Illuminate\Http\Request $request) {
                 'korps' => $user->korps ?? '',
                 'jabatan' => $user->jabatan ?? '',
                 'is_active' => (bool)($user->is_active ?? true),
-                'can_access_agenda' => (bool)($user->can_access_agenda ?? true),
-                'can_access_letters' => (bool)($user->can_access_letters ?? true),
-                'can_access_skhpp' => (bool)($user->can_access_skhpp ?? true),
-                'can_access_categories' => (bool)($user->can_access_categories ?? true),
-                'can_access_signature' => (bool)($user->can_access_signature ?? true),
-                'can_access_cash' => (bool)($user->can_access_cash ?? false),
-                'can_access_commander' => (bool)($user->can_access_commander ?? false),
-                'can_access_mitra' => (bool)($user->can_access_mitra ?? false),
-                'can_access_technical_cash' => (bool)($user->can_access_technical_cash ?? false),
-                'can_access_ibu_beti' => (bool)($user->can_access_ibu_beti ?? false),
-                'can_access_violations' => (bool)($user->can_access_violations ?? true),
-                'can_access_activities' => (bool)($user->can_access_activities ?? true),
+                'can_access_agenda' => (bool)($user->role === 'admin' || ($user->can_access_agenda ?? true)),
+                'can_access_letters' => (bool)($user->role === 'admin' || ($user->can_access_letters ?? true)),
+                'can_access_skhpp' => (bool)($user->role === 'admin' || ($user->can_access_skhpp ?? true)),
+                'can_access_categories' => (bool)($user->role === 'admin' || ($user->can_access_categories ?? true)),
+                'can_access_signature' => (bool)($user->role === 'admin' || ($user->can_access_signature ?? true)),
+                'can_access_cash' => (bool)($user->role === 'admin' || !empty($user->can_access_cash)),
+                'can_access_commander' => (bool)($user->role === 'admin' || !empty($user->can_access_commander)),
+                'can_access_mitra' => (bool)($user->role === 'admin' || !empty($user->can_access_mitra)),
+                'can_access_technical_cash' => (bool)($user->role === 'admin' || !empty($user->can_access_technical_cash)),
+                'can_access_ibu_beti' => (bool)($user->role === 'admin' || !empty($user->can_access_ibu_beti)),
+                'can_access_violations' => (bool)($user->role === 'admin' || ($user->can_access_violations ?? true)),
+                'can_access_activities' => (bool)($user->role === 'admin' || ($user->can_access_activities ?? true)),
                 'can_access_users' => (bool)($user->role === 'admin'),
                 'can_access_settings' => (bool)($user->role === 'admin'),
             ],
@@ -669,15 +669,61 @@ Route::get('/api/mobile/config', function () {
         'apk_download_url' => $settings['mobile_apk_download_url'] ?? 'https://sisinden.my.id/download/sinden-mobile.apk',
         'api_status' => $settings['mobile_api_status'] ?? 'AKTIF',
         'min_version' => $settings['mobile_min_version'] ?? '1.0.0',
+        'mobile_theme_mode' => $settings['mobile_theme_mode'] ?? 'system',
+        'mobile_primary_color' => $settings['mobile_primary_color'] ?? '#1E3A8A',
+        'mobile_accent_color' => $settings['mobile_accent_color'] ?? '#0284C7',
+        'mobile_card_radius' => (int)($settings['mobile_card_radius'] ?? 20),
+        'mobile_show_balance_card' => ($settings['mobile_show_balance_card'] ?? '1') === '1',
+        'mobile_show_summary_trio' => ($settings['mobile_show_summary_trio'] ?? '1') === '1',
+        'mobile_show_quick_actions' => ($settings['mobile_show_quick_actions'] ?? '1') === '1',
         'server_time' => now()->toIso8601String(),
     ]);
 });
 
+// AKTIVASI AKUN MOBILE
+Route::post('/api/mobile/activate', function (\Illuminate\Http\Request $request) {
+    try {
+        $data = $request->json()->all() ?: $request->all();
+        $nrp = trim($data['nrp'] ?? '');
+        $name = trim($data['name'] ?? '');
+        $password = $data['password'] ?? '';
+
+        if (empty($nrp) || empty($password)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'NRP dan Kata Sandi baru wajib diisi.'
+            ], 422);
+        }
+
+        $user = \App\Models\User::where('nrp', $nrp)
+            ->orWhere('email', $nrp)
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Personel dengan NRP {$nrp} belum terdaftar di sistem dinas. Silakan hubungi Staf Intel / Admin."
+            ], 404);
+        }
+
+        $user->password = \Illuminate\Support\Facades\Hash::make($password);
+        $user->is_active = true;
+        if (!empty($name)) {
+            $user->name = $name;
+        }
+        $user->save();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Aktivasi akun {$user->name} berhasil. Silakan masuk ke aplikasi menggunakan kata sandi baru Anda."
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+});
+
 // =====================================================================
-
-
-
-// GERBANG REST API LENGKAP SINDEN MOBILE (SINKRONISASI REAL-TIME DATA)
+// GERBANG REST API LENGKAP SINDEN MOBILE (SINKRONISASI DATA LANGSUNG)
 // =====================================================================
 
 // 1. API BUKU KAS UNIT (Model: App\Models\Cash)
@@ -724,6 +770,9 @@ Route::get('/api/mobile/cash', function () {
             'status' => 'success',
             'balance' => $totalSaldo,
             'totalSaldo' => $totalSaldo,
+            'total_balance' => $totalSaldo,
+            'total_income' => $totalDebit,
+            'total_expense' => $totalCredit,
             'total_debit' => $totalDebit,
             'total_credit' => $totalCredit,
             'cashes' => $reversed,
@@ -1349,6 +1398,9 @@ Route::get('/api/mobile/technical-cash', function () {
             'status' => 'success',
             'balance' => $balance,
             'totalSaldo' => $balance,
+            'total_balance' => $balance,
+            'total_income' => $totalDebit,
+            'total_expense' => $totalCredit,
             'total_debit' => $totalDebit,
             'total_credit' => $totalCredit,
             'cashes' => $reversed,

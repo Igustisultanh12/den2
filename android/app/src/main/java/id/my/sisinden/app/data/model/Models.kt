@@ -1,10 +1,17 @@
 package id.my.sisinden.app.data.model
 
 import com.google.gson.annotations.SerializedName
+import java.util.Calendar
 
 // --- MODUL AUTENTIKASI ---
 data class LoginRequest(
     @SerializedName("username") val username: String,
+    @SerializedName("password") val password: String
+)
+
+data class ActivateRequest(
+    @SerializedName("nrp") val nrp: String,
+    @SerializedName("name") val name: String,
     @SerializedName("password") val password: String
 )
 
@@ -39,7 +46,10 @@ data class UserDto(
     @SerializedName("can_access_activities") val canAccessActivities: Boolean = true,
     @SerializedName("can_access_users") val canAccessUsers: Boolean = false,
     @SerializedName("can_access_settings") val canAccessSettings: Boolean = false
-)
+) {
+    val isAdminOrOfficer: Boolean
+        get() = role.lowercase() in listOf("admin", "superadmin", "komandan", "danden", "bendahara", "keuangan")
+}
 
 // --- MODUL KONFIGURASI SERVER ---
 data class ConfigResponse(
@@ -52,6 +62,13 @@ data class ConfigResponse(
     @SerializedName("apk_download_url") val apkDownloadUrl: String? = null,
     @SerializedName("api_status") val apiStatus: String? = null,
     @SerializedName("min_version") val minVersion: String? = null,
+    @SerializedName("mobile_theme_mode") val mobileThemeMode: String? = "system",
+    @SerializedName("mobile_primary_color") val mobilePrimaryColor: String? = "#1E3A8A",
+    @SerializedName("mobile_accent_color") val mobileAccentColor: String? = "#0284C7",
+    @SerializedName("mobile_card_radius") val mobileCardRadius: Int? = 20,
+    @SerializedName("mobile_show_balance_card") val mobileShowBalanceCard: Boolean? = true,
+    @SerializedName("mobile_show_summary_trio") val mobileShowSummaryTrio: Boolean? = true,
+    @SerializedName("mobile_show_quick_actions") val mobileShowQuickActions: Boolean? = true,
     @SerializedName("server_time") val serverTime: String? = null
 )
 
@@ -111,19 +128,29 @@ data class CreateSkhppRequest(
 // --- MODUL KAS DENINTEL ---
 data class CashTransactionDto(
     @SerializedName("id") val id: Int = 0,
-    @SerializedName("type") val type: String = "masuk", // masuk, keluar
-    @SerializedName("amount") val amount: Double = 0.0,
-    @SerializedName("category") val category: String = "",
+    @SerializedName("type") val type: String? = null, // masuk, keluar
+    @SerializedName(value = "amount", alternate = ["nominal"]) val amount: Double = 0.0,
+    @SerializedName("debit") val debit: Double = 0.0,
+    @SerializedName("credit") val credit: Double = 0.0,
+    @SerializedName("balance") val balance: Double = 0.0,
+    @SerializedName("category") val category: String = "Operasional",
     @SerializedName("description") val description: String = "",
-    @SerializedName("date") val date: String = ""
-)
+    @SerializedName("date") val date: String = "",
+    @SerializedName("receipt_urls") val receiptUrls: List<String> = emptyList()
+) {
+    val isIncome: Boolean
+        get() = debit > 0 || (type?.lowercase() == "masuk")
+
+    val effectiveAmount: Double
+        get() = if (debit > 0) debit else if (credit > 0) credit else amount
+}
 
 data class CashResponse(
     @SerializedName("status") val status: String = "success",
-    @SerializedName("total_balance") val totalBalance: Double = 0.0,
-    @SerializedName("total_income") val totalIncome: Double = 0.0,
-    @SerializedName("total_expense") val totalExpense: Double = 0.0,
-    @SerializedName("transactions") val transactions: List<CashTransactionDto> = emptyList()
+    @SerializedName(value = "balance", alternate = ["totalSaldo", "total_balance"]) val totalBalance: Double = 0.0,
+    @SerializedName(value = "total_debit", alternate = ["total_income", "debit"]) val totalIncome: Double = 0.0,
+    @SerializedName(value = "total_credit", alternate = ["total_expense", "credit"]) val totalExpense: Double = 0.0,
+    @SerializedName(value = "cashes", alternate = ["transactions", "data"]) val transactions: List<CashTransactionDto> = emptyList()
 )
 
 data class CreateCashRequest(
@@ -136,16 +163,27 @@ data class CreateCashRequest(
 // --- MODUL KAS TAKTIS OPERASI ---
 data class TechnicalCashTransactionDto(
     @SerializedName("id") val id: Int = 0,
-    @SerializedName("type") val type: String = "keluar",
+    @SerializedName("type") val type: String? = null,
     @SerializedName("amount") val amount: Double = 0.0,
+    @SerializedName("debit") val debit: Double = 0.0,
+    @SerializedName("credit") val credit: Double = 0.0,
+    @SerializedName("balance") val balance: Double = 0.0,
     @SerializedName("description") val description: String = "",
     @SerializedName("date") val date: String = ""
-)
+) {
+    val isIncome: Boolean
+        get() = debit > 0 || (type?.lowercase() == "masuk")
+
+    val effectiveAmount: Double
+        get() = if (debit > 0) debit else if (credit > 0) credit else amount
+}
 
 data class TechnicalCashResponse(
     @SerializedName("status") val status: String = "success",
-    @SerializedName("balance") val balance: Double = 0.0,
-    @SerializedName("transactions") val transactions: List<TechnicalCashTransactionDto> = emptyList()
+    @SerializedName(value = "balance", alternate = ["totalSaldo", "total_balance"]) val balance: Double = 0.0,
+    @SerializedName(value = "total_debit", alternate = ["total_income"]) val totalDebit: Double = 0.0,
+    @SerializedName(value = "total_credit", alternate = ["total_expense"]) val totalCredit: Double = 0.0,
+    @SerializedName(value = "cashes", alternate = ["transactions", "data"]) val transactions: List<TechnicalCashTransactionDto> = emptyList()
 )
 
 data class CreateTechnicalCashRequest(
@@ -157,13 +195,24 @@ data class CreateTechnicalCashRequest(
 // --- MODUL MITRA INTELIJEN ---
 data class MitraDto(
     @SerializedName("id") val id: Int = 0,
-    @SerializedName("name") val name: String = "",
-    @SerializedName("code_name") val codeName: String = "",
-    @SerializedName("phone") val phone: String = "",
-    @SerializedName("sector") val sector: String = "",
-    @SerializedName("payment_status") val paymentStatus: String = "belum_dibayar",
-    @SerializedName("last_contact") val lastContact: String = ""
-)
+    @SerializedName(value = "nama", alternate = ["name", "code_name"]) val nama: String = "",
+    @SerializedName(value = "pt", alternate = ["sector", "perusahaan"]) val pt: String = "",
+    @SerializedName(value = "no_tlp", alternate = ["phone", "telepon"]) val noTlp: String = "",
+    @SerializedName("sort_order") val sortOrder: Int = 0,
+    @SerializedName("keterangan") val keterangan: String? = null,
+    @SerializedName("payment_matrix") val paymentMatrix: Map<String, Boolean>? = null,
+    @SerializedName(value = "payment_status", alternate = ["status"]) val paymentStatus: String? = null
+) {
+    val name: String get() = nama.ifEmpty { "Mitra Sandi" }
+    val phone: String get() = noTlp.ifEmpty { "-" }
+    val sector: String get() = pt.ifEmpty { "Umum" }
+    val isPaidThisMonth: Boolean
+        get() {
+            if (paymentStatus == "sudah_dibayar" || paymentStatus == "lunas") return true
+            val currentMonth = (Calendar.getInstance().get(Calendar.MONTH) + 1).toString()
+            return paymentMatrix?.get(currentMonth) == true
+        }
+}
 
 data class MitraResponse(
     @SerializedName("status") val status: String = "success",
@@ -171,10 +220,10 @@ data class MitraResponse(
 )
 
 data class CreateMitraRequest(
-    @SerializedName("name") val name: String,
-    @SerializedName("phone") val phone: String,
-    @SerializedName("code_name") val codeName: String,
-    @SerializedName("target_area") val targetArea: String
+    @SerializedName("nama") val name: String,
+    @SerializedName("no_tlp") val phone: String,
+    @SerializedName("pt") val sector: String,
+    @SerializedName("keterangan") val notes: String = ""
 )
 
 // --- MODUL TANDA TANGAN ELEKTRONIK ---

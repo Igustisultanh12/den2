@@ -18,6 +18,13 @@ const form = useForm({
     mobile_apk_download_url: props.settings.mobile_apk_download_url || 'https://sisinden.my.id/download/sinden-mobile.apk',
     mobile_api_status: props.settings.mobile_api_status || 'AKTIF',
     mobile_min_version: props.settings.mobile_min_version || '1.0.0',
+    mobile_theme_mode: props.settings.mobile_theme_mode || 'system',
+    mobile_primary_color: props.settings.mobile_primary_color || '#1E3A8A',
+    mobile_accent_color: props.settings.mobile_accent_color || '#0284C7',
+    mobile_card_radius: props.settings.mobile_card_radius || 20,
+    mobile_show_balance_card: props.settings.mobile_show_balance_card !== undefined ? String(props.settings.mobile_show_balance_card) : '1',
+    mobile_show_summary_trio: props.settings.mobile_show_summary_trio !== undefined ? String(props.settings.mobile_show_summary_trio) : '1',
+    mobile_show_quick_actions: props.settings.mobile_show_quick_actions !== undefined ? String(props.settings.mobile_show_quick_actions) : '1',
     google_client_id: props.settings.google_client_id || '',
     google_client_secret: props.settings.google_client_secret || '',
     google_login_enabled: props.settings.google_login_enabled !== undefined ? String(props.settings.google_login_enabled) : '1',
@@ -338,6 +345,55 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
                                 <label class="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider ms-1">Versi Minimum APK Mobile</label>
                                 <input v-model="form.mobile_min_version" type="text" class="w-full rounded-2xl border-indigo-200 bg-white focus:ring-indigo-500 focus:border-indigo-600 text-xs font-extrabold px-4 py-3 text-slate-800" placeholder="1.0.0">
                                 <p class="text-[9px] text-indigo-500 font-bold ms-1">Versi minimum aplikasi Android yang diizinkan.</p>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider ms-1">Mode Tema Mobile</label>
+                                <select v-model="form.mobile_theme_mode" class="w-full rounded-2xl border-indigo-200 bg-white focus:ring-indigo-500 focus:border-indigo-600 text-xs font-extrabold px-4 py-3 text-slate-800">
+                                    <option value="system">Mengikuti Sistem HP (Otomatis)</option>
+                                    <option value="light">Tema Terang (Light Mode)</option>
+                                    <option value="dark">Tema Gelap (Dark Mode)</option>
+                                </select>
+                                <p class="text-[9px] text-indigo-500 font-bold ms-1">Tampilan warna tema default aplikasi di HP.</p>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider ms-1">Warna Primer Mobile</label>
+                                <div class="flex items-center gap-2">
+                                    <input v-model="form.mobile_primary_color" type="color" class="w-10 h-10 rounded-xl border border-indigo-200 cursor-pointer p-0.5 bg-white">
+                                    <input v-model="form.mobile_primary_color" type="text" class="flex-1 rounded-2xl border-indigo-200 bg-white focus:ring-indigo-500 focus:border-indigo-600 font-mono text-xs font-bold px-4 py-3 text-slate-800" placeholder="#1E3A8A">
+                                </div>
+                                <p class="text-[9px] text-indigo-500 font-bold ms-1">Warna kartu saldo dan bilah atas aplikasi.</p>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider ms-1">Warna Aksen Mobile</label>
+                                <div class="flex items-center gap-2">
+                                    <input v-model="form.mobile_accent_color" type="color" class="w-10 h-10 rounded-xl border border-indigo-200 cursor-pointer p-0.5 bg-white">
+                                    <input v-model="form.mobile_accent_color" type="text" class="flex-1 rounded-2xl border-indigo-200 bg-white focus:ring-indigo-500 focus:border-indigo-600 font-mono text-xs font-bold px-4 py-3 text-slate-800" placeholder="#0284C7">
+                                </div>
+                                <p class="text-[9px] text-indigo-500 font-bold ms-1">Warna tombol sorotan dan badge aktif.</p>
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider ms-1">Radius Sudut Kartu (DP)</label>
+                                <input v-model="form.mobile_card_radius" type="number" min="8" max="32" class="w-full rounded-2xl border-indigo-200 bg-white focus:ring-indigo-500 focus:border-indigo-600 text-xs font-extrabold px-4 py-3 text-slate-800" placeholder="20">
+                                <p class="text-[9px] text-indigo-500 font-bold ms-1">Tingkat kelengkungan sudut kartu dashboard (8 - 32 dp).</p>
+                            </div>
+
+                            <div class="md:col-span-2 pt-4 border-t border-indigo-100 flex flex-wrap gap-4 items-center">
+                                <label class="flex items-center gap-2 cursor-pointer bg-white px-4 py-2.5 rounded-2xl border border-indigo-200">
+                                    <input type="checkbox" :checked="form.mobile_show_balance_card === '1'" @change="form.mobile_show_balance_card = $event.target.checked ? '1' : '0'" class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                    <span class="text-[11px] font-extrabold text-slate-700">Tampilkan Kartu Saldo Utama</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer bg-white px-4 py-2.5 rounded-2xl border border-indigo-200">
+                                    <input type="checkbox" :checked="form.mobile_show_summary_trio === '1'" @change="form.mobile_show_summary_trio = $event.target.checked ? '1' : '0'" class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                    <span class="text-[11px] font-extrabold text-slate-700">Tampilkan Trio Ringkasan Keuangan</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer bg-white px-4 py-2.5 rounded-2xl border border-indigo-200">
+                                    <input type="checkbox" :checked="form.mobile_show_quick_actions === '1'" @change="form.mobile_show_quick_actions = $event.target.checked ? '1' : '0'" class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                    <span class="text-[11px] font-extrabold text-slate-700">Tampilkan Modul Akses Cepat</span>
+                                </label>
                             </div>
                         </div>
                     </div>

@@ -63,6 +63,15 @@ class SindenRepository(
         }
     }
 
+    suspend fun activateAccount(request: ActivateRequest): NetworkResult<SimpleResponse> {
+        return try {
+            val response = apiClient.getService().activateAccount(request)
+            handleResponse(response)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.localizedMessage ?: "Gagal memproses aktivasi akun.")
+        }
+    }
+
     suspend fun logout() {
         dataStoreManager.clearAuth()
     }

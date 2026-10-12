@@ -1,17 +1,18 @@
 package id.my.sisinden.app.ui.cash
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,7 @@ fun CashScreen(
 ) {
     val uiState by viewModel.cashState.collectAsState()
     var showAddModal by remember { mutableStateOf(false) }
+    var selectedFilter by remember { mutableStateOf("semua") } // semua, masuk, keluar
 
     val formatter = remember {
         NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
@@ -40,7 +42,7 @@ fun CashScreen(
         topBar = {
             SindenTopBar(
                 title = "Kas Denintel",
-                subtitle = "Pembukuan Keuangan Kedinasan",
+                subtitle = "Pembukuan Kas Satuan Kedinasan",
                 onBackClick = onBackClick
             )
         },
@@ -62,76 +64,124 @@ fun CashScreen(
                     ShimmerLoadingList()
                 }
                 is CashUiState.Success -> {
+                    val filteredTransactions = remember(state.data.transactions, selectedFilter) {
+                        when (selectedFilter) {
+                            "masuk" -> state.data.transactions.filter { it.isIncome }
+                            "keluar" -> state.data.transactions.filter { !it.isIncome }
+                            else -> state.data.transactions
+                        }
+                    }
+
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // Kartu Saldo Utama
+                        // 1. KARTU SALDO UTAMA BERGAYA EDITORIAL
                         item {
-                            ElevatedCard(
+                            Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.elevatedCardColors(containerColor = SindenTealPrimary)
+                                shape = RoundedCornerShape(22.dp),
+                                shadowElevation = 4.dp
                             ) {
-                                Column(modifier = Modifier.padding(20.dp)) {
-                                    Text(
-                                        text = "TOTAL SALDO BERJALAN",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color.White.copy(alpha = 0.85f),
-                                        letterSpacing = 1.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = formatter.format(state.data.totalBalance),
-                                        style = MaterialTheme.typography.headlineLarge,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color.White
-                                    )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color(0xFF0F2042),
+                                                    Color(0xFF1E3A8A)
+                                                )
+                                            )
+                                        )
+                                        .padding(22.dp)
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "TOTAL SALDO BERJALAN",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color.White.copy(alpha = 0.85f),
+                                            letterSpacing = 1.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = formatter.format(state.data.totalBalance),
+                                            style = MaterialTheme.typography.headlineLarge,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color.White
+                                        )
 
-                                    Spacer(modifier = Modifier.height(16.dp))
+                                        Spacer(modifier = Modifier.height(18.dp))
 
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Column {
-                                            Text(text = "Pemasukan", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
-                                            Text(text = formatter.format(state.data.totalIncome), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White)
-                                        }
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            Text(text = "Pengeluaran", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
-                                            Text(text = formatter.format(state.data.totalExpense), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column {
+                                                Text(text = "Pemasukan (+)", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
+                                                Text(
+                                                    text = formatter.format(state.data.totalIncome),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF67E8F9)
+                                                )
+                                            }
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text(text = "Pengeluaran (-)", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
+                                                Text(
+                                                    text = formatter.format(state.data.totalExpense),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFFCA5A5)
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
 
+                        // 2. FILTER PILLS
                         item {
-                            Text(
-                                text = "RIWAYAT TRANSAKSI KAS",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 1.sp
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilterChip(
+                                    selected = selectedFilter == "semua",
+                                    onClick = { selectedFilter = "semua" },
+                                    label = { Text("Semua (${state.data.transactions.size})") }
+                                )
+                                FilterChip(
+                                    selected = selectedFilter == "masuk",
+                                    onClick = { selectedFilter = "masuk" },
+                                    label = { Text("Kas Masuk") }
+                                )
+                                FilterChip(
+                                    selected = selectedFilter == "keluar",
+                                    onClick = { selectedFilter = "keluar" },
+                                    label = { Text("Kas Keluar") }
+                                )
+                            }
                         }
 
-                        if (state.data.transactions.isEmpty()) {
+                        // 3. DAFTAR RIWAYAT TRANSAKSI KAS
+                        if (filteredTransactions.isEmpty()) {
                             item {
                                 EmptyStateView(
-                                    title = "Belum Ada Transaksi",
-                                    message = "Belum terdapat transaksi kas masuk atau keluar yang tercatat."
+                                    title = "Tidak Ada Transaksi",
+                                    message = "Belum ada transaksi kas yang sesuai dengan filter yang dipilih."
                                 )
                             }
                         } else {
-                            items(state.data.transactions) { tx ->
+                            items(filteredTransactions) { tx ->
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -140,17 +190,16 @@ fun CashScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                                     ) {
-                                        val isIncome = tx.type.lowercase() == "masuk"
                                         Surface(
-                                            color = if (isIncome) StatusSuccess.copy(alpha = 0.12f) else StatusError.copy(alpha = 0.12f),
+                                            color = if (tx.isIncome) Color(0xFFDCFCE7) else Color(0xFFFFE4E6),
                                             shape = RoundedCornerShape(12.dp),
                                             modifier = Modifier.size(44.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
                                                 Icon(
-                                                    imageVector = if (isIncome) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                                                    imageVector = if (tx.isIncome) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
                                                     contentDescription = null,
-                                                    tint = if (isIncome) StatusSuccess else StatusError,
+                                                    tint = if (tx.isIncome) Color(0xFF16A34A) else Color(0xFFE11D48),
                                                     modifier = Modifier.size(22.dp)
                                                 )
                                             }
@@ -159,23 +208,33 @@ fun CashScreen(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = tx.description.ifEmpty { "Transaksi Kas" },
-                                                style = MaterialTheme.typography.titleMedium,
+                                                style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Text(
-                                                text = "${tx.category} | ${tx.date}",
+                                                text = "${tx.category} • ${tx.date}",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
 
-                                        Text(
-                                            text = "${if (isIncome) "+" else "-"}${formatter.format(tx.amount)}",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Black,
-                                            color = if (isIncome) StatusSuccess else StatusError
-                                        )
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = "${if (tx.isIncome) "+" else "-"}${formatter.format(tx.effectiveAmount)}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Black,
+                                                color = if (tx.isIncome) Color(0xFF16A34A) else Color(0xFFE11D48)
+                                            )
+                                            if (tx.balance > 0) {
+                                                Text(
+                                                    text = "Sisa: ${formatter.format(tx.balance)}",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontSize = 10.sp,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -190,7 +249,7 @@ fun CashScreen(
                 }
             }
 
-            // Modal Form Tambah Transaksi Kas
+            // MODAL FORM TAMBAH TRANSAKSI KAS
             if (showAddModal) {
                 ModalBottomSheet(
                     onDismissRequest = { showAddModal = false }
@@ -207,7 +266,7 @@ fun CashScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Text(
-                            text = "Tambah Transaksi Kas",
+                            text = "Tambah Transaksi Kas Denintel",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -229,7 +288,7 @@ fun CashScreen(
                             value = txAmount,
                             onValueChange = { txAmount = it },
                             label = { Text("Nominal (Rp) *") },
-                            placeholder = { Text("Contoh: 5000000") },
+                            placeholder = { Text("Contoh: 1500000") },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()

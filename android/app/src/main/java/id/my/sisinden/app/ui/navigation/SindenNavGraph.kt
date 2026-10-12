@@ -85,6 +85,7 @@ fun SindenApp(
 
     val bottomBarRoutes = listOf(
         NavRoute.Main.route,
+        NavRoute.Cash.route,
         NavRoute.LetterLogs.route,
         NavRoute.Skhpp.route,
         NavRoute.Settings.route
@@ -95,97 +96,122 @@ fun SindenApp(
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .navigationBarsPadding(),
+                    shape = RoundedCornerShape(28.dp),
+                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 2.dp
                 ) {
-                    NavigationBarItem(
-                        selected = currentRoute == NavRoute.Main.route,
-                        onClick = {
-                            if (currentRoute != NavRoute.Main.route) {
-                                navController.navigate(NavRoute.Main.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                    NavigationBar(
+                        containerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        tonalElevation = 0.dp,
+                        modifier = Modifier.height(68.dp)
+                    ) {
+                        NavigationBarItem(
+                            selected = currentRoute == NavRoute.Main.route,
+                            onClick = {
+                                if (currentRoute != NavRoute.Main.route) {
+                                    navController.navigate(NavRoute.Main.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
-                            }
-                        },
-                        icon = { Icon(Icons.Default.Home, contentDescription = "Beranda") },
-                        label = { Text("Beranda", fontWeight = FontWeight.Medium) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                            },
+                            icon = { Icon(Icons.Default.Home, contentDescription = "Beranda") },
+                            label = { Text("Beranda", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = SindenOceanPrimary,
+                                selectedTextColor = SindenOceanPrimary,
+                                indicatorColor = SindenOceanPrimary.copy(alpha = 0.12f)
+                            )
                         )
-                    )
 
-                    NavigationBarItem(
-                        selected = currentRoute == NavRoute.LetterLogs.route,
-                        onClick = {
-                            if (currentRoute != NavRoute.LetterLogs.route) {
-                                navController.navigate(NavRoute.LetterLogs.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                        NavigationBarItem(
+                            selected = currentRoute == NavRoute.Cash.route,
+                            onClick = {
+                                if (currentRoute != NavRoute.Cash.route) {
+                                    navController.navigate(NavRoute.Cash.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
-                            }
-                        },
-                        icon = { Icon(Icons.Default.Email, contentDescription = "Surat") },
-                        label = { Text("Surat", fontWeight = FontWeight.Medium) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                            },
+                            icon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = "Kas") },
+                            label = { Text("Kas", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = SindenGold,
+                                selectedTextColor = SindenGold,
+                                indicatorColor = SindenGold.copy(alpha = 0.12f)
+                            )
                         )
-                    )
 
-                    NavigationBarItem(
-                        selected = currentRoute == NavRoute.Skhpp.route,
-                        onClick = {
-                            if (currentRoute != NavRoute.Skhpp.route) {
-                                navController.navigate(NavRoute.Skhpp.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                        NavigationBarItem(
+                            selected = currentRoute == NavRoute.LetterLogs.route,
+                            onClick = {
+                                if (currentRoute != NavRoute.LetterLogs.route) {
+                                    navController.navigate(NavRoute.LetterLogs.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
-                            }
-                        },
-                        icon = { Icon(Icons.Default.Description, contentDescription = "SKHPP") },
-                        label = { Text("SKHPP", fontWeight = FontWeight.Medium) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                            },
+                            icon = { Icon(Icons.Default.Email, contentDescription = "Surat") },
+                            label = { Text("Surat", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = SindenOceanPrimary,
+                                selectedTextColor = SindenOceanPrimary,
+                                indicatorColor = SindenOceanPrimary.copy(alpha = 0.12f)
+                            )
                         )
-                    )
 
-                    NavigationBarItem(
-                        selected = currentRoute == NavRoute.Settings.route,
-                        onClick = {
-                            if (currentRoute != NavRoute.Settings.route) {
-                                navController.navigate(NavRoute.Settings.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                        NavigationBarItem(
+                            selected = currentRoute == NavRoute.Skhpp.route,
+                            onClick = {
+                                if (currentRoute != NavRoute.Skhpp.route) {
+                                    navController.navigate(NavRoute.Skhpp.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
-                            }
-                        },
-                        icon = { Icon(Icons.Default.Settings, contentDescription = "Pengaturan") },
-                        label = { Text("Pengaturan", fontWeight = FontWeight.Medium) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                            },
+                            icon = { Icon(Icons.Default.Description, contentDescription = "SKHPP") },
+                            label = { Text("SKHPP", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = SindenTealPrimary,
+                                selectedTextColor = SindenTealPrimary,
+                                indicatorColor = SindenTealPrimary.copy(alpha = 0.12f)
+                            )
                         )
-                    )
+
+                        NavigationBarItem(
+                            selected = currentRoute == NavRoute.Settings.route,
+                            onClick = {
+                                if (currentRoute != NavRoute.Settings.route) {
+                                    navController.navigate(NavRoute.Settings.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
+                            icon = { Icon(Icons.Default.Settings, contentDescription = "Pengaturan") },
+                            label = { Text("Setelan", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                    }
                 }
             }
         }
