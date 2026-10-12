@@ -26,12 +26,18 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      - name: Ensure Gradle Wrapper Jar Exists
+        run: |
+          if [ ! -f "android/gradle/wrapper/gradle-wrapper.jar" ]; then
+            curl -sSL "https://raw.githubusercontent.com/gradle/gradle/v8.9.0/gradle/wrapper/gradle-wrapper.jar" -o "android/gradle/wrapper/gradle-wrapper.jar"
+          fi
+
       - name: Grant Execute Permission for Gradlew
         run: chmod +x android/gradlew
 
       - name: Run Unit Tests
         working-directory: android
-        run: ./gradlew testReleaseUnitTest --stacktrace
+        run: ./gradlew test --stacktrace
 
       - name: Build Release APK
         working-directory: android
@@ -40,22 +46,23 @@ jobs:
       - name: Prepare APK Artifact
         run: |
           mkdir -p release-output
+          cp android/app/build/outputs/apk/release/app-release.apk release-output/SISINDEN-Release.apk
           cp android/app/build/outputs/apk/release/app-release.apk release-output/SISINDEN-v1.0.0.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SISINDEN-v1.0.0.apk
-          path: release-output/SISINDEN-v1.0.0.apk
+          name: SISINDEN-Android-Release-APK
+          path: release-output/*.apk
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}
-          name: "SISINDEN Android Native v1.0.0"
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v1.0.{0}', github.run_number) }}
+          name: ${{ startsWith(github.ref, 'refs/tags/v') && format('SISINDEN Android Native {0}', github.ref_name) || format('SISINDEN Android Native v1.0.{0}', github.run_number) }}
           body: |
-            ## Rilis Aplikasi SISINDEN Android Native v1.0.0
+            ## Rilis Aplikasi SISINDEN Android Native
             
             Aplikasi resmi kedinasan SISINDEN (Sistem Informasi dan Surat Intelijen Denintel Kodaeral V).
             
@@ -74,8 +81,8 @@ jobs:
             - Kerangka Kerja: Kotlin Jetpack Compose (Material 3)
             - Min SDK: Android 8.0 (API 26)
             - Target SDK: Android 14 (API 34)
-            - Berkas APK: SISINDEN-v1.0.0.apk
-          files: release-output/SISINDEN-v1.0.0.apk
+            - Berkas APK: SISINDEN-Release.apk dan SISINDEN-v1.0.0.apk
+          files: release-output/*.apk
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
