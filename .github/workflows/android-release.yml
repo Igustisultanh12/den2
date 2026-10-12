@@ -1,0 +1,81 @@
+name: Build and Release SISINDEN Android Native APK
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Native Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x android/gradlew
+
+      - name: Run Unit Tests
+        working-directory: android
+        run: ./gradlew testReleaseUnitTest --stacktrace
+
+      - name: Build Release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Prepare APK Artifact
+        run: |
+          mkdir -p release-output
+          cp android/app/build/outputs/apk/release/app-release.apk release-output/SISINDEN-v1.0.0.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SISINDEN-v1.0.0.apk
+          path: release-output/SISINDEN-v1.0.0.apk
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.0' }}
+          name: "SISINDEN Android Native v1.0.0"
+          body: |
+            ## Rilis Aplikasi SISINDEN Android Native v1.0.0
+            
+            Aplikasi resmi kedinasan SISINDEN (Sistem Informasi dan Surat Intelijen Denintel Kodaeral V).
+            
+            ### Fitur Utama:
+            - Otentikasi dan Keamanan: Integrasi login resmi, penyimpanan token terenkripsi DataStore Preferences.
+            - Agenda dan Log Surat Dinas: Pencatatan dan pemantauan surat masuk, surat keluar, disposisi.
+            - Pengajuan SKHPP: Layanan Surat Keterangan Hasil Penelitian Personel.
+            - Manajemen Kas dan Logistik: Monitoring Kas Denintel dan Kas Taktis Satuan.
+            - Mitra Intelijen: Monitoring jaringan kerja intelijen lapangan.
+            - Tanda Tangan Elektronik Komandan: Persetujuan dokumen resmi kedinasan.
+            - Pelanggaran Personel: Rekap catatan disiplin internal.
+            - Direktori Personel: Informasi kontak dinas seluruh personel satuan.
+            - Notifikasi Kedinasan: Saluran pengumuman dan instruksi resmi.
+            
+            ### Detail Teknis:
+            - Kerangka Kerja: Kotlin Jetpack Compose (Material 3)
+            - Min SDK: Android 8.0 (API 26)
+            - Target SDK: Android 14 (API 34)
+            - Berkas APK: SISINDEN-v1.0.0.apk
+          files: release-output/SISINDEN-v1.0.0.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

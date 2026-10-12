@@ -1,59 +1,160 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SISINDEN (Sistem Informasi dan Surat Intelijen Denintel Kodaeral V)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Repositori resmi sistem kedinasan SISINDEN untuk Detasemen Intelijen Kodaeral V (Komando Daerah Angkatan Laut V). Repositori ini memuat backend web dinas serta aplikasi Android Native resmi.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 1. Ikhtisar Aplikasi Android Native
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Aplikasi Android Native SISINDEN dirancang khusus untuk memenuhi standar operasional kedinasan intelijen dengan tampilan modern berbasis Jetpack Compose dan Material 3.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Platform:** Android Native (Min SDK: 26 / Android 8.0 Oreo, Target SDK: 34 / Android 14)
+- **Bahasa:** Kotlin
+- **UI Framework:** Jetpack Compose dengan Material 3
+- **Arsitektur:** Clean Architecture dengan pola MVVM (Model-View-ViewModel) dan Unidirectional Data Flow (UDF)
+- **Networking:** Retrofit 2 + OkHttp 4 + Gson Converter
+- **Penyimpanan Lokal:** Jetpack DataStore Preferences (penyimpanan token sesi dan konfigurasi server)
+- **Navigasi:** Jetpack Navigation Compose
+- **Build System:** Gradle Kotlin DSL (`build.gradle.kts`)
+- **Backend Produksi:** https://sisinden.my.id
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 2. Modul dan Fitur Aplikasi
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+1. **Otentikasi & Keamanan Kedinasan:**
+   - Login resmi menggunakan NRP / Username dan Sandi.
+   - Manajemen sesi aman dengan Bearer Token via Jetpack DataStore Preferences.
+   - Konfigurasi alamat server API dinamis (dapat diarahkan ke mirror internal).
 
-## Laravel Sponsors
+2. **Dashboard & Pemantauan Cepat:**
+   - Ringkasan profil dan hierarki dinas pengguna (NRP, Korps, Jabatan, Role).
+   - Indikator saldo Kas Denintel dan Kas Taktis Satuan.
+   - Metrik statistik volume surat masuk, surat keluar, dan disposisi.
+   - Menu aksi cepat ke seluruh modul operasional.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+3. **Agenda & Log Surat Dinas:**
+   - Filter tab surat (Semua, Surat Masuk, Surat Keluar, Disposisi).
+   - Pencarian dinamis berdasarkan nomor agenda, perihal, atau pengirim.
+   - Formulir pencatatan agenda surat dinas baru.
 
-### Premium Partners
+4. **Layanan SKHPP (Surat Keterangan Hasil Penelitian Personel):**
+   - Pemantauan status pengajuan (Pending, Terverifikasi).
+   - Validasi nama personel, pangkat, dan tujuan permohonan dinas.
+   - Formulir pengajuan permohonan SKHPP baru.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+5. **Manajemen Kas Denintel & Kas Taktis:**
+   - Rekapitulasi transaksi masuk dan keluar serta saldo akhir.
+   - Pencatatan transaksi baru dengan validasi nominal dan keterangan.
 
-## Contributing
+6. **Mitra Intelijen (Jaringan Kerja Lapangan):**
+   - Direktori mitra intelijen terenkripsi (nama samaran/code name, nomor kontak, sektor wilayah).
+   - Status dukungan operasional dan pencatatan mitra baru.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+7. **Tanda Tangan Digital Komandan:**
+   - Daftar permohonan persetujuan dokumen kedinasan.
+   - Verifikasi status persetujuan resmi.
 
-## Code of Conduct
+8. **Pelanggaran Personel Satuan:**
+   - Catatan rekap kedisiplinan dan kepatuhan etika dinas.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+9. **Direktori Personel Satuan:**
+   - Pencarian kontak personel, NRP, korps, pangkat, dan peranan.
 
-## Security Vulnerabilities
+10. **Notifikasi Kedinasan:**
+    - Saluran pengumuman resmi dan instruksi komando.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+11. **Preferensi & Personalisasi:**
+    - Pengaturan tema gelap (Dark Mode) dan informasi markas satuan.
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## 3. Struktur Direktori Proyek Android
+
+Proyek Android Native terletak pada subdirektori `android/`:
+
+```
+android/
+├── app/
+│   ├── build.gradle.kts
+│   ├── proguard-rules.pro
+│   └── src/
+│       ├── main/
+│       │   ├── AndroidManifest.xml
+│       │   ├── java/id/my/sisinden/app/
+│       │   │   ├── core/
+│       │   │   │   ├── data/DataStoreManager.kt
+│       │   │   │   ├── network/
+│       │   │   │   │   ├── ApiClient.kt
+│       │   │   │   │   └── SindenApiService.kt
+│       │   │   │   └── ui/
+│       │   │   │       ├── components/Components.kt
+│       │   │   │       └── theme/
+│       │   │   ├── data/
+│       │   │   │   ├── model/Models.kt
+│       │   │   │   └── repository/SindenRepository.kt
+│       │   │   ├── ui/
+│       │   │   │   ├── auth/
+│       │   │   │   ├── cash/
+│       │   │   │   ├── dashboard/
+│       │   │   │   ├── letters/
+│       │   │   │   ├── mitra/
+│       │   │   │   ├── navigation/
+│       │   │   │   ├── notifications/
+│       │   │   │   ├── personnel/
+│       │   │   │   ├── settings/
+│       │   │   │   ├── signature/
+│       │   │   │   ├── skhpp/
+│       │   │   │   └── violations/
+│       │   │   ├── MainActivity.kt
+│       │   │   └── SindenApplication.kt
+│       │   └── res/
+│       └── test/
+│           └── java/id/my/sisinden/app/SindenUnitTest.kt
+├── gradle/
+│   ├── libs.versions.toml
+│   └── wrapper/
+├── build.gradle.kts
+├── settings.gradle.kts
+├── gradle.properties
+├── gradlew
+└── gradlew.bat
+```
+
+---
+
+## 4. Panduan Kompilasi & Build
+
+### 4.1 Menjalankan Pengujian Unit
+```bash
+cd android
+./gradlew testReleaseUnitTest
+```
+
+### 4.2 Membangun APK Release
+```bash
+cd android
+./gradlew assembleRelease
+```
+Berkas APK yang dihasilkan akan berada di: `android/app/build/outputs/apk/release/app-release.apk`.
+
+---
+
+## 5. Otomatisasi CI/CD & GitHub Releases
+
+Pipeline GitHub Actions telah dikonfigurasi di `.github/workflows/android-release.yml`.
+
+Setiap kali pembaruan didorong ke cabang `main` atau tag rilis `v*` dibuat:
+1. Kode sumber diperiksa dan dikompilasi pada lingkungan Ubuntu runner.
+2. Seluruh unit test dieksekusi secara otomatis.
+3. APK Release (`SISINDEN-v1.0.0.apk`) dibangun dan ditandatangani.
+4. APK diterbitkan ke menu **GitHub Releases** dengan catatan rilis resmi.
+
+---
+
+## 6. Dokumentasi Teknis Terkait
+
+- [Analisis Sistem & Backend](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/ANALYSIS.md)
+- [Spesifikasi Integrasi API](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/API_INTEGRATION.md)
+- [Arsitektur Perangkat Lunak](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/ARCHITECTURE.md)
+- [Panduan Kompilasi dan Rilis](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/BUILD_AND_RELEASE.md)
