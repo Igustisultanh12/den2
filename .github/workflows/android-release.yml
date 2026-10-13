@@ -86,6 +86,7 @@ jobs:
               echo "Found APK: $apk"
               base=$(basename "$apk")
               cp "$apk" "release-output/$base"
+              cp "$apk" release-output/SISINDEN-v1.0.1.apk
               cp "$apk" release-output/SISINDEN-v1.0.0.apk
             fi
           done

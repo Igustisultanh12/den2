@@ -18,6 +18,21 @@ object NotificationHelper {
     const val CHANNEL_NAME = "Warta & Instruksi Kedinasan SINDEN"
     const val CHANNEL_DESC = "Pemberitahuan resmi dan instruksi komando kedinasan Denintel Kodaeral V"
 
+    private const val PREFS_NAME = "sinden_notification_prefs"
+    private const val PREF_LAST_NOTIFIED_ID = "last_notified_id"
+    private const val PREF_IS_INITIALIZED = "is_initialized"
+    private const val PREF_SOUND_ENABLED = "sound_enabled"
+
+    fun isNotificationSoundEnabled(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(PREF_SOUND_ENABLED, true)
+    }
+
+    fun setNotificationSoundEnabled(context: Context, enabled: Boolean) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(PREF_SOUND_ENABLED, enabled).apply()
+    }
+
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -40,6 +55,36 @@ object NotificationHelper {
         }
     }
 
+    fun processNewNotification(
+        context: Context,
+        notificationId: Int,
+        title: String,
+        message: String,
+        isRead: Boolean
+    ): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val initialized = prefs.getBoolean(PREF_IS_INITIALIZED, false)
+        val lastNotified = prefs.getInt(PREF_LAST_NOTIFIED_ID, 0)
+
+        // Sinkronisasi senyap pada peluncuran pertama: tidak membunyikan notifikasi lama
+        if (!initialized) {
+            prefs.edit()
+                .putBoolean(PREF_IS_INITIALIZED, true)
+                .putInt(PREF_LAST_NOTIFIED_ID, notificationId)
+                .apply()
+            return false
+        }
+
+        // Hanya berbunyi dan memunculkan banner jika notifikasi benar-benar baru dan belum dibaca
+        if (notificationId > lastNotified && !isRead) {
+            prefs.edit().putInt(PREF_LAST_NOTIFIED_ID, notificationId).apply()
+            showNotification(context, notificationId, title, message)
+            return true
+        }
+
+        return false
+    }
+
     fun showNotification(
         context: Context,
         notificationId: Int,
@@ -59,6 +104,7 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val soundEnabled = isNotificationSoundEnabled(context)
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -67,11 +113,16 @@ object NotificationHelper {
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setSound(soundUri)
-            .setVibrate(longArrayOf(0, 250, 150, 250))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+
+        if (soundEnabled) {
+            builder.setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setSound(soundUri)
+                .setVibrate(longArrayOf(0, 250, 150, 250))
+        } else {
+            builder.setSilent(true)
+        }
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(notificationId, builder.build())

@@ -48,7 +48,19 @@ data class UserDto(
     @SerializedName("can_access_settings") val canAccessSettings: Boolean = false
 ) {
     val isAdminOrOfficer: Boolean
-        get() = role.lowercase() in listOf("admin", "superadmin", "komandan", "danden", "bendahara", "keuangan")
+        get() = role.lowercase() in listOf("admin", "superadmin", "komandan", "danden", "bendahara", "keuangan", "officer")
+
+    val isDanUnitTeknis: Boolean
+        get() = role.lowercase().replace(" ", "").contains("danunit") || role.lowercase().contains("teknis")
+
+    val canOpenCash: Boolean
+        get() = isAdminOrOfficer || canAccessCash
+
+    val canOpenTechnicalCash: Boolean
+        get() = isAdminOrOfficer || isDanUnitTeknis || canAccessTechnicalCash
+
+    val canOpenMitra: Boolean
+        get() = isAdminOrOfficer || canAccessMitra
 }
 
 // --- MODUL KONFIGURASI SERVER ---
@@ -156,8 +168,11 @@ data class CashResponse(
 data class CreateCashRequest(
     @SerializedName("type") val type: String,
     @SerializedName("amount") val amount: Double,
-    @SerializedName("category") val category: String,
-    @SerializedName("description") val description: String
+    @SerializedName("category") val category: String = "Operasional",
+    @SerializedName("description") val description: String,
+    @SerializedName("date") val date: String? = null,
+    @SerializedName("debit") val debit: Double = if (type.lowercase() == "masuk" || type.lowercase() == "debit") amount else 0.0,
+    @SerializedName("credit") val credit: Double = if (type.lowercase() == "keluar" || type.lowercase() == "kredit") amount else 0.0
 )
 
 // --- MODUL KAS TAKTIS OPERASI ---
@@ -187,9 +202,12 @@ data class TechnicalCashResponse(
 )
 
 data class CreateTechnicalCashRequest(
-    @SerializedName("type") val type: String,
+    @SerializedName("type") val type: String = "keluar",
     @SerializedName("amount") val amount: Double,
-    @SerializedName("description") val description: String
+    @SerializedName("description") val description: String,
+    @SerializedName("date") val date: String? = null,
+    @SerializedName("debit") val debit: Double = if (type.lowercase() == "masuk" || type.lowercase() == "debit") amount else 0.0,
+    @SerializedName("credit") val credit: Double = if (type.lowercase() == "keluar" || type.lowercase() == "kredit") amount else 0.0
 )
 
 // --- MODUL MITRA INTELIJEN ---

@@ -307,7 +307,13 @@ fun SindenApp(
                 val cashVm: CashViewModel = viewModel(factory = factory)
                 CashScreen(
                     viewModel = cashVm,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(NavRoute.Main.route)
+                        }
+                    }
                 )
             }
 
@@ -315,7 +321,13 @@ fun SindenApp(
                 val cashVm: CashViewModel = viewModel(factory = factory)
                 TechnicalCashScreen(
                     viewModel = cashVm,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(NavRoute.Main.route)
+                        }
+                    }
                 )
             }
 
@@ -323,7 +335,13 @@ fun SindenApp(
                 val mitraVm: MitraViewModel = viewModel(factory = factory)
                 MitraScreen(
                     viewModel = mitraVm,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(NavRoute.Main.route)
+                        }
+                    }
                 )
             }
 

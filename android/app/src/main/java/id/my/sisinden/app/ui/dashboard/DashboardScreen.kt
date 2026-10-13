@@ -704,12 +704,12 @@ fun QuickActionsGridRedesign(
     )
 
     val items = listOf(
-        ActionItem("Kas Denintel", Icons.Default.AccountBalanceWallet, SindenTealPrimary, SindenPastelGreen, isAdmin || user?.canAccessCash == true, onNavigateToCash),
-        ActionItem("Kas Taktis", Icons.Default.Security, SindenOceanPrimary, SindenPastelBlue, isAdmin || user?.canAccessTechnicalCash == true, onNavigateToTechnicalCash),
-        ActionItem("Mitra Intel", Icons.Default.Group, Color(0xFFC2410C), SindenPastelOrange, isAdmin || user?.canAccessMitra == true, onNavigateToMitra),
+        ActionItem("Kas Denintel", Icons.Default.AccountBalanceWallet, SindenTealPrimary, SindenPastelGreen, user == null || user.canOpenCash, onNavigateToCash),
+        ActionItem("Kas Taktis", Icons.Default.Security, SindenOceanPrimary, SindenPastelBlue, user == null || user.canOpenTechnicalCash, onNavigateToTechnicalCash),
+        ActionItem("Mitra Intel", Icons.Default.Group, Color(0xFFC2410C), SindenPastelOrange, user == null || user.canOpenMitra, onNavigateToMitra),
         ActionItem("Agenda Surat", Icons.Default.Email, Color(0xFF0369A1), SindenPastelBlue, true, onNavigateToLetters),
         ActionItem("SKHPP", Icons.Default.Assignment, Color(0xFF7C3AED), SindenPastelPurple, true, onNavigateToSkhpp),
-        ActionItem("Tanda Tangan", Icons.Default.Draw, Color(0xFFE11D48), SindenPastelRed, isAdmin || user?.canAccessSignature == true, onNavigateToSignature),
+        ActionItem("Tanda Tangan", Icons.Default.Draw, Color(0xFFE11D48), SindenPastelRed, user == null || user.isAdminOrOfficer || user.canAccessSignature, onNavigateToSignature),
         ActionItem("Pelanggaran", Icons.Default.Report, Color(0xFFDC2626), SindenPastelRed, true, onNavigateToViolations),
         ActionItem("Personel", Icons.Default.Badge, Color(0xFFD97706), SindenPastelYellow, true, onNavigateToPersonnel)
     )

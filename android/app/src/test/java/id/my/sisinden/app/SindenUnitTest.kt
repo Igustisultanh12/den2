@@ -177,4 +177,38 @@ class SindenUnitTest {
         val uniqueRoutes = routes.toSet()
         assertEquals("Setiap route navigasi harus unik", routes.size, uniqueRoutes.size)
     }
+
+    @Test
+    fun testRp1TransactionIntegrity() {
+        val incomeReq = CreateCashRequest(type = "masuk", amount = 1.0, description = "Setoran Kas Rp1")
+        assertEquals(1.0, incomeReq.amount, 0.001)
+        assertEquals(1.0, incomeReq.debit, 0.001)
+        assertEquals(0.0, incomeReq.credit, 0.001)
+
+        val expenseReq = CreateCashRequest(type = "keluar", amount = 1.0, description = "Pengeluaran Kas Rp1")
+        assertEquals(1.0, expenseReq.amount, 0.001)
+        assertEquals(0.0, expenseReq.debit, 0.001)
+        assertEquals(1.0, expenseReq.credit, 0.001)
+
+        val techIncomeReq = CreateTechnicalCashRequest(type = "masuk", amount = 1.0, description = "Masuk Taktis Rp1")
+        assertEquals(1.0, techIncomeReq.amount, 0.001)
+        assertEquals(1.0, techIncomeReq.debit, 0.001)
+        assertEquals(0.0, techIncomeReq.credit, 0.001)
+
+        val techExpenseReq = CreateTechnicalCashRequest(type = "keluar", amount = 1.0, description = "Keluar Taktis Rp1")
+        assertEquals(1.0, techExpenseReq.amount, 0.001)
+        assertEquals(0.0, techExpenseReq.debit, 0.001)
+        assertEquals(1.0, techExpenseReq.credit, 0.001)
+    }
+
+    @Test
+    fun testUserModulePermissions() {
+        val officerUser = UserDto(role = "danunitteknis", canAccessCash = false)
+        assertTrue(officerUser.canOpenTechnicalCash)
+
+        val adminUser = UserDto(role = "admin")
+        assertTrue(adminUser.canOpenCash)
+        assertTrue(adminUser.canOpenTechnicalCash)
+        assertTrue(adminUser.canOpenMitra)
+    }
 }

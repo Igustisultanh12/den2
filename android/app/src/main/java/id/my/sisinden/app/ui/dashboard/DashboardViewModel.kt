@@ -128,18 +128,16 @@ class DashboardViewModel(
                     notifCount = notifs.size
                     unreadCount = notifs.count { !it.isRead }
 
-                    // Bunyikan notifikasi sistem bila ada pemberitahuan baru
+                    // Bunyikan notifikasi sistem bila ada pemberitahuan baru dengan deduplikasi persisten
                     if (context != null && notifs.isNotEmpty()) {
                         val latest = notifs.first()
-                        if (latest.id > lastNotifiedNotifId && !latest.isRead) {
-                            lastNotifiedNotifId = latest.id
-                            NotificationHelper.showNotification(
-                                context = context,
-                                notificationId = latest.id,
-                                title = latest.title.ifEmpty { "Warta Dinas SINDEN" },
-                                message = latest.message.ifEmpty { "Terdapat instruksi kedinasan baru." }
-                            )
-                        }
+                        NotificationHelper.processNewNotification(
+                            context = context,
+                            notificationId = latest.id,
+                            title = latest.title.ifEmpty { "Warta Dinas SINDEN" },
+                            message = latest.message.ifEmpty { "Terdapat instruksi kedinasan baru." },
+                            isRead = latest.isRead
+                        )
                     }
                 }
                 else -> {}

@@ -57,8 +57,33 @@ class CashViewModel(private val repository: SindenRepository) : ViewModel() {
 
     fun addCashTransaction(type: String, amount: Double, category: String, desc: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
-            val req = CreateCashRequest(type, amount, category, desc)
+            val req = CreateCashRequest(type = type, amount = amount, category = category, description = desc)
             when (repository.createCashTransaction(req)) {
+                is NetworkResult.Success -> {
+                    loadCash()
+                    onSuccess()
+                }
+                is NetworkResult.Error -> {}
+            }
+        }
+    }
+
+    fun editCashTransaction(id: Int, type: String, amount: Double, category: String, desc: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            val req = CreateCashRequest(type = type, amount = amount, category = category, description = desc)
+            when (repository.updateCashTransaction(id, req)) {
+                is NetworkResult.Success -> {
+                    loadCash()
+                    onSuccess()
+                }
+                is NetworkResult.Error -> {}
+            }
+        }
+    }
+
+    fun deleteCashTransaction(id: Int, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            when (repository.deleteCashTransaction(id)) {
                 is NetworkResult.Success -> {
                     loadCash()
                     onSuccess()
@@ -70,8 +95,33 @@ class CashViewModel(private val repository: SindenRepository) : ViewModel() {
 
     fun addTechnicalCashTransaction(type: String, amount: Double, desc: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
-            val req = CreateTechnicalCashRequest(type, amount, desc)
+            val req = CreateTechnicalCashRequest(type = type, amount = amount, description = desc)
             when (repository.createTechnicalCash(req)) {
+                is NetworkResult.Success -> {
+                    loadTechnicalCash()
+                    onSuccess()
+                }
+                is NetworkResult.Error -> {}
+            }
+        }
+    }
+
+    fun editTechnicalCashTransaction(id: Int, type: String, amount: Double, desc: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            val req = CreateTechnicalCashRequest(type = type, amount = amount, description = desc)
+            when (repository.updateTechnicalCash(id, req)) {
+                is NetworkResult.Success -> {
+                    loadTechnicalCash()
+                    onSuccess()
+                }
+                is NetworkResult.Error -> {}
+            }
+        }
+    }
+
+    fun deleteTechnicalCashTransaction(id: Int, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            when (repository.deleteTechnicalCash(id)) {
                 is NetworkResult.Success -> {
                     loadTechnicalCash()
                     onSuccess()

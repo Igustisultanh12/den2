@@ -148,6 +148,24 @@ class SindenRepository(
         }
     }
 
+    suspend fun updateCashTransaction(id: Int, request: CreateCashRequest): NetworkResult<SimpleResponse> {
+        return try {
+            val response = apiClient.getService().updateCashTransaction(id, request)
+            handleResponse(response)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.localizedMessage ?: "Gagal memperbarui transaksi kas.")
+        }
+    }
+
+    suspend fun deleteCashTransaction(id: Int): NetworkResult<SimpleResponse> {
+        return try {
+            val response = apiClient.getService().deleteCashTransaction(id)
+            handleResponse(response)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.localizedMessage ?: "Gagal menghapus transaksi kas.")
+        }
+    }
+
     suspend fun getTechnicalCash(): NetworkResult<TechnicalCashResponse> {
         return try {
             val response = apiClient.getService().getTechnicalCash()
@@ -163,6 +181,24 @@ class SindenRepository(
             handleResponse(response)
         } catch (e: Exception) {
             NetworkResult.Error(e.localizedMessage ?: "Gagal mencatat kas taktis operasi.")
+        }
+    }
+
+    suspend fun updateTechnicalCash(id: Int, request: CreateTechnicalCashRequest): NetworkResult<SimpleResponse> {
+        return try {
+            val response = apiClient.getService().updateTechnicalCash(id, request)
+            handleResponse(response)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.localizedMessage ?: "Gagal memperbarui kas taktis operasi.")
+        }
+    }
+
+    suspend fun deleteTechnicalCash(id: Int): NetworkResult<SimpleResponse> {
+        return try {
+            val response = apiClient.getService().deleteTechnicalCash(id)
+            handleResponse(response)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.localizedMessage ?: "Gagal menghapus kas taktis operasi.")
         }
     }
 
@@ -184,9 +220,30 @@ class SindenRepository(
         }
     }
 
-    suspend fun toggleMitraPayment(id: Int, status: String): NetworkResult<SimpleResponse> {
+    suspend fun updateMitra(id: Int, request: CreateMitraRequest): NetworkResult<SimpleResponse> {
         return try {
-            val response = apiClient.getService().toggleMitraPayment(id, mapOf("status_payment" to status))
+            val response = apiClient.getService().updateMitra(id, request)
+            handleResponse(response)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.localizedMessage ?: "Gagal memperbarui data mitra.")
+        }
+    }
+
+    suspend fun deleteMitra(id: Int): NetworkResult<SimpleResponse> {
+        return try {
+            val response = apiClient.getService().deleteMitra(id)
+            handleResponse(response)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.localizedMessage ?: "Gagal menghapus mitra.")
+        }
+    }
+
+    suspend fun toggleMitraPayment(id: Int, status: String, year: Int? = null, month: Int? = null): NetworkResult<SimpleResponse> {
+        return try {
+            val map = mutableMapOf("status_payment" to status)
+            if (year != null) map["tahun"] = year.toString()
+            if (month != null) map["bulan"] = month.toString()
+            val response = apiClient.getService().toggleMitraPayment(id, map)
             handleResponse(response)
         } catch (e: Exception) {
             NetworkResult.Error(e.localizedMessage ?: "Gagal memperbarui status pembayaran mitra.")

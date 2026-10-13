@@ -47,6 +47,12 @@ interface SindenApiService {
     @POST("/api/mobile/cash")
     suspend fun createCashTransaction(@Body request: CreateCashRequest): Response<SimpleResponse>
 
+    @PUT("/api/mobile/cash/{id}")
+    suspend fun updateCashTransaction(@Path("id") id: Int, @Body request: CreateCashRequest): Response<SimpleResponse>
+
+    @DELETE("/api/mobile/cash/{id}")
+    suspend fun deleteCashTransaction(@Path("id") id: Int): Response<SimpleResponse>
+
     // 6. Kas Taktis Operasi
     @GET("/api/mobile/technical-cash")
     suspend fun getTechnicalCash(): Response<TechnicalCashResponse>
@@ -54,12 +60,24 @@ interface SindenApiService {
     @POST("/api/mobile/technical-cash")
     suspend fun createTechnicalCash(@Body request: CreateTechnicalCashRequest): Response<SimpleResponse>
 
+    @PUT("/api/mobile/technical-cash/{id}")
+    suspend fun updateTechnicalCash(@Path("id") id: Int, @Body request: CreateTechnicalCashRequest): Response<SimpleResponse>
+
+    @DELETE("/api/mobile/technical-cash/{id}")
+    suspend fun deleteTechnicalCash(@Path("id") id: Int): Response<SimpleResponse>
+
     // 7. Mitra Intelijen
     @GET("/api/mobile/mitra")
     suspend fun getMitra(@Query("search") search: String? = null): Response<MitraResponse>
 
     @POST("/api/mobile/mitra")
     suspend fun createMitra(@Body request: CreateMitraRequest): Response<SimpleResponse>
+
+    @PUT("/api/mobile/mitra/{id}")
+    suspend fun updateMitra(@Path("id") id: Int, @Body request: CreateMitraRequest): Response<SimpleResponse>
+
+    @DELETE("/api/mobile/mitra/{id}")
+    suspend fun deleteMitra(@Path("id") id: Int): Response<SimpleResponse>
 
     @POST("/api/mobile/mitra/{id}/toggle-payment")
     suspend fun toggleMitraPayment(

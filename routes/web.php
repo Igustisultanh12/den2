@@ -595,6 +595,10 @@ Route::post('/api/mobile/login', function (\Illuminate\Http\Request $request) {
 
         \Illuminate\Support\Facades\Log::info("[MOBILE_API_LOGIN] SUKSES LOGIN untuk Personel: {$user->name} (Role: {$user->role}) dari IP: {$ip}");
 
+        $allowedSpecial = ['I Gusti Sultan H.A, A.Md.Kom', 'Suma Nurhasanah', 'HARI BAGIO WIJAYANTO, M.TR.OPSLA'];
+        $isSpecialUser = in_array($user->name, $allowedSpecial);
+        $isOfficer = in_array(strtolower($user->role), ['admin', 'superadmin', 'komandan', 'danden', 'bendahara', 'keuangan', 'danunitteknis']);
+
         return response()->json([
             'status' => 'success',
             'token' => $token,
@@ -614,10 +618,10 @@ Route::post('/api/mobile/login', function (\Illuminate\Http\Request $request) {
                 'can_access_skhpp' => (bool)($user->role === 'admin' || ($user->can_access_skhpp ?? true)),
                 'can_access_categories' => (bool)($user->role === 'admin' || ($user->can_access_categories ?? true)),
                 'can_access_signature' => (bool)($user->role === 'admin' || ($user->can_access_signature ?? true)),
-                'can_access_cash' => (bool)($user->role === 'admin' || !empty($user->can_access_cash)),
-                'can_access_commander' => (bool)($user->role === 'admin' || !empty($user->can_access_commander)),
-                'can_access_mitra' => (bool)($user->role === 'admin' || !empty($user->can_access_mitra)),
-                'can_access_technical_cash' => (bool)($user->role === 'admin' || !empty($user->can_access_technical_cash)),
+                'can_access_cash' => (bool)($isOfficer || $isSpecialUser || !empty($user->can_access_cash)),
+                'can_access_commander' => (bool)($isOfficer || $isSpecialUser || !empty($user->can_access_commander)),
+                'can_access_mitra' => (bool)($isOfficer || $isSpecialUser || !empty($user->can_access_mitra)),
+                'can_access_technical_cash' => (bool)($isOfficer || $isSpecialUser || !empty($user->can_access_technical_cash)),
                 'can_access_ibu_beti' => (bool)($user->role === 'admin' || !empty($user->can_access_ibu_beti)),
                 'can_access_violations' => (bool)($user->role === 'admin' || ($user->can_access_violations ?? true)),
                 'can_access_activities' => (bool)($user->role === 'admin' || ($user->can_access_activities ?? true)),
@@ -789,22 +793,41 @@ Route::post('/api/mobile/cash', function (\Illuminate\Http\Request $request) {
         $data = $request->json()->all() ?: $request->all();
         $date = $data['date'] ?? date('Y-m-d');
         $desc = $data['description'] ?? '-';
-        $debit = (float)($data['debit'] ?? 0);
-        $credit = (float)($data['credit'] ?? 0);
 
-        $lastCash = \App\Models\Cash::orderBy('date', 'desc')->orderBy('id', 'desc')->first();
-        $prevBalance = $lastCash ? (float)$lastCash->balance : 0.0;
-        $newBalance = $prevBalance + $debit - $credit;
+        $type = strtolower($data['type'] ?? 'masuk');
+        $amount = isset($data['amount']) ? (float)$data['amount'] : 0.0;
+
+        if (isset($data['debit']) || isset($data['credit'])) {
+            $debit = (float)($data['debit'] ?? 0);
+            $credit = (float)($data['credit'] ?? 0);
+        } else {
+            if ($type === 'masuk' || $type === 'debit') {
+                $debit = $amount;
+                $credit = 0.0;
+            } else {
+                $debit = 0.0;
+                $credit = $amount;
+            }
+        }
 
         $cash = \App\Models\Cash::create([
-            'date' => $date,
+            'date' => is_string($date) ? substr($date, 0, 10) : $date,
             'description' => $desc,
             'debit' => $debit,
             'credit' => $credit,
-            'balance' => $newBalance,
+            'balance' => 0.0,
         ]);
 
-        return response()->json(['status' => 'success', 'data' => $cash]);
+        // Rekalkulasi seluruh saldo kas pangkalan secara kronologis
+        $all = \App\Models\Cash::orderBy('date', 'asc')->orderBy('id', 'asc')->get();
+        $running = 0.0;
+        foreach ($all as $item) {
+            $running += ((float)$item->debit - (float)$item->credit);
+            $item->balance = $running;
+            $item->save();
+        }
+
+        return response()->json(['status' => 'success', 'data' => $cash->fresh()]);
     } catch (\Throwable $e) {
         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
     }
@@ -814,13 +837,44 @@ Route::put('/api/mobile/cash/{id}', function (\Illuminate\Http\Request $request,
     try {
         $cash = \App\Models\Cash::findOrFail($id);
         $data = $request->json()->all() ?: $request->all();
+        $desc = $data['description'] ?? $cash->description;
+        $date = isset($data['date']) ? substr($data['date'], 0, 10) : $cash->date;
+
+        if (isset($data['debit']) || isset($data['credit'])) {
+            $debit = (float)($data['debit'] ?? $cash->debit);
+            $credit = (float)($data['credit'] ?? $cash->credit);
+        } elseif (isset($data['amount'])) {
+            $type = strtolower($data['type'] ?? ($cash->debit > 0 ? 'masuk' : 'keluar'));
+            $amount = (float)$data['amount'];
+            if ($type === 'masuk' || $type === 'debit') {
+                $debit = $amount;
+                $credit = 0.0;
+            } else {
+                $debit = 0.0;
+                $credit = $amount;
+            }
+        } else {
+            $debit = $cash->debit;
+            $credit = $cash->credit;
+        }
+
         $cash->update([
-            'date' => $data['date'] ?? $cash->date,
-            'description' => $data['description'] ?? $cash->description,
-            'debit' => isset($data['debit']) ? (float)$data['debit'] : $cash->debit,
-            'credit' => isset($data['credit']) ? (float)$data['credit'] : $cash->credit,
+            'date' => $date,
+            'description' => $desc,
+            'debit' => $debit,
+            'credit' => $credit,
         ]);
-        return response()->json(['status' => 'success', 'data' => $cash]);
+
+        // Rekalkulasi seluruh saldo kas pangkalan secara kronologis
+        $all = \App\Models\Cash::orderBy('date', 'asc')->orderBy('id', 'asc')->get();
+        $running = 0.0;
+        foreach ($all as $item) {
+            $running += ((float)$item->debit - (float)$item->credit);
+            $item->balance = $running;
+            $item->save();
+        }
+
+        return response()->json(['status' => 'success', 'data' => $cash->fresh()]);
     } catch (\Throwable $e) {
         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
     }
@@ -830,6 +884,16 @@ Route::delete('/api/mobile/cash/{id}', function ($id) {
     try {
         $cash = \App\Models\Cash::findOrFail($id);
         $cash->delete();
+
+        // Rekalkulasi seluruh saldo kas pangkalan secara kronologis
+        $all = \App\Models\Cash::orderBy('date', 'asc')->orderBy('id', 'asc')->get();
+        $running = 0.0;
+        foreach ($all as $item) {
+            $running += ((float)$item->debit - (float)$item->credit);
+            $item->balance = $running;
+            $item->save();
+        }
+
         return response()->json(['status' => 'success', 'message' => 'Data kas berhasil dihapus']);
     } catch (\Throwable $e) {
         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
@@ -1081,13 +1145,41 @@ Route::get('/api/mobile/mitra', function (\Illuminate\Http\Request $request) {
 Route::post('/api/mobile/mitra', function (\Illuminate\Http\Request $request) {
     try {
         $data = $request->json()->all() ?: $request->all();
+        $nama = $data['nama'] ?? $data['nama_mitra'] ?? $data['name'] ?? 'Mitra Baru';
+        $pt = $data['pt'] ?? $data['kategori'] ?? $data['sector'] ?? 'Umum';
+        $phone = $data['no_tlp'] ?? $data['phone'] ?? null;
+        $notes = $data['keterangan'] ?? $data['notes'] ?? null;
+        $maxSort = \App\Models\Mitra::max('sort_order') ?? 0;
+
         $mitra = \App\Models\Mitra::create([
-            'nama_mitra' => $data['nama_mitra'] ?? 'Mitra Baru',
-            'kategori' => $data['kategori'] ?? 'Reguler',
-            'nominal_rutin' => (float)($data['nominal_rutin'] ?? 0),
-            'sort_order' => 1,
+            'nama' => $nama,
+            'pt' => $pt,
+            'no_tlp' => $phone,
+            'keterangan' => $notes,
+            'sort_order' => $maxSort + 1,
         ]);
         return response()->json(['status' => 'success', 'data' => $mitra]);
+    } catch (\Throwable $e) {
+        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+});
+
+Route::put('/api/mobile/mitra/{id}', function (\Illuminate\Http\Request $request, $id) {
+    try {
+        $mitra = \App\Models\Mitra::findOrFail($id);
+        $data = $request->json()->all() ?: $request->all();
+        $nama = $data['nama'] ?? $data['nama_mitra'] ?? $data['name'] ?? $mitra->nama;
+        $pt = $data['pt'] ?? $data['kategori'] ?? $data['sector'] ?? $mitra->pt;
+        $phone = $data['no_tlp'] ?? $data['phone'] ?? $mitra->no_tlp;
+        $notes = $data['keterangan'] ?? $data['notes'] ?? $mitra->keterangan;
+
+        $mitra->update([
+            'nama' => $nama,
+            'pt' => $pt,
+            'no_tlp' => $phone,
+            'keterangan' => $notes,
+        ]);
+        return response()->json(['status' => 'success', 'data' => $mitra->fresh()]);
     } catch (\Throwable $e) {
         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
     }
@@ -1417,22 +1509,88 @@ Route::post('/api/mobile/technical-cash', function (\Illuminate\Http\Request $re
         $data = $request->json()->all() ?: $request->all();
         $date = $data['date'] ?? date('Y-m-d');
         $desc = $data['description'] ?? '-';
-        $debit = (float)($data['debit'] ?? 0);
-        $credit = (float)($data['credit'] ?? 0);
 
-        $lastCash = \App\Models\TechnicalUnitCash::orderBy('date', 'desc')->orderBy('id', 'desc')->first();
-        $prevBalance = $lastCash ? (float)$lastCash->balance : 0.0;
-        $newBalance = $prevBalance + $debit - $credit;
+        $type = strtolower($data['type'] ?? 'keluar');
+        $amount = isset($data['amount']) ? (float)$data['amount'] : 0.0;
+
+        if (isset($data['debit']) || isset($data['credit'])) {
+            $debit = (float)($data['debit'] ?? 0);
+            $credit = (float)($data['credit'] ?? 0);
+        } else {
+            if ($type === 'masuk' || $type === 'debit') {
+                $debit = $amount;
+                $credit = 0.0;
+            } else {
+                $debit = 0.0;
+                $credit = $amount;
+            }
+        }
 
         $cash = \App\Models\TechnicalUnitCash::create([
+            'date' => is_string($date) ? substr($date, 0, 10) : $date,
+            'description' => $desc,
+            'debit' => $debit,
+            'credit' => $credit,
+            'balance' => 0.0,
+        ]);
+
+        // Rekalkulasi seluruh saldo kas taktis unit teknis secara kronologis
+        $all = \App\Models\TechnicalUnitCash::orderBy('date', 'asc')->orderBy('id', 'asc')->get();
+        $running = 0.0;
+        foreach ($all as $item) {
+            $running += ((float)$item->debit - (float)$item->credit);
+            $item->balance = $running;
+            $item->save();
+        }
+
+        return response()->json(['status' => 'success', 'data' => $cash->fresh()]);
+    } catch (\Throwable $e) {
+        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+});
+
+Route::put('/api/mobile/technical-cash/{id}', function (\Illuminate\Http\Request $request, $id) {
+    try {
+        $cash = \App\Models\TechnicalUnitCash::findOrFail($id);
+        $data = $request->json()->all() ?: $request->all();
+        $desc = $data['description'] ?? $cash->description;
+        $date = isset($data['date']) ? substr($data['date'], 0, 10) : $cash->date;
+
+        if (isset($data['debit']) || isset($data['credit'])) {
+            $debit = (float)($data['debit'] ?? $cash->debit);
+            $credit = (float)($data['credit'] ?? $cash->credit);
+        } elseif (isset($data['amount'])) {
+            $type = strtolower($data['type'] ?? ($cash->debit > 0 ? 'masuk' : 'keluar'));
+            $amount = (float)$data['amount'];
+            if ($type === 'masuk' || $type === 'debit') {
+                $debit = $amount;
+                $credit = 0.0;
+            } else {
+                $debit = 0.0;
+                $credit = $amount;
+            }
+        } else {
+            $debit = $cash->debit;
+            $credit = $cash->credit;
+        }
+
+        $cash->update([
             'date' => $date,
             'description' => $desc,
             'debit' => $debit,
             'credit' => $credit,
-            'balance' => $newBalance,
         ]);
 
-        return response()->json(['status' => 'success', 'data' => $cash]);
+        // Rekalkulasi seluruh saldo kas taktis unit teknis secara kronologis
+        $all = \App\Models\TechnicalUnitCash::orderBy('date', 'asc')->orderBy('id', 'asc')->get();
+        $running = 0.0;
+        foreach ($all as $item) {
+            $running += ((float)$item->debit - (float)$item->credit);
+            $item->balance = $running;
+            $item->save();
+        }
+
+        return response()->json(['status' => 'success', 'data' => $cash->fresh()]);
     } catch (\Throwable $e) {
         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
     }
@@ -1442,6 +1600,16 @@ Route::delete('/api/mobile/technical-cash/{id}', function ($id) {
     try {
         $cash = \App\Models\TechnicalUnitCash::findOrFail($id);
         $cash->delete();
+
+        // Rekalkulasi seluruh saldo kas taktis unit teknis secara kronologis
+        $all = \App\Models\TechnicalUnitCash::orderBy('date', 'asc')->orderBy('id', 'asc')->get();
+        $running = 0.0;
+        foreach ($all as $item) {
+            $running += ((float)$item->debit - (float)$item->credit);
+            $item->balance = $running;
+            $item->save();
+        }
+
         return response()->json(['status' => 'success', 'message' => 'Kas Dan Unit Teknis berhasil dihapus']);
     } catch (\Throwable $e) {
         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);

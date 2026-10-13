@@ -6,17 +6,20 @@ Repositori resmi sistem kedinasan SISINDEN untuk Detasemen Intelijen Kodaeral V 
 
 ## 1. Ikhtisar Aplikasi Android Native
 
-Aplikasi Android Native SISINDEN dirancang khusus untuk memenuhi standar operasional kedinasan intelijen dengan tampilan modern berbasis Jetpack Compose dan Material 3.
+Aplikasi Android Native SISINDEN dirancang khusus untuk memenuhi standar operasional kedinasan kantor intelijen dengan antarmuka modern berbasis Jetpack Compose Material 3 yang mengadopsi prinsip eCommerce UI Kit profesional.
 
-- **Platform:** Android Native (Min SDK: 26 / Android 8.0 Oreo, Target SDK: 34 / Android 14)
+- **Platform:** Android Native
+- **Versi Rilis:** v1.0.1 (versionCode: 2)
+- **Min SDK:** 26 (Android 8.0 Oreo)
+- **Target SDK:** 34 (Android 14)
 - **Bahasa:** Kotlin
 - **UI Framework:** Jetpack Compose dengan Material 3
-- **Arsitektur:** Clean Architecture dengan pola MVVM (Model-View-ViewModel) dan Unidirectional Data Flow (UDF)
+- **Arsitektur:** Clean Architecture MVVM (Model-View-ViewModel) dengan Unidirectional Data Flow (UDF)
 - **Networking:** Retrofit 2 + OkHttp 4 + Gson Converter
-- **Penyimpanan Lokal:** Jetpack DataStore Preferences (penyimpanan token sesi dan konfigurasi server)
+- **Penyimpanan Lokal:** Jetpack DataStore Preferences & Android SharedPreferences
 - **Navigasi:** Jetpack Navigation Compose
-- **Build System:** Gradle Kotlin DSL (`build.gradle.kts`)
-- **Backend Produksi:** https://sisinden.my.id
+- **Build System:** Gradle 8.9 Kotlin DSL (`build.gradle.kts`)
+- **Backend Produksi:** [https://sisinden.my.id](https://sisinden.my.id)
 
 ---
 
@@ -27,51 +30,62 @@ Aplikasi Android Native SISINDEN dirancang khusus untuk memenuhi standar operasi
    - Manajemen sesi aman dengan Bearer Token via Jetpack DataStore Preferences.
    - Konfigurasi alamat server API dinamis (dapat diarahkan ke mirror internal).
 
-2. **Dashboard & Pemantauan Cepat:**
-   - Ringkasan profil dan hierarki dinas pengguna (NRP, Korps, Jabatan, Role).
-   - Indikator saldo Kas Denintel dan Kas Taktis Satuan.
-   - Metrik statistik volume surat masuk, surat keluar, dan disposisi.
-   - Menu aksi cepat ke seluruh modul operasional.
+2. **Dashboard Eksekutif Modern:**
+   - Kartu saldo utama deep navy gradient dengan badge terverifikasi dan tombol privasi sensor saldo.
+   - Trio ringkasan keuangan (Pemasukan, Pengeluaran, Kas Taktis).
+   - Grid modul utama 8-aksi dengan kontainer squircle pastel elegan.
+   - Daftar agenda naskah dinas terkini.
 
-3. **Agenda & Log Surat Dinas:**
+3. **Manajemen Kas Denintel (Pangkalan):**
+   - Rekalkulasi kronologis otomatis yang menjamin ketepatan running balance.
+   - Dukungan penuh pencatatan transaksi mulai dari Rp1 hingga nominal besar tanpa anomali.
+   - Operasi lengkap: Tambah, Edit (ModalBottomSheet), dan Hapus (AlertDialog).
+   - Filter tab: Semua, Penerimaan, dan Pengeluaran.
+
+4. **Manajemen Kas Taktis Operasi (Dan Unit Teknis):**
+   - Monitoring dana taktis khusus kegiatan intelijen lapangan.
+   - Dukungan pencatatan dana masuk dan dana keluar.
+   - Operasi lengkap: Tambah, Edit, dan Hapus data transaksi taktis.
+
+5. **Mitra Intelijen (Jaringan Kerja Lapangan):**
+   - Direktori mitra intelijen (nama mitra, perusahaan/sektor, nomor kontak, catatan).
+   - Status pembayaran bulan berjalan ("Lunas" / "Belum Lunas").
+   - Lembar Matriks 12 Bulan interaktif (Januari - Desember) untuk menandai pembayaran bulanan secara instan.
+   - Operasi lengkap: Tambah, Edit, dan Hapus data mitra.
+
+6. **Agenda & Log Surat Dinas:**
    - Filter tab surat (Semua, Surat Masuk, Surat Keluar, Disposisi).
    - Pencarian dinamis berdasarkan nomor agenda, perihal, atau pengirim.
    - Formulir pencatatan agenda surat dinas baru.
 
-4. **Layanan SKHPP (Surat Keterangan Hasil Penelitian Personel):**
+7. **Layanan SKHPP (Surat Keterangan Hasil Penelitian Personel):**
    - Pemantauan status pengajuan (Pending, Terverifikasi).
    - Validasi nama personel, pangkat, dan tujuan permohonan dinas.
    - Formulir pengajuan permohonan SKHPP baru.
 
-5. **Manajemen Kas Denintel & Kas Taktis:**
-   - Rekapitulasi transaksi masuk dan keluar serta saldo akhir.
-   - Pencatatan transaksi baru dengan validasi nominal dan keterangan.
-
-6. **Mitra Intelijen (Jaringan Kerja Lapangan):**
-   - Direktori mitra intelijen terenkripsi (nama samaran/code name, nomor kontak, sektor wilayah).
-   - Status dukungan operasional dan pencatatan mitra baru.
-
-7. **Tanda Tangan Digital Komandan:**
+8. **Tanda Tangan Elektronik Komandan:**
    - Daftar permohonan persetujuan dokumen kedinasan.
-   - Verifikasi status persetujuan resmi.
+   - Verifikasi status persetujuan resmi dinas.
 
-8. **Pelanggaran Personel Satuan:**
-   - Catatan rekap kedisiplinan dan kepatuhan etika dinas.
+9. **Pelanggaran Personel Satuan:**
+   - Rekap catatan disiplin internal dan kepatuhan etika dinas.
 
-9. **Direktori Personel Satuan:**
-   - Pencarian kontak personel, NRP, korps, pangkat, dan peranan.
+10. **Direktori Personel Satuan:**
+    - Pencarian kontak dinas personel, NRP, korps, pangkat, dan jabatan.
 
-10. **Notifikasi Kedinasan:**
-    - Saluran pengumuman resmi dan instruksi komando.
+11. **Warta Notifikasi Kedinasan:**
+    - Sistem notifikasi pintar dengan deduplikasi persisten SharedPreferences.
+    - Sinkronisasi senyap saat pertama kali aplikasi dibuka (mencegah spam bunyi/getar notifikasi lama).
+    - Membunyikan nada dering hanya jika ada instruksi dinas yang benar-benar baru.
 
-11. **Preferensi & Personalisasi:**
-    - Pengaturan tema gelap (Dark Mode) dan informasi markas satuan.
+12. **Preferensi & Personalisasi:**
+    - Pengaturan tema gelap (Dark Mode) dan sesi akun.
 
 ---
 
 ## 3. Struktur Direktori Proyek Android
 
-Proyek Android Native terletak pada subdirektori `android/`:
+Proyek Android Native terletak pada direktori `android/`:
 
 ```
 android/
@@ -87,6 +101,8 @@ android/
 │       │   │   │   ├── network/
 │       │   │   │   │   ├── ApiClient.kt
 │       │   │   │   │   └── SindenApiService.kt
+│       │   │   │   ├── notification/
+│       │   │   │   │   └── NotificationHelper.kt
 │       │   │   │   └── ui/
 │       │   │   │       ├── components/Components.kt
 │       │   │   │       └── theme/
@@ -99,7 +115,6 @@ android/
 │       │   │   │   ├── dashboard/
 │       │   │   │   ├── letters/
 │       │   │   │   ├── mitra/
-│       │   │   │   ├── navigation/
 │       │   │   │   ├── notifications/
 │       │   │   │   ├── personnel/
 │       │   │   │   ├── settings/
@@ -111,50 +126,16 @@ android/
 │       │   └── res/
 │       └── test/
 │           └── java/id/my/sisinden/app/SindenUnitTest.kt
-├── gradle/
-│   ├── libs.versions.toml
-│   └── wrapper/
-├── build.gradle.kts
-├── settings.gradle.kts
-├── gradle.properties
-├── gradlew
-└── gradlew.bat
 ```
 
 ---
 
-## 4. Panduan Kompilasi & Build
+## 4. Dokumentasi Teknis Tambahan
 
-### 4.1 Menjalankan Pengujian Unit
-```bash
-cd android
-./gradlew testReleaseUnitTest
-```
-
-### 4.2 Membangun APK Release
-```bash
-cd android
-./gradlew assembleRelease
-```
-Berkas APK yang dihasilkan akan berada di: `android/app/build/outputs/apk/release/app-release.apk`.
-
----
-
-## 5. Otomatisasi CI/CD & GitHub Releases
-
-Pipeline GitHub Actions telah dikonfigurasi di `.github/workflows/android-release.yml`.
-
-Setiap kali pembaruan didorong ke cabang `main` atau tag rilis `v*` dibuat:
-1. Kode sumber diperiksa dan dikompilasi pada lingkungan Ubuntu runner.
-2. Seluruh unit test dieksekusi secara otomatis.
-3. APK Release (`SISINDEN-v1.0.0.apk`) dibangun dan ditandatangani.
-4. APK diterbitkan ke menu **GitHub Releases** dengan catatan rilis resmi.
-
----
-
-## 6. Dokumentasi Teknis Terkait
-
-- [Analisis Sistem & Backend](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/ANALYSIS.md)
-- [Spesifikasi Integrasi API](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/API_INTEGRATION.md)
-- [Arsitektur Perangkat Lunak](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/ARCHITECTURE.md)
-- [Panduan Kompilasi dan Rilis](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/BUILD_AND_RELEASE.md)
+Dokumentasi terperinci tersedia di folder `docs/`:
+- [PROJECT_AUDIT.md](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/PROJECT_AUDIT.md): Audit menyeluruh struktur kode dan teknologi.
+- [FEATURE_PARITY.md](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/FEATURE_PARITY.md): Matriks perbandingan fitur web vs Android.
+- [BUGFIX_REPORT.md](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/BUGFIX_REPORT.md): Analisis akar masalah teknis dan solusi perbaikan bug.
+- [NOTIFICATION_FLOW.md](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/NOTIFICATION_FLOW.md): Alur deduplikasi dan siklus notifikasi kedinasan.
+- [UI_UX_IMPLEMENTATION.md](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/UI_UX_IMPLEMENTATION.md): Rincian redesign antarmuka dan palet warna.
+- [BUILD_AND_RELEASE.md](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/BUILD_AND_RELEASE.md): Panduan kompilasi dan CI/CD rilis APK.
