@@ -30,9 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import id.my.sisinden.app.core.ui.theme.SindenOceanPrimary
-import id.my.sisinden.app.core.ui.theme.SindenTealPrimary
-import id.my.sisinden.app.core.ui.theme.StatusSuccess
+import id.my.sisinden.app.core.ui.theme.*
 
 @Composable
 fun LoginScreen(
