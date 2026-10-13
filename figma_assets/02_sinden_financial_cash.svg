@@ -1,0 +1,110 @@
+<svg width="430" height="932" viewBox="0 0 430 932" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="finBgGrad" x1="0" y1="0" x2="430" y2="932" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F0F7FA"/>
+      <stop offset="100%" stop-color="#F8FAFC"/>
+    </linearGradient>
+    <filter id="softShadow2" x="-10" y="0" width="410" height="120" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#0B1B3D" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <rect width="430" height="932" rx="40" fill="url(#finBgGrad)"/>
+
+  <!-- Status Bar -->
+  <text x="36" y="38" font-family="Inter, sans-serif" font-size="15" font-weight="600" fill="#0F172A">09:41</text>
+  <rect x="165" y="18" width="100" height="28" rx="14" fill="#000000"/>
+
+  <!-- Header Nav -->
+  <g transform="translate(24, 68)">
+    <circle cx="20" cy="20" r="20" fill="#FFFFFF" filter="url(#softShadow2)"/>
+    <path d="M23 14L17 20L23 26" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="60" y="26" font-family="Inter, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Kas Denintel Kodaeral V</text>
+  </g>
+
+  <!-- Filter Period Chips -->
+  <g transform="translate(24, 130)">
+    <!-- Chip 1: Semua (Active) -->
+    <rect x="0" y="0" width="76" height="36" rx="18" fill="#0B1B3D"/>
+    <text x="38" y="22" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#FFFFFF" text-anchor="middle">Semua</text>
+
+    <!-- Chip 2: Hari Ini -->
+    <rect x="86" y="0" width="86" height="36" rx="18" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <text x="129" y="22" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#64748B" text-anchor="middle">Hari Ini</text>
+
+    <!-- Chip 3: Minggu Ini -->
+    <rect x="182" y="0" width="96" height="36" rx="18" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <text x="230" y="22" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#64748B" text-anchor="middle">Minggu Ini</text>
+
+    <!-- Chip 4: Bulan Ini -->
+    <rect x="288" y="0" width="94" height="36" rx="18" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <text x="335" y="22" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#64748B" text-anchor="middle">Bulan Ini</text>
+  </g>
+
+  <!-- Big Balance Overview Card -->
+  <g transform="translate(24, 186)">
+    <rect width="382" height="140" rx="22" fill="#FFFFFF" filter="url(#softShadow2)"/>
+    <text x="24" y="36" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#64748B">TOTAL SALDO AKTIF</text>
+    <text x="24" y="76" font-family="Inter, sans-serif" font-size="28" font-weight="800" fill="#0B1B3D">Rp 128.450.000</text>
+    
+    <g transform="translate(24, 96)">
+      <circle cx="6" cy="6" r="6" fill="#00A884"/>
+      <text x="20" y="10" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#00A884">+Rp 45.2M Masuk</text>
+
+      <circle cx="160" cy="6" r="6" fill="#EF4444"/>
+      <text x="174" y="10" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#EF4444">-Rp 12.8M Keluar</text>
+    </g>
+  </g>
+
+  <!-- Recent Transactions Section -->
+  <text x="24" y="366" font-family="Inter, sans-serif" font-size="16" font-weight="700" fill="#0F172A">Riwayat Mutasi Transaksi</text>
+
+  <!-- Transaction List -->
+  <!-- Tx 1: Pemasukan Operasional -->
+  <g transform="translate(24, 386)">
+    <rect width="382" height="84" rx="18" fill="#FFFFFF" filter="url(#softShadow2)"/>
+    <rect x="16" y="16" width="52" height="52" rx="16" fill="#E1F7F1"/>
+    <path d="M42 46V36M42 36L36 42M42 36L48 42" stroke="#00A884" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <text x="80" y="38" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#0F172A">Dukungan Satuan Operasi</text>
+    <text x="80" y="56" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">12 Okt 2026 • Kas Masuk</text>
+
+    <text x="362" y="44" font-family="Inter, sans-serif" font-size="15" font-weight="700" fill="#00A884" text-anchor="end">+Rp 25.000.000</text>
+    <rect x="296" y="52" width="66" height="18" rx="9" fill="#DCFCE7"/>
+    <text x="329" y="65" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#15803D" text-anchor="middle">Disetujui</text>
+  </g>
+
+  <!-- Tx 2: Pengeluaran Perbekalan -->
+  <g transform="translate(24, 482)">
+    <rect width="382" height="84" rx="18" fill="#FFFFFF" filter="url(#softShadow2)"/>
+    <rect x="16" y="16" width="52" height="52" rx="16" fill="#FEECEE"/>
+    <path d="M42 36V46M42 46L36 40M42 46L48 40" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <text x="80" y="38" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#0F172A">BBM & Harbek Operasional</text>
+    <text x="80" y="56" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">11 Okt 2026 • Kas Keluar</text>
+
+    <text x="362" y="44" font-family="Inter, sans-serif" font-size="15" font-weight="700" fill="#EF4444" text-anchor="end">-Rp 4.250.000</text>
+    <rect x="296" y="52" width="66" height="18" rx="9" fill="#FEE2E2"/>
+    <text x="329" y="65" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#B91C1C" text-anchor="middle">Verifikasi</text>
+  </g>
+
+  <!-- Tx 3: Kas Teknis -->
+  <g transform="translate(24, 578)">
+    <rect width="382" height="84" rx="18" fill="#FFFFFF" filter="url(#softShadow2)"/>
+    <rect x="16" y="16" width="52" height="52" rx="16" fill="#E5F2FD"/>
+    <path d="M36 42H48M42 36V48" stroke="#0284C7" stroke-width="2.5" stroke-linecap="round"/>
+    
+    <text x="80" y="38" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#0F172A">Pemeliharaan Komunikasi Intel</text>
+    <text x="80" y="56" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">10 Okt 2026 • Kas Teknis</text>
+
+    <text x="362" y="44" font-family="Inter, sans-serif" font-size="15" font-weight="700" fill="#0284C7" text-anchor="end">-Rp 2.100.000</text>
+    <rect x="296" y="52" width="66" height="18" rx="9" fill="#E0F2FE"/>
+    <text x="329" y="65" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#0369A1" text-anchor="middle">Selesai</text>
+  </g>
+
+  <!-- Floating Add Transaction Button -->
+  <g transform="translate(24, 820)">
+    <rect width="382" height="56" rx="28" fill="#0B1B3D" filter="url(#softShadow2)"/>
+    <text x="191" y="34" font-family="Inter, sans-serif" font-size="15" font-weight="700" fill="#FFFFFF" text-anchor="middle">+ Catat Transaksi Baru</text>
+  </g>
+</svg>

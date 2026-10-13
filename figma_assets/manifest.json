@@ -1,0 +1,11 @@
+{
+  "name": "SISINDEN UI/UX Mobile Generator",
+  "id": "sisinden-mobile-ui-gen",
+  "api": "1.0.0",
+  "main": "code.js",
+  "capabilities": [],
+  "enableProposedApi": false,
+  "editorType": [
+    "figma"
+  ]
+}
