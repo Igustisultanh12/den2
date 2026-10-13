@@ -2,9 +2,9 @@ package id.my.sisinden.app.ui.attendance
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import id.my.sisinden.app.core.network.NetworkResult
 import id.my.sisinden.app.data.model.AttendanceDto
 import id.my.sisinden.app.data.model.CreateAttendanceRequest
+import id.my.sisinden.app.data.repository.NetworkResult
 import id.my.sisinden.app.data.repository.SindenRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
