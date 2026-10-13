@@ -65,7 +65,9 @@ jobs:
 
       - name: Unit tests
         working-directory: android
-        run: gradle :app:testDebugUnitTest --stacktrace
+        run: |
+          set -o pipefail
+          gradle :app:testDebugUnitTest --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle-test.log"
 
       - name: Lint (report only)
         working-directory: android
@@ -74,7 +76,27 @@ jobs:
 
       - name: Assemble debug & release
         working-directory: android
-        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug :app:assembleRelease --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle-assemble.log"
+
+      - name: Report Gradle errors as annotations
+        if: failure()
+        run: |
+          # Ringkas error kompilasi/test agar terbaca di tab Checks tanpa membuka log penuh.
+          cat "$RUNNER_TEMP"/gradle-*.log 2>/dev/null \
+            | grep -E '^e: |What went wrong|^> |FAILED|Exception|expected:|AssertionError|Could not|Unresolved|error:' \
+            | grep -vE '^> Task .* (UP-TO-DATE|NO-SOURCE|SKIPPED|FROM-CACHE)$' \
+            | sed -E 's#file:///home/runner/work/[^/]+/[^/]+/##; s#/home/runner/work/[^/]+/[^/]+/##' \
+            | head -200 > "$RUNNER_TEMP/gradle-errors.txt" || true
+          split -l 20 "$RUNNER_TEMP/gradle-errors.txt" "$RUNNER_TEMP/gerr-" || true
+          n=0
+          for f in "$RUNNER_TEMP"/gerr-*; do
+            [ -f "$f" ] || continue
+            n=$((n+1)); [ $n -gt 10 ] && break
+            msg=$(sed -e 's/%/%25/g' "$f" | awk 'BEGIN{ORS="%0A"} {print}')
+            echo "::error title=Gradle errors part $n::$msg"
+          done
 
       - name: Collect APKs, verify signature, compute SHA-256
         id: collect
