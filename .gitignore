@@ -22,3 +22,9 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Kredensial signing Android — jangan pernah di-commit
+*.jks
+*.keystore
+key.properties
+android/keystore.properties

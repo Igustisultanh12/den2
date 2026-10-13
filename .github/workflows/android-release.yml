@@ -1,22 +1,49 @@
-name: Build and Release SISINDEN Android Native APK
+name: SISINDEN Android — Build, Test & Release
 
+# Build & test di setiap push/PR. GitHub Release HANYA dibuat dari tag v* dan
+# hanya bila APK rilis benar-benar ditandatangani dengan keystore resmi.
 on:
   push:
+    branches: [ main, 'feature/**' ]
+    tags: [ 'v*' ]
+  pull_request:
     branches: [ main ]
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build Native Android APK
+  backend-tests:
+    name: Backend mobile API tests (Laravel)
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Source Code
+      - uses: actions/checkout@v4
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, sqlite3, gd, zip, dom
+          coverage: none
+      - name: Install Composer dependencies
+        run: |
+          cp .env.example .env
+          composer install --no-interaction --prefer-dist --no-progress
+          php artisan key:generate --no-interaction
+      - name: Run mobile API security & contract tests
+        run: php artisan test --filter=MobileApiSecurityTest
+
+  android:
+    name: Android build & unit tests
+    runs-on: ubuntu-latest
+    needs: backend-tests
+    env:
+      SISINDEN_KEYSTORE_BASE64: ${{ secrets.SISINDEN_KEYSTORE_BASE64 }}
+      SISINDEN_KEYSTORE_PASSWORD: ${{ secrets.SISINDEN_KEYSTORE_PASSWORD }}
+      SISINDEN_KEY_ALIAS: ${{ secrets.SISINDEN_KEY_ALIAS }}
+      SISINDEN_KEY_PASSWORD: ${{ secrets.SISINDEN_KEY_PASSWORD }}
+    steps:
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -29,104 +56,72 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-          validate-wrappers: false
 
-      - name: Verify Gradle Environment
-        run: gradle --version
+      - name: Restore release keystore (only if secrets are configured)
+        if: env.SISINDEN_KEYSTORE_BASE64 != ''
+        run: |
+          echo "$SISINDEN_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/sisinden-release.jks"
+          echo "SISINDEN_KEYSTORE_PATH=$RUNNER_TEMP/sisinden-release.jks" >> "$GITHUB_ENV"
 
-      - name: Run Unit Tests
+      - name: Unit tests
         working-directory: android
-        run: |
-          set -o pipefail
-          gradle :app:testDebugUnitTest --stacktrace 2>&1 | tee test_log.txt || {
-            ERR_MSG=$(tail -n 25 test_log.txt | tr '\n' ' ' | sed 's/"//g')
-            echo "::error title=UnitTestFailure::$ERR_MSG"
-            exit 1
-          }
+        run: gradle :app:testDebugUnitTest --stacktrace
 
-      - name: Build Application APK
+      - name: Lint (report only)
         working-directory: android
-        run: |
-          set -o pipefail
-          gradle :app:assembleDebug :app:assembleRelease --stacktrace 2>&1 | tee build_log.txt || {
-            ERR_MSG=$(tail -n 25 build_log.txt | tr '\n' ' ' | sed 's/"//g')
-            echo "::error title=BuildFailure::$ERR_MSG"
-            exit 1
-          }
+        continue-on-error: true
+        run: gradle :app:lintDebug
 
-      - name: Save Error Log to Git Branch on Failure
-        if: failure()
+      - name: Assemble debug & release
+        working-directory: android
+        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
+
+      - name: Collect APKs, verify signature, compute SHA-256
+        id: collect
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -B ci-debug-log
-          echo "# CI FAILURE LOG" > CI_LOG.md
-          if [ -f "android/test_log.txt" ]; then
-            echo "## test_log.txt" >> CI_LOG.md
-            echo '```' >> CI_LOG.md
-            cat android/test_log.txt >> CI_LOG.md
-            echo '```' >> CI_LOG.md
+          set -euo pipefail
+          VERSION=$(grep -E 'versionName *= *"' android/app/build.gradle.kts | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/SISINDEN-${VERSION}-debug.apk"
+          SIGNED=false
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "out/SISINDEN-${VERSION}.apk"
+            APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+            "$APKSIGNER" verify --verbose --print-certs "out/SISINDEN-${VERSION}.apk"
+            SIGNED=true
+          else
+            cp android/app/build/outputs/apk/release/app-release-unsigned.apk "out/SISINDEN-${VERSION}-unsigned.apk"
+            echo "::warning title=Unsigned release::Secrets keystore belum dikonfigurasi; APK rilis tidak ditandatangani dan tidak akan dipublikasikan."
           fi
-          if [ -f "android/build_log.txt" ]; then
-            echo "## build_log.txt" >> CI_LOG.md
-            echo '```' >> CI_LOG.md
-            cat android/build_log.txt >> CI_LOG.md
-            echo '```' >> CI_LOG.md
-          fi
-          git add CI_LOG.md
-          git commit -m "ci: capture failure logs"
-          git push -f origin ci-debug-log
+          echo "signed=$SIGNED" >> "$GITHUB_OUTPUT"
+          (cd out && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
 
-      - name: Prepare APK Artifact
-        run: |
-          mkdir -p release-output
-          shopt -s globstar nullglob
-          for apk in android/app/build/**/*.apk; do
-            if [ -f "$apk" ]; then
-              echo "Found APK: $apk"
-              base=$(basename "$apk")
-              cp "$apk" "release-output/$base"
-              cp "$apk" release-output/SISINDEN-v1.0.4.apk
-              cp "$apk" release-output/SISINDEN-v1.0.3.apk
-              cp "$apk" release-output/SISINDEN-v1.0.2.apk
-              cp "$apk" release-output/SISINDEN-v1.0.1.apk
-              cp "$apk" release-output/SISINDEN-v1.0.0.apk
-            fi
-          done
-          ls -la release-output/
-
-      - name: Upload APK Artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: SISINDEN-Android-APKs
-          path: release-output/*.apk
+          name: SISINDEN-Android-${{ steps.collect.outputs.version }}
+          path: |
+            out/*.apk
+            out/SHA256SUMS.txt
+            android/app/build/reports/lint-results-debug.html
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+        if: startsWith(github.ref, 'refs/tags/v') && steps.collect.outputs.signed == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v1.0.{0}', github.run_number) }}
-          name: ${{ startsWith(github.ref, 'refs/tags/v') && format('SISINDEN Android Native {0}', github.ref_name) || format('SISINDEN Android Native v1.0.{0}', github.run_number) }}
-          body: |
-            ## Rilis Aplikasi SISINDEN Android Native v1.0.4
-
-            Aplikasi resmi kedinasan SISINDEN (Sistem Informasi dan Surat Intelijen Denintel Kodaeral V).
-            
-            ### Pembaruan Utama v1.0.4:
-            - Perbaikan Autentikasi Presensi Kehadiran: Resolusi mandiri pengguna tanpa ketergantungan pada tabel personal_access_tokens, penambahan fallback header identitas kedinasan (X-User-Id, X-User-Nrp, X-User-Email), serta penanganan aman terhadap eksepsi database.
-            - UI/UX Modern SaaS Sederhana & Bersih: Desain antarmuka modern selaras web dashboard SISINDEN dengan kontur kartu rapi, tipografi tegas, dan estetika enterprise.
-            - Interaksi & Animasi Taktil (Micro-Interactions): Efek animasi spring bounce click pada seluruh tombol, kartu statistik, dan filter chips.
-            - Pengaturan Mode Gelap / Terang (Light / Dark / System): Pilihan tema Terang, Gelap, atau Mengikuti Sistem yang dapat diatur fleksibel di halaman Pengaturan maupun toggle instan di Beranda.
-            - Presisi Manajemen Kas Tinggi: Pemeliharaan akurasi transaksi nominal kas Rp1, Rp10, hingga nominal besar.
-            - Integrasi Penuh Seluruh Modul: Agenda Surat Dinas, Layanan SKHPP, Mitra Intelijen, Tanda Tangan Komandan, Direktori Personel, dan Pelanggaran Personel.
-            
-            ### Detail Teknis:
-            - Versi: 1.0.3 (versionCode 5)
-            - Kerangka Kerja: Kotlin Jetpack Compose (Material 3)
-            - Min SDK: Android 8.0 (API 26)
-            - Target SDK: Android 14 (API 34)
-            - Berkas APK: SISINDEN-v1.0.3.apk, app-release.apk
-          files: release-output/*.apk
+          tag_name: ${{ github.ref_name }}
+          name: SISINDEN Android ${{ github.ref_name }}
+          body_path: docs/ANDROID_RELEASE_NOTES.md
+          files: |
+            out/SISINDEN-${{ steps.collect.outputs.version }}.apk
+            out/SHA256SUMS.txt
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Refuse to release unsigned build
+        if: startsWith(github.ref, 'refs/tags/v') && steps.collect.outputs.signed != 'true'
+        run: |
+          echo "::error title=Release blocked::Tag rilis dibuat tetapi APK tidak ditandatangani. Tambahkan secrets SISINDEN_KEYSTORE_BASE64, SISINDEN_KEYSTORE_PASSWORD, SISINDEN_KEY_ALIAS, SISINDEN_KEY_PASSWORD."
+          exit 1

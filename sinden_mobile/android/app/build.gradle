@@ -51,18 +51,29 @@ android {
         multiDexEnabled = true
     }
 
+    // Kredensial signing TIDAK boleh berada di repository (keystore lama telah
+    // terekspos di riwayat git dan harus diganti). Sediakan android/key.properties
+    // (di-.gitignore) berisi storeFile, storePassword, keyAlias, keyPassword.
+    def keystoreProperties = new Properties()
+    def keystorePropertiesFile = rootProject.file('key.properties')
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.withReader('UTF-8') { reader -> keystoreProperties.load(reader) }
+    }
+
     signingConfigs {
         release {
-            storeFile file('sinden_release.jks')
-            storePassword 'sindenpassword'
-            keyAlias 'sinden_key'
-            keyPassword 'sindenpassword'
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.release
+            signingConfig = keystorePropertiesFile.exists() ? signingConfigs.release : null
             minifyEnabled false
             shrinkResources false
         }
