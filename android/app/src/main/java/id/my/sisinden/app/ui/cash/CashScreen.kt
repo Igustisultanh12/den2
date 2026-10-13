@@ -88,10 +88,11 @@ fun CashScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(
-                                            Brush.verticalGradient(
+                                            Brush.linearGradient(
                                                 colors = listOf(
-                                                    Color(0xFF0F2042),
-                                                    Color(0xFF1E3A8A)
+                                                    SindenNavyDark,
+                                                    SindenNavyMedium,
+                                                    SindenNavyLight
                                                 )
                                             )
                                         )

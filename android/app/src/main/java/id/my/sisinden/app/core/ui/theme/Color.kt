@@ -17,13 +17,28 @@ val SindenOceanContainer = Color(0xFFE0F2FE)
 val SindenGold = Color(0xFFF59E0B)
 val SindenGoldContainer = Color(0xFFFEF3C7)
 
-// Neutral Background & Surface - Light
-val BackgroundLight = Color(0xFFF8FAFC)
+// Neutral Background & Surface - Light (eCommerce Soft Ice Blue Style)
+val SindenIceBlueBg = Color(0xFFF4F8FB)
+val BackgroundLight = Color(0xFFF4F8FB)
 val SurfaceLight = Color(0xFFFFFFFF)
 val SurfaceVariantLight = Color(0xFFF1F5F9)
 val TextPrimaryLight = Color(0xFF0F172A)
 val TextSecondaryLight = Color(0xFF64748B)
 val OutlineLight = Color(0xFFE2E8F0)
+
+// Navy Gradients & Accents (eCommerce Hero Card)
+val SindenNavyDark = Color(0xFF0B1B3D)
+val SindenNavyMedium = Color(0xFF0E2452)
+val SindenNavyLight = Color(0xFF12306D)
+val SindenNavyAccent = Color(0xFF1E3A8A)
+
+// Pastel Icon Containers (eCommerce Quick Actions)
+val SindenPastelGreen = Color(0xFFE1F7F1)
+val SindenPastelBlue = Color(0xFFE5F2FD)
+val SindenPastelRed = Color(0xFFFEECEE)
+val SindenPastelYellow = Color(0xFFFEF3C7)
+val SindenPastelPurple = Color(0xFFEDE9FE)
+val SindenPastelOrange = Color(0xFFFFEDD5)
 
 // Neutral Background & Surface - Dark
 val BackgroundDark = Color(0xFF0B1120)

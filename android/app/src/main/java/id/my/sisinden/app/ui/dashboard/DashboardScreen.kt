@@ -225,10 +225,11 @@ fun DashboardScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(
-                                            Brush.verticalGradient(
+                                            Brush.linearGradient(
                                                 colors = listOf(
-                                                    Color(0xFF0F2042),
-                                                    Color(0xFF1E3A8A)
+                                                    SindenNavyDark,
+                                                    SindenNavyMedium,
+                                                    SindenNavyLight
                                                 )
                                             )
                                         )
@@ -241,22 +242,42 @@ fun DashboardScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = "Saldo Kas Satuan",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Color.White.copy(alpha = 0.85f)
+                                                text = "SALDO KAS UTAMA DENINTEL",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                letterSpacing = 0.8.sp,
+                                                color = Color(0xFF94A3B8)
                                             )
 
-                                            IconButton(
-                                                onClick = { viewModel.togglePrivacy() },
-                                                modifier = Modifier.size(32.dp)
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
-                                                Icon(
-                                                    imageVector = if (isPrivacyHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                    contentDescription = "Toggle Privasi",
-                                                    tint = Color.White.copy(alpha = 0.85f),
-                                                    modifier = Modifier.size(18.dp)
-                                                )
+                                                Surface(
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    color = SindenNavyAccent
+                                                ) {
+                                                    Text(
+                                                        text = "Terverifikasi",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF60A5FA),
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                    )
+                                                }
+
+                                                IconButton(
+                                                    onClick = { viewModel.togglePrivacy() },
+                                                    modifier = Modifier.size(30.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (isPrivacyHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                                        contentDescription = "Toggle Privasi",
+                                                        tint = Color.White.copy(alpha = 0.85f),
+                                                        modifier = Modifier.size(17.dp)
+                                                    )
+                                                }
                                             }
                                         }
 
@@ -677,19 +698,20 @@ fun QuickActionsGridRedesign(
         val title: String,
         val icon: ImageVector,
         val color: Color,
+        val containerColor: Color,
         val permitted: Boolean,
         val onClick: () -> Unit
     )
 
     val items = listOf(
-        ActionItem("Kas Denintel", Icons.Default.AccountBalanceWallet, SindenGold, isAdmin || user?.canAccessCash == true, onNavigateToCash),
-        ActionItem("Kas Taktis", Icons.Default.Security, Color(0xFF8B5CF6), isAdmin || user?.canAccessTechnicalCash == true, onNavigateToTechnicalCash),
-        ActionItem("Mitra Intel", Icons.Default.Group, Color(0xFF0D9488), isAdmin || user?.canAccessMitra == true, onNavigateToMitra),
-        ActionItem("Agenda Surat", Icons.Default.Email, SindenOceanPrimary, true, onNavigateToLetters),
-        ActionItem("Penerbitan SKHPP", Icons.Default.Assignment, SindenTealPrimary, true, onNavigateToSkhpp),
-        ActionItem("Tanda Tangan", Icons.Default.Draw, Color(0xFFE11D48), isAdmin || user?.canAccessSignature == true, onNavigateToSignature),
-        ActionItem("Pelanggaran", Icons.Default.Report, Color(0xFFDC2626), true, onNavigateToViolations),
-        ActionItem("Personel", Icons.Default.Badge, Color(0xFF3B82F6), true, onNavigateToPersonnel)
+        ActionItem("Kas Denintel", Icons.Default.AccountBalanceWallet, SindenTealPrimary, SindenPastelGreen, isAdmin || user?.canAccessCash == true, onNavigateToCash),
+        ActionItem("Kas Taktis", Icons.Default.Security, SindenOceanPrimary, SindenPastelBlue, isAdmin || user?.canAccessTechnicalCash == true, onNavigateToTechnicalCash),
+        ActionItem("Mitra Intel", Icons.Default.Group, Color(0xFFC2410C), SindenPastelOrange, isAdmin || user?.canAccessMitra == true, onNavigateToMitra),
+        ActionItem("Agenda Surat", Icons.Default.Email, Color(0xFF0369A1), SindenPastelBlue, true, onNavigateToLetters),
+        ActionItem("SKHPP", Icons.Default.Assignment, Color(0xFF7C3AED), SindenPastelPurple, true, onNavigateToSkhpp),
+        ActionItem("Tanda Tangan", Icons.Default.Draw, Color(0xFFE11D48), SindenPastelRed, isAdmin || user?.canAccessSignature == true, onNavigateToSignature),
+        ActionItem("Pelanggaran", Icons.Default.Report, Color(0xFFDC2626), SindenPastelRed, true, onNavigateToViolations),
+        ActionItem("Personel", Icons.Default.Badge, Color(0xFFD97706), SindenPastelYellow, true, onNavigateToPersonnel)
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -705,9 +727,9 @@ fun QuickActionsGridRedesign(
                             .clickable {
                                 onActionClick(item.title, item.permitted, item.onClick)
                             },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(18.dp),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 2.dp
+                        shadowElevation = 1.dp
                     ) {
                         Column(
                             modifier = Modifier
@@ -717,16 +739,16 @@ fun QuickActionsGridRedesign(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Surface(
-                                shape = CircleShape,
-                                color = item.color.copy(alpha = if (item.permitted) 0.15f else 0.08f),
-                                modifier = Modifier.size(42.dp)
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (item.permitted) item.containerColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(46.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = item.icon,
                                         contentDescription = item.title,
                                         tint = if (item.permitted) item.color else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(22.dp)
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             }
