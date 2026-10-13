@@ -101,3 +101,13 @@ Repositori dilengkapi alur kerja `.github/workflows/android-release.yml` yang te
 3. **Kompilasi APK**: Menjalankan `:app:assembleDebug` dan `:app:assembleRelease`.
 4. **Penyiapan Berkas Rilis**: Mengumpulkan berkas output menjadi `SISINDEN-v1.0.1.apk`, `app-release.apk`, dan `app-debug.apk`.
 5. **Publikasi ke GitHub Releases**: Membuat rilis publik dengan tag versi otomatis dan menyertakan seluruh aset berkas APK siap pasang.
+
+---
+
+## 5. Status dan Tautan Rilis Terverifikasi
+
+- **Tag Rilis:** `v1.0.20`
+- **Tautan Rilis:** [SISINDEN Android Native v1.0.20](https://github.com/Igustisultanh12/kantor/releases/tag/v1.0.20)
+- **Aset Rilis Utama:** [SISINDEN-v1.0.1.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.20/SISINDEN-v1.0.1.apk)
+- **Aset Standar:** [app-release.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.20/app-release.apk)
+- **Aset Debug:** [app-debug.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.20/app-debug.apk)

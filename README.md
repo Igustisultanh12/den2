@@ -139,3 +139,13 @@ Dokumentasi terperinci tersedia di folder `docs/`:
 - [NOTIFICATION_FLOW.md](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/NOTIFICATION_FLOW.md): Alur deduplikasi dan siklus notifikasi kedinasan.
 - [UI_UX_IMPLEMENTATION.md](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/UI_UX_IMPLEMENTATION.md): Rincian redesign antarmuka dan palet warna.
 - [BUILD_AND_RELEASE.md](file:///C:/Users/Hackersxx12/.gemini/antigravity/scratch/kantor/docs/BUILD_AND_RELEASE.md): Panduan kompilasi dan CI/CD rilis APK.
+
+---
+
+## 5. Tautan Rilis Resmi (GitHub Releases)
+
+Berkas APK hasil kompilasi rilis terbaru tersedia pada GitHub Releases:
+- **Halaman Rilis:** [SISINDEN Android Native v1.0.20](https://github.com/Igustisultanh12/kantor/releases/tag/v1.0.20)
+- **Unduh APK Rilis (v1.0.1):** [SISINDEN-v1.0.1.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.20/SISINDEN-v1.0.1.apk)
+- **Unduh APK Standar:** [app-release.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.20/app-release.apk)
+- **Unduh APK Debug:** [app-debug.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.20/app-debug.apk)
