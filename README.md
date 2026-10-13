@@ -9,11 +9,11 @@ Repositori resmi sistem kedinasan SISINDEN untuk Detasemen Intelijen Kodaeral V 
 Aplikasi Android Native SISINDEN dirancang khusus untuk memenuhi standar operasional kedinasan kantor intelijen dengan antarmuka modern berbasis Jetpack Compose Material 3 yang mengadopsi prinsip eCommerce UI Kit profesional.
 
 - **Platform:** Android Native
-- **Versi Rilis:** v1.0.1 (versionCode: 2)
+- **Versi Rilis:** v1.0.2 (versionCode: 3)
 - **Min SDK:** 26 (Android 8.0 Oreo)
 - **Target SDK:** 34 (Android 14)
 - **Bahasa:** Kotlin
-- **UI Framework:** Jetpack Compose dengan Material 3
+- **UI Framework:** Jetpack Compose dengan Material 3 (Livin' Elder-Friendly Design)
 - **Arsitektur:** Clean Architecture MVVM (Model-View-ViewModel) dengan Unidirectional Data Flow (UDF)
 - **Networking:** Retrofit 2 + OkHttp 4 + Gson Converter
 - **Penyimpanan Lokal:** Jetpack DataStore Preferences & Android SharedPreferences
@@ -30,55 +30,62 @@ Aplikasi Android Native SISINDEN dirancang khusus untuk memenuhi standar operasi
    - Manajemen sesi aman dengan Bearer Token via Jetpack DataStore Preferences.
    - Konfigurasi alamat server API dinamis (dapat diarahkan ke mirror internal).
 
-2. **Dashboard Eksekutif Modern:**
-   - Kartu saldo utama deep navy gradient dengan badge terverifikasi dan tombol privasi sensor saldo.
+2. **Dashboard Eksekutif Modern (Livin' Elder-Friendly):**
+   - Kartu presensi cepat kedinasan terintegrasi.
+   - Kartu saldo utama Livin' Royal Blue gradient dengan badge terverifikasi dan tombol privasi sensor saldo.
    - Trio ringkasan keuangan (Pemasukan, Pengeluaran, Kas Taktis).
-   - Grid modul utama 8-aksi dengan kontainer squircle pastel elegan.
+   - Grid modul utama 8-aksi kedinasan dengan kontainer squircle pastel elegan.
    - Daftar agenda naskah dinas terkini.
 
-3. **Manajemen Kas Denintel (Pangkalan):**
+3. **Presensi Kehadiran Kedinasan (Absensi):**
+   - Status presensi hari ini secara instan dan jelas.
+   - Pilihan 4 status kedinasan taktil: Hadir Kantor, Dinas Luar, Piket Jaga, Izin Dinas.
+   - Deteksi titik koordinat kedinasan GPS dan catatan penugasan.
+   - Riwayat presensi 30 hari terakhir dengan visualisasi badge status.
+
+4. **Manajemen Kas Denintel (Pangkalan):**
    - Rekalkulasi kronologis otomatis yang menjamin ketepatan running balance.
    - Dukungan penuh pencatatan transaksi mulai dari Rp1 hingga nominal besar tanpa anomali.
    - Operasi lengkap: Tambah, Edit (ModalBottomSheet), dan Hapus (AlertDialog).
    - Filter tab: Semua, Penerimaan, dan Pengeluaran.
 
-4. **Manajemen Kas Taktis Operasi (Dan Unit Teknis):**
+5. **Manajemen Kas Taktis Operasi (Dan Unit Teknis):**
    - Monitoring dana taktis khusus kegiatan intelijen lapangan.
    - Dukungan pencatatan dana masuk dan dana keluar.
    - Operasi lengkap: Tambah, Edit, dan Hapus data transaksi taktis.
 
-5. **Mitra Intelijen (Jaringan Kerja Lapangan):**
+6. **Mitra Intelijen (Jaringan Kerja Lapangan):**
    - Direktori mitra intelijen (nama mitra, perusahaan/sektor, nomor kontak, catatan).
    - Status pembayaran bulan berjalan ("Lunas" / "Belum Lunas").
    - Lembar Matriks 12 Bulan interaktif (Januari - Desember) untuk menandai pembayaran bulanan secara instan.
    - Operasi lengkap: Tambah, Edit, dan Hapus data mitra.
 
-6. **Agenda & Log Surat Dinas:**
+7. **Agenda & Log Surat Dinas:**
    - Filter tab surat (Semua, Surat Masuk, Surat Keluar, Disposisi).
    - Pencarian dinamis berdasarkan nomor agenda, perihal, atau pengirim.
    - Formulir pencatatan agenda surat dinas baru.
 
-7. **Layanan SKHPP (Surat Keterangan Hasil Penelitian Personel):**
+8. **Layanan SKHPP (Surat Keterangan Hasil Penelitian Personel):**
    - Pemantauan status pengajuan (Pending, Terverifikasi).
    - Validasi nama personel, pangkat, dan tujuan permohonan dinas.
    - Formulir pengajuan permohonan SKHPP baru.
 
-8. **Tanda Tangan Elektronik Komandan:**
+9. **Tanda Tangan Elektronik Komandan:**
    - Daftar permohonan persetujuan dokumen kedinasan.
    - Verifikasi status persetujuan resmi dinas.
 
-9. **Pelanggaran Personel Satuan:**
-   - Rekap catatan disiplin internal dan kepatuhan etika dinas.
+10. **Pelanggaran Personel Satuan:**
+    - Rekap catatan disiplin internal dan kepatuhan etika dinas.
 
-10. **Direktori Personel Satuan:**
+11. **Direktori Personel Satuan:**
     - Pencarian kontak dinas personel, NRP, korps, pangkat, dan jabatan.
 
-11. **Warta Notifikasi Kedinasan:**
+12. **Warta Notifikasi Kedinasan:**
     - Sistem notifikasi pintar dengan deduplikasi persisten SharedPreferences.
     - Sinkronisasi senyap saat pertama kali aplikasi dibuka (mencegah spam bunyi/getar notifikasi lama).
     - Membunyikan nada dering hanya jika ada instruksi dinas yang benar-benar baru.
 
-12. **Preferensi & Personalisasi:**
+13. **Preferensi & Personalisasi:**
     - Pengaturan tema gelap (Dark Mode) dan sesi akun.
 
 ---

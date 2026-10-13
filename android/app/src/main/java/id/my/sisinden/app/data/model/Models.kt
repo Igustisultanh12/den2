@@ -319,3 +319,56 @@ data class SimpleResponse(
     @SerializedName("status") val status: String = "success",
     @SerializedName("message") val message: String? = null
 )
+
+// --- MODUL PRESENSI KEHADIRAN PERSONEL (ABSENSI) ---
+data class AttendanceDto(
+    @SerializedName("id") val id: Long = 0,
+    @SerializedName("user_id") val userId: Long = 0,
+    @SerializedName("attendance_date") val attendanceDate: String = "",
+    @SerializedName("time_in") val timeIn: String = "",
+    @SerializedName("status") val status: String = "hadir", // hadir, dinas_luar, piket, izin
+    @SerializedName("ip_address") val ipAddress: String? = null,
+    @SerializedName("device") val device: String? = null,
+    @SerializedName("latitude") val latitude: Double? = null,
+    @SerializedName("longitude") val longitude: Double? = null,
+    @SerializedName("location_name") val locationName: String? = null,
+    @SerializedName("notes") val notes: String? = null,
+    @SerializedName("photo") val photo: String? = null,
+    @SerializedName("photo_url") val photoUrl: String? = null
+) {
+    val displayStatus: String
+        get() = when (status.lowercase()) {
+            "hadir" -> "Hadir Kantor"
+            "dinas_luar" -> "Dinas Luar"
+            "piket" -> "Piket Jaga"
+            "izin" -> "Izin Dinas"
+            else -> status.replaceFirstChar { it.uppercase() }
+        }
+
+    val displayTime: String
+        get() = if (timeIn.isNotEmpty()) "$timeIn WIB" else "--:-- WIB"
+}
+
+data class AttendanceResponse(
+    @SerializedName("status") val status: String = "success",
+    @SerializedName("today_attendance") val todayAttendance: AttendanceDto? = null,
+    @SerializedName("attendances") val attendances: List<AttendanceDto> = emptyList(),
+    @SerializedName("total_attended_today") val totalAttendedToday: Int = 0,
+    @SerializedName("total_active_personnel") val totalActivePersonnel: Int = 0
+)
+
+data class CreateAttendanceRequest(
+    @SerializedName("status") val status: String = "hadir",
+    @SerializedName("latitude") val latitude: Double? = null,
+    @SerializedName("longitude") val longitude: Double? = null,
+    @SerializedName("location_name") val locationName: String? = null,
+    @SerializedName("device_model") val deviceModel: String? = null,
+    @SerializedName("notes") val notes: String? = null,
+    @SerializedName("photo") val photo: String? = null
+)
+
+data class AttendanceActionResponse(
+    @SerializedName("status") val status: String = "success",
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("attendance") val attendance: AttendanceDto? = null
+)

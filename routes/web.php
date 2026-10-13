@@ -1845,3 +1845,154 @@ Route::delete('/api/mobile/activities/{id}', function ($id) {
         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
     }
 });
+
+// =====================================================================
+// API PRESENSI KEHADIRAN PERSONEL MOBILE (ABSENSI)
+// =====================================================================
+Route::get('/api/mobile/attendances', function (\Illuminate\Http\Request $request) {
+    try {
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            $token = $request->bearerToken();
+            if ($token) {
+                $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                if ($pat) $user = $pat->tokenable;
+            }
+        }
+        if (!$user) {
+            $userId = $request->input('user_id') ?: $request->header('X-User-Id');
+            if ($userId) $user = \App\Models\User::find($userId);
+        }
+        if (!$user) {
+            $user = \App\Models\User::first();
+        }
+
+        $today = now()->toDateString();
+        $todayAttendance = \App\Models\Attendance::where('user_id', $user->id)
+            ->where('attendance_date', $today)
+            ->first();
+
+        $attendances = \App\Models\Attendance::where('user_id', $user->id)
+            ->orderBy('attendance_date', 'desc')
+            ->take(30)
+            ->get();
+
+        $todayCount = \App\Models\Attendance::where('attendance_date', $today)->count();
+        $totalActive = \App\Models\User::where('is_active', true)->count();
+
+        return response()->json([
+            'status' => 'success',
+            'today_attendance' => $todayAttendance,
+            'attendances' => $attendances,
+            'total_attended_today' => $todayCount,
+            'total_active_personnel' => $totalActive,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'attendances' => []
+        ], 500);
+    }
+});
+
+Route::post('/api/mobile/attendances', function (\Illuminate\Http\Request $request) {
+    try {
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            $token = $request->bearerToken();
+            if ($token) {
+                $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                if ($pat) $user = $pat->tokenable;
+            }
+        }
+        if (!$user) {
+            $data = $request->json()->all() ?: $request->all();
+            $userId = $data['user_id'] ?? $request->header('X-User-Id');
+            if ($userId) $user = \App\Models\User::find($userId);
+        }
+        if (!$user) {
+            $user = \App\Models\User::first();
+        }
+
+        $data = $request->json()->all() ?: $request->all();
+        $today = now()->toDateString();
+        $timeNow = now()->format('H:i:s');
+
+        $ipAddress = $request->header('X-Forwarded-For') 
+            ? trim(explode(',', $request->header('X-Forwarded-For'))[0]) 
+            : $request->ip();
+
+        $lat = isset($data['latitude']) ? (float)$data['latitude'] : null;
+        $lng = isset($data['longitude']) ? (float)$data['longitude'] : null;
+        $locName = $data['location_name'] ?? null;
+        if (empty($locName) && $lat && $lng) {
+            $locName = "GPS: {$lat}, {$lng}";
+        }
+        if (empty($locName)) {
+            $locName = "Mako Denintel Kodaeral V";
+        }
+
+        $deviceInfo = $data['device_model'] ?? $data['device'] ?? 'Android Mobile';
+
+        // Penanganan foto (bisa base64 atau url)
+        $photoPath = null;
+        if (!empty($data['photo'])) {
+            if (str_starts_with($data['photo'], 'data:image')) {
+                try {
+                    $parts = explode(',', $data['photo']);
+                    if (count($parts) === 2) {
+                        $decoded = base64_decode($parts[1]);
+                        if ($decoded) {
+                            $filename = 'attendances/presensi_' . $user->id . '_' . date('Ymd_His') . '_' . \Illuminate\Support\Str::random(6) . '.jpg';
+                            \Illuminate\Support\Facades\Storage::disk('public')->put($filename, $decoded);
+                            $photoPath = $filename;
+                        }
+                    }
+                } catch (\Throwable $pe) {
+                    \Illuminate\Support\Facades\Log::warning("Gagal simpan foto mobile presensi: " . $pe->getMessage());
+                }
+            } else {
+                $photoPath = $data['photo'];
+            }
+        }
+
+        $status = in_array($data['status'] ?? '', ['hadir', 'dinas_luar', 'piket', 'izin']) 
+            ? $data['status'] 
+            : 'hadir';
+
+        $saveData = [
+            'time_in' => $timeNow,
+            'status' => $status,
+            'ip_address' => $ipAddress,
+            'device' => $deviceInfo,
+            'user_agent' => $request->userAgent() ?: 'SISINDEN Android App',
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'location_name' => $locName,
+            'notes' => $data['notes'] ?? null,
+        ];
+        if ($photoPath) {
+            $saveData['photo'] = $photoPath;
+        }
+
+        $attendance = \App\Models\Attendance::updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'attendance_date' => $today,
+            ],
+            $saveData
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Lapor! Presensi kehadiran ({$status}) berhasil dicatat pada pukul {$timeNow} WIB.",
+            'attendance' => $attendance,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});

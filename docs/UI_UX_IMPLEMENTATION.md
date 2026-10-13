@@ -61,3 +61,25 @@ Sistem warna diatur di `id.my.sisinden.app.core.ui.theme.Color.kt`:
   - Badge status "Lunas" (hijau) atau "Belum" (kuning-oranye) pada bulan berjalan.
 - **Lembar Matriks 12 Bulan Interaktif**:
   - Mengadaptasi matriks web ke dalam form modal mobile dengan tata letak grid 3x4 (Januari hingga Desember) yang dapat disentuh untuk langsung mengubah status pembayaran.
+
+---
+
+## 5. Implementasi Redesign Livin' by Mandiri Elder-Friendly
+
+Sesuai arahan desain terbaru yang terinspirasi dari referensi Livin' by Mandiri Elder-Friendly:
+1. **Tipografi & Hirarki Kontras Tinggi**:
+   - Ukuran font judul dan nominal diperbesar (headlineLarge 28-32sp dengan weight Black).
+   - Teks sublabel dan keterangan menggunakan kontras warna tegas untuk kenyamanan pembacaan pengguna dari berbagai latar belakang usia.
+2. **Komponen Taktil Berukuran Nyaman (Large Touch Targets)**:
+   - Tombol eksekusi utama, tab kuadran status, dan tombol aksi dirancang dengan tinggi 48dp hingga 56dp untuk mencegah terjadinya kesalahan sentuh (misclick).
+3. **Kartu Status Bergradien Deep Navy - Royal Blue**:
+   - Menerapkan palet warna Royal Blue (`#003D79`), Navy Deep (`#002244`), dan aksen Golden Amber (`#F9A825`).
+4. **Layar Presensi Kehadiran Terdedikasi**:
+   - Hero banner status hari ini (menampilkan jam tercatat dan badge TERVERIFIKASI/BELUM ABSEN).
+   - Kuadran pilihan 4 status dinas: Hadir Kantor, Dinas Luar, Piket Jaga, dan Izin Dinas.
+   - Deteksi visual titik koordinat kedinasan.
+   - Input catatan penugasan kedinasan yang lapang.
+   - Kartu riwayat presensi 30 hari terakhir dengan visualisasi badge status dinas.
+5. **Navigasi Terintegrasi**:
+   - Tab navigasi permanen "Presensi" pada bilah navigasi bawah (NavigationBar) dan quick banner di dashboard utama.
+

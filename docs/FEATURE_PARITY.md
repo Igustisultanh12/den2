@@ -5,7 +5,8 @@ Dokumen ini memetakan kesetaraan fitur operasional kantor antara versi Web ([htt
 | Nama Modul / Fitur | Hak Akses Kedinasan | Status Web | Status Android | Catatan Implementasi |
 | :--- | :--- | :--- | :--- | :--- |
 | Login & Autentikasi | Semua Personel | Tersedia | Tersedia | Token Bearer persisten di DataStore Preferences |
-| Dashboard Eksekutif | Semua Personel | Tersedia | Tersedia | Ringkasan saldo kas, trio kartu, warta dinas, agenda surat |
+| Dashboard Eksekutif | Semua Personel | Tersedia | Tersedia | Ringkasan saldo kas, trio kartu, warta dinas, agenda surat, aksi cepat |
+| Presensi Kehadiran Dinas (Absensi) | Semua Personel | Tersedia | Tersedia | Status hari ini, 4 status dinas (Hadir, Dinas Luar, Piket, Izin), koordinat GPS, catatan, riwayat 30 hari |
 | Kas Denintel (Pangkalan) - Lihat | Admin, Danden, Bendahara | Tersedia | Tersedia | Rekalkulasi saldo kronologis dan penyajian format Rupiah |
 | Kas Denintel - Tambah | Admin, Bendahara | Tersedia | Tersedia | Input debit/kredit dan nominal dengan validasi otomatis |
 | Kas Denintel - Edit | Admin, Bendahara | Tersedia | Tersedia | Modal BottomSheet edit transaksi dan rekalkulasi saldo |

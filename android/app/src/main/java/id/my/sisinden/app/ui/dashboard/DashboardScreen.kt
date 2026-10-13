@@ -43,7 +43,8 @@ fun DashboardScreen(
     onNavigateToViolations: () -> Unit,
     onNavigateToPersonnel: () -> Unit,
     onNavigateToNotifications: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToAttendance: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val currentUser by viewModel.currentUser.collectAsState(initial = null)
@@ -211,7 +212,88 @@ fun DashboardScreen(
                     }
                 }
                 is DashboardUiState.Success -> {
-                    // 1. KARTU SALDO UTAMA (DEEP NAVY GRADIENT DENGAN PRIVASI TOGGLE SESUAI REFERENSI 2)
+                    // 0. KARTU PRESENSI KEHADIRAN DINAS CEPAT (LIVIN' ELDER-FRIENDLY ATTENDANCE BANNER)
+                    item {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToAttendance() },
+                            shape = RoundedCornerShape(22.dp),
+                            color = LivinCardBg,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, LivinElderBorder),
+                            shadowElevation = 3.dp
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(18.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = Color(0xFFE0F2FE),
+                                        modifier = Modifier.size(50.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.HowToReg,
+                                                contentDescription = "Presensi",
+                                                tint = LivinRoyalBlue,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                    }
+
+                                    Column {
+                                        Text(
+                                            text = "Presensi Kehadiran Dinas",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Black,
+                                            color = LivinElderTextPrimary
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Lapor kehadiran personel & dinas luar",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = LivinElderTextSecondary
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = LivinRoyalBlue
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "ABSEN",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color.White
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.ChevronRight,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 1. KARTU SALDO UTAMA (LIVIN' ROYAL BLUE GRADIENT DENGAN PRIVASI TOGGLE)
                     if (config?.mobileShowBalanceCard != false) {
                         item {
                             Surface(
@@ -227,9 +309,9 @@ fun DashboardScreen(
                                         .background(
                                             Brush.linearGradient(
                                                 colors = listOf(
-                                                    SindenNavyDark,
-                                                    SindenNavyMedium,
-                                                    SindenNavyLight
+                                                    LivinNavyDeep,
+                                                    LivinRoyalBlue,
+                                                    LivinBlueAccent
                                                 )
                                             )
                                         )
@@ -246,7 +328,7 @@ fun DashboardScreen(
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 letterSpacing = 0.8.sp,
-                                                color = Color(0xFF94A3B8)
+                                                color = Color(0xFFBAE6FD)
                                             )
 
                                             Row(
@@ -563,7 +645,8 @@ fun DashboardScreen(
                                 onNavigateToMitra = onNavigateToMitra,
                                 onNavigateToSignature = onNavigateToSignature,
                                 onNavigateToViolations = onNavigateToViolations,
-                                onNavigateToPersonnel = onNavigateToPersonnel
+                                onNavigateToPersonnel = onNavigateToPersonnel,
+                                onNavigateToAttendance = onNavigateToAttendance
                             )
                         }
                     }
@@ -690,7 +773,8 @@ fun QuickActionsGridRedesign(
     onNavigateToMitra: () -> Unit,
     onNavigateToSignature: () -> Unit,
     onNavigateToViolations: () -> Unit,
-    onNavigateToPersonnel: () -> Unit
+    onNavigateToPersonnel: () -> Unit,
+    onNavigateToAttendance: () -> Unit = {}
 ) {
     val isAdmin = user?.isAdminOrOfficer == true
 
@@ -704,6 +788,7 @@ fun QuickActionsGridRedesign(
     )
 
     val items = listOf(
+        ActionItem("Presensi", Icons.Default.HowToReg, LivinRoyalBlue, Color(0xFFE0F2FE), true, onNavigateToAttendance),
         ActionItem("Kas Denintel", Icons.Default.AccountBalanceWallet, SindenTealPrimary, SindenPastelGreen, user == null || user.canOpenCash, onNavigateToCash),
         ActionItem("Kas Taktis", Icons.Default.Security, SindenOceanPrimary, SindenPastelBlue, user == null || user.canOpenTechnicalCash, onNavigateToTechnicalCash),
         ActionItem("Mitra Intel", Icons.Default.Group, Color(0xFFC2410C), SindenPastelOrange, user == null || user.canOpenMitra, onNavigateToMitra),
@@ -762,6 +847,11 @@ fun QuickActionsGridRedesign(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
+                    }
+                }
+                if (rowItems.size < 4) {
+                    repeat(4 - rowItems.size) {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }

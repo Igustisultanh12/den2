@@ -160,6 +160,7 @@ class SindenUnitTest {
         val routes = listOf(
             NavRoute.Login.route,
             NavRoute.Main.route,
+            NavRoute.Attendance.route,
             NavRoute.LetterLogs.route,
             NavRoute.CreateLetter.route,
             NavRoute.Skhpp.route,
@@ -210,5 +211,67 @@ class SindenUnitTest {
         assertTrue(adminUser.canOpenCash)
         assertTrue(adminUser.canOpenTechnicalCash)
         assertTrue(adminUser.canOpenMitra)
+    }
+
+    @Test
+    fun testAttendanceResponseParsing() {
+        val json = """
+            {
+                "status": "success",
+                "today_attendance": {
+                    "id": 10,
+                    "user_id": 1,
+                    "date": "2026-10-13",
+                    "time_in": "07:30:00",
+                    "status": "hadir",
+                    "location_name": "Mako Denintel Kodaeral V, Surabaya",
+                    "latitude": -7.2053,
+                    "longitude": 112.7358,
+                    "device_model": "Android Device",
+                    "notes": "Apel pagi tepat waktu"
+                },
+                "officer_stats": {
+                    "total_attended_today": 25,
+                    "total_active_personnel": 30
+                },
+                "attendances": [
+                    {
+                        "id": 10,
+                        "user_id": 1,
+                        "date": "2026-10-13",
+                        "time_in": "07:30:00",
+                        "status": "hadir",
+                        "location_name": "Mako Denintel Kodaeral V, Surabaya",
+                        "latitude": -7.2053,
+                        "longitude": 112.7358,
+                        "device_model": "Android Device"
+                    }
+                ]
+            }
+        """.trimIndent()
+
+        val response = gson.fromJson(json, AttendanceResponse::class.java)
+        assertEquals("success", response.status)
+        assertNotNull(response.todayAttendance)
+        assertEquals("hadir", response.todayAttendance?.status)
+        assertEquals(-7.2053, response.todayAttendance?.latitude ?: 0.0, 0.0001)
+        assertEquals(25, response.officerStats?.totalAttendedToday)
+        assertEquals(30, response.officerStats?.totalActivePersonnel)
+        assertEquals(1, response.attendances.size)
+    }
+
+    @Test
+    fun testCreateAttendanceRequest() {
+        val req = CreateAttendanceRequest(
+            status = "dinas_luar",
+            latitude = -7.2575,
+            longitude = 112.7521,
+            locationName = "Kantor Gubernur Jawa Timur",
+            deviceModel = "Samsung Galaxy S23",
+            notes = "Koordinasi pengamanan VVIP"
+        )
+        assertEquals("dinas_luar", req.status)
+        assertEquals(-7.2575, req.latitude ?: 0.0, 0.0001)
+        assertEquals("Samsung Galaxy S23", req.deviceModel)
     }
 }

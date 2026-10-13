@@ -303,4 +303,23 @@ class SindenRepository(
             NetworkResult.Error(e.localizedMessage ?: "Gagal memuat notifikasi kedinasan.")
         }
     }
+
+    // 12. Presensi Kehadiran Personel (Absensi)
+    suspend fun getAttendances(): NetworkResult<AttendanceResponse> {
+        return try {
+            val response = apiClient.getService().getAttendances()
+            handleResponse(response)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.localizedMessage ?: "Gagal memuat data presensi kehadiran.")
+        }
+    }
+
+    suspend fun recordAttendance(request: CreateAttendanceRequest): NetworkResult<AttendanceActionResponse> {
+        return try {
+            val response = apiClient.getService().recordAttendance(request)
+            handleResponse(response)
+        } catch (e: Exception) {
+            NetworkResult.Error(e.localizedMessage ?: "Gagal mencatat presensi kehadiran.")
+        }
+    }
 }

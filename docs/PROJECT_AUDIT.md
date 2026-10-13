@@ -35,7 +35,7 @@ Aplikasi Android SISINDEN dikembangkan menggunakan native Android dengan stack t
   - TTE Komandan: `id.my.sisinden.app.ui.signature`
   - Disiplin & Pelanggaran: `id.my.sisinden.app.ui.violations`
   - Direktori Personel: `id.my.sisinden.app.ui.personnel`
-  - Warta Notifikasi: `id.my.sisinden.app.ui.notifications`
+  - Presensi Kehadiran Kedinasan: `id.my.sisinden.app.ui.attendance`
   - Pengaturan Akun: `id.my.sisinden.app.ui.settings`
 
 ## 4. Mekanisme Otentikasi dan Otoritas
@@ -52,3 +52,4 @@ Aplikasi Android SISINDEN dikembangkan menggunakan native Android dengan stack t
 2. Keterbatasan operasi CRUD: Pada versi awal, aksi Edit dan Hapus pada modul kas, kas teknis, dan mitra belum terhubung ke endpoint backend.
 3. Keterkaitan hak akses menu: Tombol aksi cepat Kas Denintel dan Kas Teknis sempat terkendala validasi izin lokal yang terlalu restriktif sebelum data profil personel selesai dimuat secara asynchronous.
 4. Perilaku notifikasi berulang: Notifikasi kedinasan memicu nada dering dan getaran setiap kali aplikasi dibuka karena ketiadaan pencatatan ID notifikasi yang persisten di penyimpanan perangkat.
+5. Ketiadaan Fitur Absensi di Android: Pada versi awal, endpoint `/api/mobile/attendances` belum didaftarkan di backend dan belum ada komponen UI Presensi di Android. Telah dipulihkan secara penuh di v1.0.2 dengan desain Livin' Elder-Friendly.

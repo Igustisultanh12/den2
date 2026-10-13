@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.HowToReg
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import id.my.sisinden.app.core.ui.theme.LivinRoyalBlue
 import id.my.sisinden.app.core.ui.theme.SindenGold
 import id.my.sisinden.app.core.ui.theme.SindenOceanPrimary
 import id.my.sisinden.app.core.ui.theme.SindenTealPrimary
@@ -37,6 +39,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import id.my.sisinden.app.data.repository.SindenRepository
+import id.my.sisinden.app.ui.attendance.AttendanceScreen
+import id.my.sisinden.app.ui.attendance.AttendanceViewModel
 import id.my.sisinden.app.ui.auth.AuthViewModel
 import id.my.sisinden.app.ui.auth.LoginScreen
 import id.my.sisinden.app.ui.cash.CashScreen
@@ -92,6 +96,7 @@ fun SindenApp(
 
     val bottomBarRoutes = listOf(
         NavRoute.Main.route,
+        NavRoute.Attendance.route,
         NavRoute.Cash.route,
         NavRoute.LetterLogs.route,
         NavRoute.Skhpp.route,
@@ -140,6 +145,26 @@ fun SindenApp(
                         )
 
                         NavigationBarItem(
+                            selected = currentRoute == NavRoute.Attendance.route,
+                            onClick = {
+                                if (currentRoute != NavRoute.Attendance.route) {
+                                    navController.navigate(NavRoute.Attendance.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
+                            icon = { Icon(Icons.Default.HowToReg, contentDescription = "Presensi") },
+                            label = { Text("Presensi", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = LivinRoyalBlue,
+                                selectedTextColor = LivinRoyalBlue,
+                                indicatorColor = LivinRoyalBlue.copy(alpha = 0.12f)
+                            )
+                        )
+
+                        NavigationBarItem(
                             selected = currentRoute == NavRoute.Cash.route,
                             onClick = {
                                 if (currentRoute != NavRoute.Cash.route) {
@@ -176,26 +201,6 @@ fun SindenApp(
                                 selectedIconColor = SindenOceanPrimary,
                                 selectedTextColor = SindenOceanPrimary,
                                 indicatorColor = SindenOceanPrimary.copy(alpha = 0.12f)
-                            )
-                        )
-
-                        NavigationBarItem(
-                            selected = currentRoute == NavRoute.Skhpp.route,
-                            onClick = {
-                                if (currentRoute != NavRoute.Skhpp.route) {
-                                    navController.navigate(NavRoute.Skhpp.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
-                            icon = { Icon(Icons.Default.Description, contentDescription = "SKHPP") },
-                            label = { Text("SKHPP", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = SindenTealPrimary,
-                                selectedTextColor = SindenTealPrimary,
-                                indicatorColor = SindenTealPrimary.copy(alpha = 0.12f)
                             )
                         )
 
@@ -253,7 +258,22 @@ fun SindenApp(
                     onNavigateToViolations = { navController.navigate(NavRoute.Violations.route) },
                     onNavigateToPersonnel = { navController.navigate(NavRoute.Personnel.route) },
                     onNavigateToNotifications = { navController.navigate(NavRoute.Notifications.route) },
-                    onNavigateToSettings = { navController.navigate(NavRoute.Settings.route) }
+                    onNavigateToSettings = { navController.navigate(NavRoute.Settings.route) },
+                    onNavigateToAttendance = { navController.navigate(NavRoute.Attendance.route) }
+                )
+            }
+
+            composable(NavRoute.Attendance.route) {
+                val attVm: AttendanceViewModel = viewModel(factory = factory)
+                AttendanceScreen(
+                    viewModel = attVm,
+                    onBackClick = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(NavRoute.Main.route)
+                        }
+                    }
                 )
             }
 

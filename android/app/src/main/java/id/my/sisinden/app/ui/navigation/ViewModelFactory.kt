@@ -3,6 +3,7 @@ package id.my.sisinden.app.ui.navigation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import id.my.sisinden.app.data.repository.SindenRepository
+import id.my.sisinden.app.ui.attendance.AttendanceViewModel
 import id.my.sisinden.app.ui.auth.AuthViewModel
 import id.my.sisinden.app.ui.cash.CashViewModel
 import id.my.sisinden.app.ui.dashboard.DashboardViewModel
@@ -23,6 +24,8 @@ class SindenViewModelFactory(private val repository: SindenRepository) : ViewMod
                 AuthViewModel(repository) as T
             modelClass.isAssignableFrom(DashboardViewModel::class.java) ->
                 DashboardViewModel(repository) as T
+            modelClass.isAssignableFrom(AttendanceViewModel::class.java) ->
+                AttendanceViewModel(repository) as T
             modelClass.isAssignableFrom(LetterViewModel::class.java) ->
                 LetterViewModel(repository) as T
             modelClass.isAssignableFrom(SkhppViewModel::class.java) ->

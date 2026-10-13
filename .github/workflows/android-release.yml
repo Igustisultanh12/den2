@@ -86,6 +86,7 @@ jobs:
               echo "Found APK: $apk"
               base=$(basename "$apk")
               cp "$apk" "release-output/$base"
+              cp "$apk" release-output/SISINDEN-v1.0.2.apk
               cp "$apk" release-output/SISINDEN-v1.0.1.apk
               cp "$apk" release-output/SISINDEN-v1.0.0.apk
             fi
@@ -105,26 +106,33 @@ jobs:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v1.0.{0}', github.run_number) }}
           name: ${{ startsWith(github.ref, 'refs/tags/v') && format('SISINDEN Android Native {0}', github.ref_name) || format('SISINDEN Android Native v1.0.{0}', github.run_number) }}
           body: |
-            ## Rilis Aplikasi SISINDEN Android Native
-            
+            ## Rilis Aplikasi SISINDEN Android Native v1.0.2
+
             Aplikasi resmi kedinasan SISINDEN (Sistem Informasi dan Surat Intelijen Denintel Kodaeral V).
             
+            ### Pembaruan Utama v1.0.2:
+            - Pemulihan Fitur Absensi & Presensi Kehadiran: Status kehadiran dinas hari ini, pelaporan status (Hadir, Dinas Luar, Piket, Izin), deteksi lokasi GPS, catatan penugasan dinas, dan riwayat presensi 30 hari terakhir.
+            - UI/UX Livin'-Inspired Elder-Friendly: Hirarki tipografi kontras tinggi, tombol aksi taktil 52-56dp, kartu status bergradien Navy-Royal Blue, dan navigasi ramah pengguna.
+            - Manajemen Kas Presisi Tinggi: Pembenahan kalkulasi dan tampilan nominal Rp1 serta sinkronisasi kas Denintel dan Kas Taktis.
+            - Integrasi Penuh Backend: Endpoint REST API mobile attendance terintegrasi dengan database kedinasan.
+            - Notifikasi Cerdas: Pengelolaan deduplikasi notifikasi kedinasan.
+            
             ### Fitur Utama:
-            - Otentikasi dan Keamanan: Integrasi login resmi, penyimpanan token terenkripsi DataStore Preferences.
-            - Agenda dan Log Surat Dinas: Pencatatan dan pemantauan surat masuk, surat keluar, disposisi.
+            - Presensi Kehadiran Kedinasan (Absensi Dinas)
+            - Otentikasi dan Keamanan: Penyimpanan token terenkripsi DataStore Preferences.
+            - Agenda dan Log Surat Dinas: Surat masuk, keluar, dan disposisi.
             - Pengajuan SKHPP: Layanan Surat Keterangan Hasil Penelitian Personel.
             - Manajemen Kas dan Logistik: Monitoring Kas Denintel dan Kas Taktis Satuan.
-            - Mitra Intelijen: Monitoring jaringan kerja intelijen lapangan.
+            - Mitra Intelijen: Monitoring dan matriks iuran jaringan kerja intelijen.
             - Tanda Tangan Elektronik Komandan: Persetujuan dokumen resmi kedinasan.
-            - Pelanggaran Personel: Rekap catatan disiplin internal.
-            - Direktori Personel: Informasi kontak dinas seluruh personel satuan.
-            - Notifikasi Kedinasan: Saluran pengumuman dan instruksi resmi.
+            - Pelanggaran Personel & Direktori Personel Satuan.
             
             ### Detail Teknis:
+            - Versi: 1.0.2 (versionCode 3)
             - Kerangka Kerja: Kotlin Jetpack Compose (Material 3)
             - Min SDK: Android 8.0 (API 26)
             - Target SDK: Android 14 (API 34)
-            - Berkas APK: SISINDEN-v1.0.0.apk, app-debug.apk, app-release.apk
+            - Berkas APK: SISINDEN-v1.0.2.apk, app-release.apk
           files: release-output/*.apk
           make_latest: true
         env:

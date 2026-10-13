@@ -106,4 +106,11 @@ interface SindenApiService {
     // 11. Notifikasi Resmi
     @GET("/api/mobile/notifications")
     suspend fun getNotifications(): Response<NotificationResponse>
+
+    // 12. Presensi Kehadiran Personel (Absensi)
+    @GET("/api/mobile/attendances")
+    suspend fun getAttendances(): Response<AttendanceResponse>
+
+    @POST("/api/mobile/attendances")
+    suspend fun recordAttendance(@Body request: CreateAttendanceRequest): Response<AttendanceActionResponse>
 }
