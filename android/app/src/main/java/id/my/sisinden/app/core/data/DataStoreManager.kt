@@ -92,6 +92,19 @@ class DataStoreManager(private val context: Context) {
         return context.dataStore.data.first()[KEY_TOKEN]
     }
 
+    suspend fun getUser(): UserDto? {
+        val json = context.dataStore.data.first()[KEY_USER]
+        return if (!json.isNullOrEmpty()) {
+            try {
+                gson.fromJson(json, UserDto::class.java)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
     suspend fun getBaseUrl(): String {
         return context.dataStore.data.first()[KEY_BASE_URL] ?: DEFAULT_BASE_URL
     }

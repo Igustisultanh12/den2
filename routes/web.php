@@ -582,7 +582,7 @@ Route::post('/api/mobile/login', function (\Illuminate\Http\Request $request) {
         // PEMBUATAN TOKEN SANCTUM DENGAN SAFE FALLBACK AGAR TIDAK HTTP 500
         $token = null;
         try {
-            if (method_exists($user, 'createToken')) {
+            if (\Illuminate\Support\Facades\Schema::hasTable('personal_access_tokens') && method_exists($user, 'createToken')) {
                 $token = $user->createToken('sinden_mobile_token')->plainTextToken;
             }
         } catch (\Throwable $te) {
@@ -1851,31 +1851,66 @@ Route::delete('/api/mobile/activities/{id}', function ($id) {
 // =====================================================================
 Route::get('/api/mobile/attendances', function (\Illuminate\Http\Request $request) {
     try {
-        $user = auth('sanctum')->user();
+        $user = null;
+
+        // 1. Prioritaskan identitas personel dari header aplikasi atau query param
+        $userId = $request->header('X-User-Id') ?: $request->input('user_id');
+        if (!empty($userId)) {
+            $user = \App\Models\User::find($userId);
+        }
         if (!$user) {
-            $token = $request->bearerToken();
-            if ($token) {
-                $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
-                if ($pat) $user = $pat->tokenable;
+            $nrp = $request->header('X-User-Nrp') ?: $request->input('nrp');
+            if (!empty($nrp)) {
+                $user = \App\Models\User::where('nrp', $nrp)->orWhere('username', $nrp)->first();
             }
         }
         if (!$user) {
-            $userId = $request->input('user_id') ?: $request->header('X-User-Id');
-            if ($userId) $user = \App\Models\User::find($userId);
+            $email = $request->header('X-User-Email') ?: $request->input('email');
+            if (!empty($email)) {
+                $user = \App\Models\User::where('email', $email)->first();
+            }
         }
+
+        // 2. Akses token Sanctum hanya jika tabel personal_access_tokens memang ada
+        if (!$user && \Illuminate\Support\Facades\Schema::hasTable('personal_access_tokens')) {
+            try {
+                $user = auth('sanctum')->user();
+                if (!$user) {
+                    $token = $request->bearerToken();
+                    if ($token && class_exists('\Laravel\Sanctum\PersonalAccessToken')) {
+                        $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                        if ($pat) $user = $pat->tokenable;
+                    }
+                }
+            } catch (\Throwable $ignored) {
+                // Abaikan kesalahan tabel/token Sanctum
+            }
+        }
+
+        // 3. Fallback ke sesi web standar jika login lewat peramban
+        if (!$user && auth()->check()) {
+            $user = auth()->user();
+        }
+
+        // 4. Fallback ke personel aktif pertama jika belum ditemukan
         if (!$user) {
-            $user = \App\Models\User::first();
+            $user = \App\Models\User::where('is_active', true)->first() ?: \App\Models\User::first();
         }
 
         $today = now()->toDateString();
-        $todayAttendance = \App\Models\Attendance::where('user_id', $user->id)
-            ->where('attendance_date', $today)
-            ->first();
+        $todayAttendance = null;
+        $attendances = [];
 
-        $attendances = \App\Models\Attendance::where('user_id', $user->id)
-            ->orderBy('attendance_date', 'desc')
-            ->take(30)
-            ->get();
+        if ($user) {
+            $todayAttendance = \App\Models\Attendance::where('user_id', $user->id)
+                ->where('attendance_date', $today)
+                ->first();
+
+            $attendances = \App\Models\Attendance::where('user_id', $user->id)
+                ->orderBy('attendance_date', 'desc')
+                ->take(30)
+                ->get();
+        }
 
         $todayCount = \App\Models\Attendance::where('attendance_date', $today)->count();
         $totalActive = \App\Models\User::where('is_active', true)->count();
@@ -1898,21 +1933,58 @@ Route::get('/api/mobile/attendances', function (\Illuminate\Http\Request $reques
 
 Route::post('/api/mobile/attendances', function (\Illuminate\Http\Request $request) {
     try {
-        $user = auth('sanctum')->user();
+        $data = $request->json()->all() ?: $request->all();
+        $user = null;
+
+        // 1. Identifikasi personel dari payload body, header, atau query param
+        $userId = $data['user_id'] ?? $request->header('X-User-Id') ?? $request->input('user_id');
+        if (!empty($userId)) {
+            $user = \App\Models\User::find($userId);
+        }
         if (!$user) {
-            $token = $request->bearerToken();
-            if ($token) {
-                $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
-                if ($pat) $user = $pat->tokenable;
+            $nrp = $data['nrp'] ?? $request->header('X-User-Nrp') ?? $request->input('nrp');
+            if (!empty($nrp)) {
+                $user = \App\Models\User::where('nrp', $nrp)->orWhere('username', $nrp)->first();
             }
         }
         if (!$user) {
-            $data = $request->json()->all() ?: $request->all();
-            $userId = $data['user_id'] ?? $request->header('X-User-Id');
-            if ($userId) $user = \App\Models\User::find($userId);
+            $email = $data['email'] ?? $request->header('X-User-Email') ?? $request->input('email');
+            if (!empty($email)) {
+                $user = \App\Models\User::where('email', $email)->first();
+            }
         }
+
+        // 2. Akses token Sanctum hanya jika tabel personal_access_tokens ada
+        if (!$user && \Illuminate\Support\Facades\Schema::hasTable('personal_access_tokens')) {
+            try {
+                $user = auth('sanctum')->user();
+                if (!$user) {
+                    $token = $request->bearerToken();
+                    if ($token && class_exists('\Laravel\Sanctum\PersonalAccessToken')) {
+                        $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+                        if ($pat) $user = $pat->tokenable;
+                    }
+                }
+            } catch (\Throwable $ignored) {
+                // Abaikan kesalahan Sanctum
+            }
+        }
+
+        // 3. Fallback ke sesi web standar
+        if (!$user && auth()->check()) {
+            $user = auth()->user();
+        }
+
+        // 4. Fallback ke personel aktif pertama jika belum ditemukan
         if (!$user) {
-            $user = \App\Models\User::first();
+            $user = \App\Models\User::where('is_active', true)->first() ?: \App\Models\User::first();
+        }
+
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Personel tidak ditemukan dalam sistem.'
+            ], 404);
         }
 
         $data = $request->json()->all() ?: $request->all();

@@ -307,7 +307,8 @@ class SindenRepository(
     // 12. Presensi Kehadiran Personel (Absensi)
     suspend fun getAttendances(): NetworkResult<AttendanceResponse> {
         return try {
-            val response = apiClient.getService().getAttendances()
+            val user = dataStoreManager.getUser()
+            val response = apiClient.getService().getAttendances(user?.id)
             handleResponse(response)
         } catch (e: Exception) {
             NetworkResult.Error(e.localizedMessage ?: "Gagal memuat data presensi kehadiran.")
@@ -316,7 +317,13 @@ class SindenRepository(
 
     suspend fun recordAttendance(request: CreateAttendanceRequest): NetworkResult<AttendanceActionResponse> {
         return try {
-            val response = apiClient.getService().recordAttendance(request)
+            val user = dataStoreManager.getUser()
+            val requestWithUser = if (request.userId == null && user != null) {
+                request.copy(userId = user.id)
+            } else {
+                request
+            }
+            val response = apiClient.getService().recordAttendance(requestWithUser)
             handleResponse(response)
         } catch (e: Exception) {
             NetworkResult.Error(e.localizedMessage ?: "Gagal mencatat presensi kehadiran.")

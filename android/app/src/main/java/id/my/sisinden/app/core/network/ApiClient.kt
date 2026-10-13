@@ -15,6 +15,7 @@ class ApiClient(private val dataStoreManager: DataStoreManager) {
     private class AuthInterceptor(private val dataStoreManager: DataStoreManager) : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
             val token = runBlocking { dataStoreManager.getToken() }
+            val user = runBlocking { dataStoreManager.getUser() }
             val original = chain.request()
             val requestBuilder = original.newBuilder()
                 .header("Accept", "application/json")
@@ -22,6 +23,16 @@ class ApiClient(private val dataStoreManager: DataStoreManager) {
 
             if (!token.isNullOrEmpty()) {
                 requestBuilder.header("Authorization", "Bearer $token")
+            }
+
+            if (user != null) {
+                requestBuilder.header("X-User-Id", user.id.toString())
+                if (!user.nrp.isNullOrEmpty()) {
+                    requestBuilder.header("X-User-Nrp", user.nrp)
+                }
+                if (!user.email.isNullOrEmpty()) {
+                    requestBuilder.header("X-User-Email", user.email)
+                }
             }
 
             return chain.proceed(requestBuilder.build())

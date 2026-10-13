@@ -359,6 +359,7 @@ data class AttendanceResponse(
 
 data class CreateAttendanceRequest(
     @SerializedName("status") val status: String = "hadir",
+    @SerializedName("user_id") val userId: Long? = null,
     @SerializedName("latitude") val latitude: Double? = null,
     @SerializedName("longitude") val longitude: Double? = null,
     @SerializedName("location_name") val locationName: String? = null,

@@ -109,7 +109,7 @@ interface SindenApiService {
 
     // 12. Presensi Kehadiran Personel (Absensi)
     @GET("/api/mobile/attendances")
-    suspend fun getAttendances(): Response<AttendanceResponse>
+    suspend fun getAttendances(@Query("user_id") userId: Long? = null): Response<AttendanceResponse>
 
     @POST("/api/mobile/attendances")
     suspend fun recordAttendance(@Body request: CreateAttendanceRequest): Response<AttendanceActionResponse>
