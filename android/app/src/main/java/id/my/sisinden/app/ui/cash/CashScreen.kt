@@ -153,20 +153,20 @@ fun CashScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                FilterChip(
+                                SaaSTabChip(
                                     selected = selectedFilter == "semua",
-                                    onClick = { selectedFilter = "semua" },
-                                    label = { Text("Semua (${state.data.transactions.size})") }
+                                    text = "Semua (${state.data.transactions.size})",
+                                    onClick = { selectedFilter = "semua" }
                                 )
-                                FilterChip(
+                                SaaSTabChip(
                                     selected = selectedFilter == "masuk",
-                                    onClick = { selectedFilter = "masuk" },
-                                    label = { Text("Kas Masuk") }
+                                    text = "Kas Masuk",
+                                    onClick = { selectedFilter = "masuk" }
                                 )
-                                FilterChip(
+                                SaaSTabChip(
                                     selected = selectedFilter == "keluar",
-                                    onClick = { selectedFilter = "keluar" },
-                                    label = { Text("Kas Keluar") }
+                                    text = "Kas Keluar",
+                                    onClick = { selectedFilter = "keluar" }
                                 )
                             }
                         }

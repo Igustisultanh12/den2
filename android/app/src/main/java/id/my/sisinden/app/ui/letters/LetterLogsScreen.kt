@@ -80,11 +80,10 @@ fun LetterLogsScreen(
             ) {
                 items(filters) { (label, value) ->
                     val isSelected = activeFilter == value
-                    FilterChip(
+                    SaaSTabChip(
                         selected = isSelected,
-                        onClick = { viewModel.setFilter(value) },
-                        label = { Text(label, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                        shape = RoundedCornerShape(10.dp)
+                        text = label,
+                        onClick = { viewModel.setFilter(value) }
                     )
                 }
             }
@@ -107,10 +106,8 @@ fun LetterLogsScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(state.letters) { letter ->
-                                ElevatedCard(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                SaaSCard(
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(
                                         modifier = Modifier.padding(16.dp),

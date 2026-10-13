@@ -48,12 +48,26 @@ class DashboardViewModel(
     val configState: StateFlow<ConfigResponse?> = _configState.asStateFlow()
 
     val currentUser = repository.userFlow
+    val isDarkMode = repository.isDarkModeFlow
 
     private var lastNotifiedNotifId = 0
 
     init {
         loadConfig()
         loadDashboardData()
+    }
+
+    fun toggleDarkMode(current: Boolean?) {
+        viewModelScope.launch {
+            repository.setDarkMode(if (current == true) false else true)
+        }
+    }
+
+    fun logout(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            repository.logout()
+            onSuccess()
+        }
     }
 
     fun togglePrivacy() {

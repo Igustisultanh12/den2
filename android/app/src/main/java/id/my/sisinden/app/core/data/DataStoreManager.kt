@@ -78,9 +78,13 @@ class DataStoreManager(private val context: Context) {
         }
     }
 
-    suspend fun setDarkMode(enabled: Boolean) {
+    suspend fun setDarkMode(mode: Boolean?) {
         context.dataStore.edit { preferences ->
-            preferences[KEY_DARK_MODE] = enabled
+            if (mode == null) {
+                preferences.remove(KEY_DARK_MODE)
+            } else {
+                preferences[KEY_DARK_MODE] = mode
+            }
         }
     }
 

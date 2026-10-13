@@ -156,20 +156,20 @@ fun TechnicalCashScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                FilterChip(
+                                SaaSTabChip(
                                     selected = selectedFilter == "semua",
-                                    onClick = { selectedFilter = "semua" },
-                                    label = { Text("Semua") }
+                                    text = "Semua",
+                                    onClick = { selectedFilter = "semua" }
                                 )
-                                FilterChip(
+                                SaaSTabChip(
                                     selected = selectedFilter == "masuk",
-                                    onClick = { selectedFilter = "masuk" },
-                                    label = { Text("Penerimaan") }
+                                    text = "Penerimaan",
+                                    onClick = { selectedFilter = "masuk" }
                                 )
-                                FilterChip(
+                                SaaSTabChip(
                                     selected = selectedFilter == "keluar",
-                                    onClick = { selectedFilter = "keluar" },
-                                    label = { Text("Pengeluaran") }
+                                    text = "Pengeluaran",
+                                    onClick = { selectedFilter = "keluar" }
                                 )
                             }
                         }

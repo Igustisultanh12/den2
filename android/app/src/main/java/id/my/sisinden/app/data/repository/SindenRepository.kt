@@ -22,7 +22,7 @@ class SindenRepository(
     val isDarkModeFlow: Flow<Boolean?> = dataStoreManager.isDarkModeFlow
 
     suspend fun setBaseUrl(url: String) = dataStoreManager.setBaseUrl(url)
-    suspend fun setDarkMode(enabled: Boolean) = dataStoreManager.setDarkMode(enabled)
+    suspend fun setDarkMode(mode: Boolean?) = dataStoreManager.setDarkMode(mode)
 
     private fun <T> handleResponse(response: retrofit2.Response<T>): NetworkResult<T> {
         return if (response.isSuccessful) {

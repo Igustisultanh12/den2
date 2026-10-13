@@ -48,8 +48,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import id.my.sisinden.app.core.ui.components.SindenTopBar
-import id.my.sisinden.app.core.ui.components.StatusPill
+import androidx.compose.foundation.BorderStroke
+import id.my.sisinden.app.core.ui.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -240,27 +240,26 @@ fun SettingsScreen(
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
-                        // Dark Mode Toggle
-                        Row(
+                        // SaaS Theme Mode Selector (Terang / Gelap / Sistem)
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Mode Gelap",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = "Mengaktifkan tema gelap untuk kenyamanan mata",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = isDarkMode == true,
-                                onCheckedChange = { viewModel.toggleDarkMode(it) }
+                            Text(
+                                text = "Tema Tampilan Aplikasi",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Pilih mode tampilan terang, gelap, atau menyesuaikan sistem perangkat",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            ThemeModeSegmentedControl(
+                                currentMode = isDarkMode,
+                                onModeSelected = { viewModel.setDarkMode(it) }
                             )
                         }
                     }

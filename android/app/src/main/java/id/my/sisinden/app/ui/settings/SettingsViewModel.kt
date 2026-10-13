@@ -65,10 +65,14 @@ class SettingsViewModel(private val repository: SindenRepository) : ViewModel() 
         }
     }
 
-    fun toggleDarkMode(enabled: Boolean) {
+    fun setDarkMode(mode: Boolean?) {
         viewModelScope.launch {
-            repository.setDarkMode(enabled)
+            repository.setDarkMode(mode)
         }
+    }
+
+    fun toggleDarkMode(enabled: Boolean) {
+        setDarkMode(enabled)
     }
 
     fun logout(onLoggedOut: () -> Unit) {

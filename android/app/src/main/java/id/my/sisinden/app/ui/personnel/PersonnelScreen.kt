@@ -82,7 +82,8 @@ fun PersonnelScreen(
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth().padding(14.dp),
@@ -93,14 +94,14 @@ fun PersonnelScreen(
                                             modifier = Modifier
                                                 .size(46.dp)
                                                 .clip(CircleShape)
-                                                .background(SindenTealPrimary.copy(alpha = 0.15f)),
+                                                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
                                                 text = p.name.take(2).uppercase(),
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold,
-                                                color = SindenTealPrimary
+                                                color = MaterialTheme.colorScheme.primary
                                             )
                                         }
 

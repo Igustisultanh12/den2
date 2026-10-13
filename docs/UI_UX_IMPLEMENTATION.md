@@ -108,4 +108,32 @@ Berdasarkan referensi resmi Figma Elder-Friendly Livin' by Mandiri:
    - Kolom isian NRP dan Kata Sandi dengan lengkungan 22dp pill radius.
    - Tombol masuk berdimensi tinggi 54dp dengan lengkungan 26dp berlatar belakang `LivinSkyBlue`.
 
+---
+
+## 7. Desain Sistem Modern SaaS & Pengaturan Mode Gelap/Terang (v1.0.3)
+
+Sesuai kebutuhan penyederhanaan antarmuka yang bersih, modern, dan interaktif khas SaaS (Software-as-a-Service) selaras dengan portal web SISINDEN:
+
+1. **Prinsip Estetika Modern SaaS Enterprise**:
+   - Layout bersih tanpa elemen berlebihan, menggunakan batas kontur halus (`BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)`).
+   - Kartu metrik operasional terstruktur (`SaaSStatCard`) dengan squircle ikon bergradasi dan badge status.
+   - Tipografi hierarki tegas dengan tracking konsisten dan pembacaan yang nyaman.
+
+2. **Micro-Interactions & Animasi Taktil (Tactile Bounce Click)**:
+   - Setiap elemen tombol, kartu, dan chip filter dilengkapi modifier `Modifier.bounceClick()` yang memanfaatkan kurva fisika pegas (`Spring.DampingRatioMediumBouncy`, `Spring.StiffnessMedium`).
+   - Elemen menyusut halus ke skala `0.95f` saat ditekan dan membal kembali saat dilepas, memberikan umpan balik fisik yang sangat memuaskan bagi pengguna.
+
+3. **Komponen SaaS Terpusat**:
+   - `SaaSCard`: Kartu kontainer adaptif terang/gelap dengan sudut lengkung 16dp dan batas kontur halus.
+   - `SaaSStatCard`: Kartu ringkasan metrik KPI (Presensi, Kas Denintel, Kas Taktis, Agenda Surat).
+   - `SaaSTabChip`: Tombol filter pill dengan animasi transisi warna latar belakang dan teks.
+   - `ThemeModeSegmentedControl`: Pengendali pilihan tema tersegmen (Terang, Gelap, Sistem).
+
+4. **Sistem Mode Gelap dan Terang Terintegrasi (3-Pilihan)**:
+   - Pengguna dapat memilih mode tampilan: **Mode Terang**, **Mode Gelap**, atau **Mengikuti Sistem**.
+   - Pilihan dapat diganti langsung via tombol toggle instan di bilah atas Beranda maupun melalui kontrol tersegmen di menu Pengaturan.
+   - Preferensi tersimpan persisten di `DataStoreManager` (`KEY_DARK_MODE`).
+   - Seluruh warna komponen pada semua modul (Beranda, Presensi, Kas, Surat, SKHPP, Mitra, Tanda Tangan, Personel, Pelanggaran, Notifikasi, dan Autentikasi) mengacu pada token `MaterialTheme.colorScheme` sehingga beradaptasi secara harmonis.
+
+
 

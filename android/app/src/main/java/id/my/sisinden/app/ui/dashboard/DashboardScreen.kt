@@ -1,8 +1,9 @@
 package id.my.sisinden.app.ui.dashboard
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -49,13 +49,14 @@ fun DashboardScreen(
 ) {
     val context = LocalContext.current
     val currentUser by viewModel.currentUser.collectAsState(initial = null)
+    val isDarkMode by viewModel.isDarkMode.collectAsState(initial = null)
     val uiState by viewModel.uiState.collectAsState()
     val isPrivacyHidden by viewModel.isPrivacyHidden.collectAsState()
     val config by viewModel.configState.collectAsState()
 
     var showPermissionDialog by remember { mutableStateOf(false) }
     var deniedModuleName by remember { mutableStateOf("") }
-    var selectedFilterCategory by remember { mutableStateOf("Sering Dipakai") }
+    var selectedFilterCategory by remember { mutableStateOf("Semua Fitur") }
 
     LaunchedEffect(Unit) {
         viewModel.loadDashboardData(context)
@@ -67,104 +68,126 @@ fun DashboardScreen(
         }
     }
 
+    val userRole = currentUser?.role?.lowercase() ?: "user"
+    val canAccessCash = userRole in listOf("admin", "superadmin", "bendahara", "keuangan", "komandan")
+    val canAccessSignature = userRole in listOf("admin", "superadmin", "komandan")
+
     Scaffold(
         topBar = {
-            // HEADER VIVID LIVIN' SKY BLUE SESUAI FIGMA LIVIN' ELDER-FRIENDLY
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                LivinSkyBlue,
-                                Color(0xFF0075E3)
-                            )
-                        )
-                    )
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 14.dp)
+            // Modern SaaS Dashboard Executive Header
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                shadowElevation = 0.dp
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 18.dp, vertical = 12.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "SISINDEN",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            letterSpacing = 1.2.sp
-                        )
-                        Text(
-                            text = "Detasemen Intelijen Kodaeral V",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White.copy(alpha = 0.85f)
-                        )
-                    }
-
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Tombol Pesan / Warta Kedinasan dengan Label Underneath
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.clickable { onNavigateToNotifications() }
-                        ) {
-                            BadgedBox(
-                                badge = {
-                                    if (uiState is DashboardUiState.Success && (uiState as DashboardUiState.Success).stats.unreadNotifCount > 0) {
-                                        Badge(containerColor = Color(0xFFEF4444)) {
-                                            Text("${(uiState as DashboardUiState.Success).stats.unreadNotifCount}")
-                                        }
-                                    }
-                                }
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Email,
-                                    contentDescription = "Pesan",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
+                                Text(
+                                    text = "SISINDEN",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    letterSpacing = 1.sp
                                 )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                ) {
+                                    Text(
+                                        text = "KODAERAL V",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        fontSize = 9.sp,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
-                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Warta",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                text = "Selamat bertugas, ${currentUser?.name?.ifEmpty { "Personel Intelijen" } ?: "Personel Intelijen"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
-                        // Tombol Keluar / Sesi dengan Label Underneath
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.clickable { onNavigateToSettings() }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.ExitToApp,
-                                contentDescription = "Keluar",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Keluar",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
+                            // Interactive Theme Toggle Button (Light / Dark)
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .bounceClick {
+                                        viewModel.toggleDarkMode(isDarkMode)
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (isDarkMode == true) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                        contentDescription = "Ganti Tema",
+                                        tint = if (isDarkMode == true) SindenGold else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                }
+                            }
+
+                            // Interactive Notifications Icon with Badge
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .bounceClick { onNavigateToNotifications() }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    BadgedBox(
+                                        badge = {
+                                            if (uiState is DashboardUiState.Success && (uiState as DashboardUiState.Success).stats.unreadNotifCount > 0) {
+                                                Badge(containerColor = StatusError) {
+                                                    Text(
+                                                        text = "${(uiState as DashboardUiState.Success).stats.unreadNotifCount}",
+                                                        color = Color.White,
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Notifications,
+                                            contentDescription = "Notifikasi",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         },
-        containerColor = LivinSubtleBg
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
@@ -176,10 +199,7 @@ fun DashboardScreen(
             when (val state = uiState) {
                 is DashboardUiState.Loading -> {
                     item {
-                        ShimmerPlaceholder(modifier = Modifier.fillMaxWidth().height(200.dp))
-                    }
-                    item {
-                        ShimmerPlaceholder(modifier = Modifier.fillMaxWidth().height(140.dp))
+                        ShimmerLoadingList()
                     }
                 }
                 is DashboardUiState.Error -> {
@@ -191,451 +211,303 @@ fun DashboardScreen(
                     }
                 }
                 is DashboardUiState.Success -> {
-                    // 1. KARTU HERO UTAMA MELAYANG (WHITE FLOATING CARD SESUAI FIGMA LIVIN' ELDER-FRIENDLY)
+                    val stats = state.stats
+
+                    // 1. RINGKASAN METRIK OPERASIONAL SAAS (2x2 Grid)
                     item {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(26.dp),
-                            color = Color.White,
-                            shadowElevation = 4.dp
-                        ) {
-                            Column(modifier = Modifier.padding(18.dp)) {
-                                // Header Profil Pengguna di Atas Kartu
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = LivinSkyBlue,
-                                            modifier = Modifier.size(46.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = (currentUser?.name?.take(2) ?: "DI").uppercase(),
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Black,
-                                                    color = Color.White
-                                                )
-                                            }
-                                        }
-
-                                        Column {
-                                            Text(
-                                                text = "Halo, ${currentUser?.name?.ifEmpty { "Personel Intel" } ?: "Prajurit"}",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Black,
-                                                color = LivinElderTextPrimary
-                                            )
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                            ) {
-                                                Text(
-                                                    text = "${currentUser?.pangkat ?: "Personel"} Satuan",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = LivinElderTextSecondary
-                                                )
-                                                Icon(
-                                                    imageVector = Icons.Default.ChevronRight,
-                                                    contentDescription = null,
-                                                    tint = LivinElderTextSecondary,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text(
-                                            text = "Status Dinas",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = LivinElderTextSecondary
-                                        )
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                        ) {
-                                            Text(
-                                                text = "SIAP TUGAS",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.Black,
-                                                color = LivinSkyBlueDark
-                                            )
-                                            Icon(
-                                                imageVector = Icons.Default.ChevronRight,
-                                                contentDescription = null,
-                                                tint = LivinSkyBlueDark,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(14.dp))
-
-                                // Kontainer Saldo & Kartu Bergaya Tabungan Now Livin'
-                                Surface(
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = Color(0xFFF1F5F9),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Kas Operasional Denintel IDR",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = LivinElderTextSecondary
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Text(
-                                                    text = if (isPrivacyHidden) "IDR •••••••" else formatter.format(state.stats.cashBalance),
-                                                    style = MaterialTheme.typography.titleLarge,
-                                                    fontWeight = FontWeight.Black,
-                                                    color = LivinElderTextPrimary
-                                                )
-                                                IconButton(
-                                                    onClick = { viewModel.togglePrivacy() },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = if (isPrivacyHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                                        contentDescription = "Toggle Privasi",
-                                                        tint = LivinSkyBlueDark,
-                                                        modifier = Modifier.size(17.dp)
-                                                    )
-                                                }
-                                            }
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Row(
-                                                modifier = Modifier.clickable { onNavigateToCash() },
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                            ) {
-                                                Text(
-                                                    text = "Buka Detail",
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = LivinSkyBlueDark
-                                                )
-                                                Icon(
-                                                    imageVector = Icons.Default.ChevronRight,
-                                                    contentDescription = null,
-                                                    tint = LivinSkyBlueDark,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                            }
-                                        }
-
-                                        // Grafik Simulasi Kartu Militer
-                                        Surface(
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier
-                                                .width(90.dp)
-                                                .height(56.dp),
-                                            shadowElevation = 2.dp
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .background(
-                                                        Brush.linearGradient(
-                                                            listOf(
-                                                                LivinNavyDeep,
-                                                                LivinRoyalBlue,
-                                                                Color(0xFF0F172A)
-                                                            )
-                                                        )
-                                                    )
-                                                    .padding(6.dp)
-                                            ) {
-                                                Column(
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    verticalArrangement = Arrangement.SpaceBetween
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Security,
-                                                            contentDescription = null,
-                                                            tint = LivinYellowGold,
-                                                            modifier = Modifier.size(14.dp)
-                                                        )
-                                                        Text(
-                                                            text = "KODAERAL V",
-                                                            fontSize = 7.sp,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = Color.White
-                                                        )
-                                                    }
-                                                    Text(
-                                                        text = "•••• ${currentUser?.nrp?.takeLast(4) ?: "1234"}",
-                                                        fontSize = 8.sp,
-                                                        fontWeight = FontWeight.Black,
-                                                        color = Color.White.copy(alpha = 0.9f)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(14.dp))
-
-                                // Indikator Carousel Dots Sesuai Figma
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = LivinSkyBlue,
-                                        modifier = Modifier.size(8.dp)
-                                    ) {}
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = Color(0xFFCBD5E1),
-                                        modifier = Modifier.size(8.dp)
-                                    ) {}
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = Color(0xFFCBD5E1),
-                                        modifier = Modifier.size(8.dp)
-                                    ) {}
-                                }
-                            }
-                        }
-                    }
-
-                    // 2. FITUR UTAMA ANDA (4 TOMBOL BULAT BESAR SESUAI FIGMA LIVIN' ELDER-FRIENDLY)
-                    item {
-                        Column {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Fitur Utama Anda",
-                                    style = MaterialTheme.typography.titleMedium,
+                                    text = "RINGKASAN OPERASIONAL",
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Black,
-                                    color = LivinElderTextPrimary
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    letterSpacing = 1.sp
                                 )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    modifier = Modifier.clickable { onNavigateToLetters() }
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.bounceClick(scaleDown = 0.9f) { viewModel.togglePrivacy() }
                                 ) {
-                                    Text(
-                                        text = "Atur",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = LivinSkyBlueDark
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.Tune,
-                                        contentDescription = null,
-                                        tint = LivinSkyBlueDark,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isPrivacyHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = "Privasi Saldo",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Text(
+                                            text = if (isPrivacyHidden) "Tampilkan" else "Sembunyikan",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontSize = 10.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // 4 Lingkaran Aksi Utama Sejajar
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                // 1. Presensi Kehadiran (Teal Circle)
-                                LivinCircleActionButton(
-                                    title = "Presensi\nKehadiran",
+                                // Stat 1: Presensi Kehadiran
+                                SaaSStatCard(
+                                    title = "Presensi Hari Ini",
+                                    value = "Hadir Dinas",
                                     icon = Icons.Default.HowToReg,
-                                    circleColor = LivinCircleTeal,
+                                    iconTint = MaterialTheme.colorScheme.primary,
+                                    iconBg = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                    badgeText = "PRESENSI",
+                                    badgeColor = StatusSuccess,
+                                    modifier = Modifier.weight(1f),
                                     onClick = onNavigateToAttendance
                                 )
 
-                                // 2. Kas Denintel (Orange Circle)
-                                LivinCircleActionButton(
-                                    title = "Kas\nDenintel",
+                                // Stat 2: Kas Denintel
+                                val cashText = if (isPrivacyHidden) "••••••••" else formatter.format(stats.cashBalance)
+                                SaaSStatCard(
+                                    title = "Kas Denintel",
+                                    value = cashText,
                                     icon = Icons.Default.AccountBalanceWallet,
-                                    circleColor = LivinCircleOrange,
-                                    onClick = onNavigateToCash
+                                    iconTint = Color(0xFF0284C7),
+                                    iconBg = Color(0xFFE0F2FE),
+                                    badgeText = "SATUAN",
+                                    badgeColor = Color(0xFF0284C7),
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        if (canAccessCash) onNavigateToCash()
+                                        else {
+                                            deniedModuleName = "Kas Denintel"
+                                            showPermissionDialog = true
+                                        }
+                                    }
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // Stat 3: Kas Taktis Satuan
+                                val techText = if (isPrivacyHidden) "••••••••" else formatter.format(stats.technicalCashBalance)
+                                SaaSStatCard(
+                                    title = "Kas Taktis Operasi",
+                                    value = techText,
+                                    icon = Icons.Default.MonetizationOn,
+                                    iconTint = Color(0xFFFF7A00),
+                                    iconBg = Color(0xFFFFEDD5),
+                                    badgeText = "DANA TAKTIS",
+                                    badgeColor = Color(0xFFFF7A00),
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        if (canAccessCash) onNavigateToTechnicalCash()
+                                        else {
+                                            deniedModuleName = "Kas Taktis Satuan"
+                                            showPermissionDialog = true
+                                        }
+                                    }
                                 )
 
-                                // 3. Kas Taktis (Blue Circle)
-                                LivinCircleActionButton(
-                                    title = "Kas\nTaktis",
-                                    icon = Icons.Default.Security,
-                                    circleColor = LivinCircleBlue,
-                                    onClick = onNavigateToTechnicalCash
-                                )
-
-                                // 4. Mitra Intelijen (Lime Circle)
-                                LivinCircleActionButton(
-                                    title = "Mitra\nIntelijen",
-                                    icon = Icons.Default.Group,
-                                    circleColor = LivinCircleLime,
-                                    onClick = onNavigateToMitra
+                                // Stat 4: Agenda Surat
+                                SaaSStatCard(
+                                    title = "Agenda Surat",
+                                    value = "${stats.totalLetters} Naskah",
+                                    icon = Icons.Default.Email,
+                                    iconTint = Color(0xFF8B5CF6),
+                                    iconBg = Color(0xFFEDE9FE),
+                                    badgeText = "DINAS",
+                                    badgeColor = Color(0xFF8B5CF6),
+                                    modifier = Modifier.weight(1f),
+                                    onClick = onNavigateToLetters
                                 )
                             }
                         }
                     }
 
-                    // 3. FITUR KEDINASAN LAINNYA (FILTER CHIPS + KARTU HORIZONTAL)
+                    // 2. MODUL OPERASIONAL SAAS (8 Interactive Tiles)
                     item {
-                        Column {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
-                                text = "Fitur Lainnya",
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "MENU OPERASIONAL DINAS",
+                                style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Black,
-                                color = LivinElderTextPrimary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                letterSpacing = 1.sp
                             )
 
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // Filter Chips Berjejer
+                            // Row 1
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                val filterCategories = listOf("Sering Dipakai", "Surat Dinas", "SKHPP")
-                                filterCategories.forEach { category ->
-                                    val isSelected = selectedFilterCategory == category
-                                    Surface(
-                                        shape = RoundedCornerShape(20.dp),
-                                        color = Color.White,
-                                        border = BorderStroke(
-                                            if (isSelected) 1.5.dp else 1.dp,
-                                            if (isSelected) LivinSkyBlue else LivinElderBorder
-                                        ),
-                                        modifier = Modifier
-                                            .height(36.dp)
-                                            .clickable { selectedFilterCategory = category }
-                                    ) {
-                                        Box(
-                                            contentAlignment = Alignment.Center,
-                                            modifier = Modifier.padding(horizontal = 14.dp)
-                                        ) {
-                                            Text(
-                                                text = category,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                color = if (isSelected) LivinSkyBlue else LivinElderTextSecondary
-                                            )
+                                SaaSActionTile(
+                                    title = "Presensi",
+                                    subtitle = "Kehadiran",
+                                    icon = Icons.Default.HowToReg,
+                                    iconColor = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = onNavigateToAttendance
+                                )
+                                SaaSActionTile(
+                                    title = "Kas Denintel",
+                                    subtitle = "Keuangan",
+                                    icon = Icons.Default.AccountBalanceWallet,
+                                    iconColor = Color(0xFF0284C7),
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        if (canAccessCash) onNavigateToCash()
+                                        else {
+                                            deniedModuleName = "Kas Denintel"
+                                            showPermissionDialog = true
                                         }
                                     }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // Kartu Aksi Horizontal Bergaya Livin' Menu
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                LivinActionRowCard(
-                                    title = "Agenda Surat Masuk & Keluar",
-                                    subtitle = "Pencatatan naskah dinas satuan",
+                                )
+                                SaaSActionTile(
+                                    title = "Kas Taktis",
+                                    subtitle = "Operasional",
+                                    icon = Icons.Default.MonetizationOn,
+                                    iconColor = Color(0xFFFF7A00),
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        if (canAccessCash) onNavigateToTechnicalCash()
+                                        else {
+                                            deniedModuleName = "Kas Taktis Satuan"
+                                            showPermissionDialog = true
+                                        }
+                                    }
+                                )
+                                SaaSActionTile(
+                                    title = "Surat Dinas",
+                                    subtitle = "Agenda",
                                     icon = Icons.Default.Email,
-                                    pillColor = LivinCircleTeal,
+                                    iconColor = Color(0xFF8B5CF6),
+                                    modifier = Modifier.weight(1f),
                                     onClick = onNavigateToLetters
                                 )
+                            }
 
-                                LivinActionRowCard(
-                                    title = "Layanan Berkas SKHPP",
-                                    subtitle = "Surat keterangan penelitian personel",
+                            // Row 2
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                SaaSActionTile(
+                                    title = "Layanan SKHPP",
+                                    subtitle = "Penelitian",
                                     icon = Icons.Default.Assignment,
-                                    pillColor = Color(0xFF7C3AED),
+                                    iconColor = Color(0xFF10B981),
+                                    modifier = Modifier.weight(1f),
                                     onClick = onNavigateToSkhpp
                                 )
-
-                                LivinActionRowCard(
-                                    title = "Tanda Tangan Elektronik Komandan",
-                                    subtitle = "Persetujuan dokumen resmi dinas",
+                                SaaSActionTile(
+                                    title = "Mitra Kerja",
+                                    subtitle = "Jaringan",
+                                    icon = Icons.Default.Groups,
+                                    iconColor = Color(0xFF06B6D4),
+                                    modifier = Modifier.weight(1f),
+                                    onClick = onNavigateToMitra
+                                )
+                                SaaSActionTile(
+                                    title = "Tanda Tangan",
+                                    subtitle = "Komandan",
                                     icon = Icons.Default.Draw,
-                                    pillColor = Color(0xFFE11D48),
-                                    onClick = onNavigateToSignature
+                                    iconColor = Color(0xFFEF4444),
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        if (canAccessSignature) onNavigateToSignature()
+                                        else {
+                                            deniedModuleName = "Tanda Tangan Elektronik Komandan"
+                                            showPermissionDialog = true
+                                        }
+                                    }
                                 )
-
-                                LivinActionRowCard(
-                                    title = "Catatan Disiplin Prajurit",
-                                    subtitle = "Rekap pelanggaran tata tertib",
-                                    icon = Icons.Default.Report,
-                                    pillColor = Color(0xFFDC2626),
-                                    onClick = onNavigateToViolations
-                                )
-
-                                LivinActionRowCard(
-                                    title = "Direktori Personel Satuan",
-                                    subtitle = "Informasi kontak seluruh personel",
+                                SaaSActionTile(
+                                    title = "Personel",
+                                    subtitle = "Direktori",
                                     icon = Icons.Default.Badge,
-                                    pillColor = LivinCircleOrange,
+                                    iconColor = Color(0xFFF59E0B),
+                                    modifier = Modifier.weight(1f),
                                     onClick = onNavigateToPersonnel
                                 )
                             }
                         }
                     }
 
-                    // 4. AGENDA SURAT TERBARU (INTEGRITAS LOG DOKUMEN)
+                    // 3. PENYARING KATEGORI SAAS & DAFTAR AGENDA TERKINI
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "AGENDA SURAT TERBARU",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Black,
-                                color = LivinElderTextSecondary,
-                                letterSpacing = 1.sp
-                            )
-                            TextButton(onClick = onNavigateToLetters) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    text = "Lihat Semua",
+                                    text = "AGENDA SURAT TERAKHIR",
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = LivinSkyBlueDark
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    letterSpacing = 1.sp
+                                )
+                                TextButton(onClick = onNavigateToLetters) {
+                                    Text(
+                                        text = "Lihat Semua",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            // Filter Chips
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                SaaSTabChip(
+                                    selected = selectedFilterCategory == "Semua Fitur",
+                                    text = "Semua",
+                                    onClick = { selectedFilterCategory = "Semua Fitur" }
+                                )
+                                SaaSTabChip(
+                                    selected = selectedFilterCategory == "Surat Masuk",
+                                    text = "Surat Masuk",
+                                    onClick = { selectedFilterCategory = "Surat Masuk" }
+                                )
+                                SaaSTabChip(
+                                    selected = selectedFilterCategory == "Surat Keluar",
+                                    text = "Surat Keluar",
+                                    onClick = { selectedFilterCategory = "Surat Keluar" }
                                 )
                             }
                         }
                     }
 
-                    if (state.recentLetters.isEmpty()) {
+                    val filteredLetters = when (selectedFilterCategory) {
+                        "Surat Masuk" -> state.recentLetters.filter { it.type.lowercase().contains("masuk") }
+                        "Surat Keluar" -> state.recentLetters.filter { it.type.lowercase().contains("keluar") }
+                        else -> state.recentLetters
+                    }
+
+                    if (filteredLetters.isEmpty()) {
                         item {
                             EmptyStateView(
-                                title = "Belum Ada Surat",
-                                message = "Belum terdapat catatan surat masuk atau keluar terkini."
+                                title = "Belum Ada Naskah Dinas",
+                                message = "Belum ada agenda surat terbaru pada kategori yang dipilih."
                             )
                         }
                     } else {
-                        items(state.recentLetters) { letter ->
-                            ElevatedCard(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onNavigateToLetters() },
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.elevatedCardColors(containerColor = Color.White)
+                        items(filteredLetters) { letter ->
+                            SaaSCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = onNavigateToLetters
                             ) {
                                 Column(
                                     modifier = Modifier.padding(14.dp),
@@ -650,7 +522,7 @@ fun DashboardScreen(
                                             text = letter.letterNumber.ifEmpty { "Tanpa Nomor" },
                                             style = MaterialTheme.typography.labelLarge,
                                             fontWeight = FontWeight.Bold,
-                                            color = LivinSkyBlueDark
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                         StatusPill(status = letter.type)
                                     }
@@ -668,12 +540,12 @@ fun DashboardScreen(
                                         Text(
                                             text = "Dari: ${letter.sender.ifEmpty { "-" }}",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = LivinElderTextSecondary
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
                                             text = letter.date,
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = LivinElderTextSecondary
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -684,7 +556,7 @@ fun DashboardScreen(
             }
         }
 
-        // DIALOG AKSES TERBATAS
+        // Dialog Akses Terbatas
         if (showPermissionDialog) {
             AlertDialog(
                 onDismissRequest = { showPermissionDialog = false },
@@ -692,7 +564,7 @@ fun DashboardScreen(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = LivinSkyBlueDark,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(36.dp)
                     )
                 },
@@ -707,13 +579,13 @@ fun DashboardScreen(
                     Text(
                         text = "Akun Anda saat ini belum memiliki izin khusus untuk membuka modul '$deniedModuleName'. Silakan berkoordinasi dengan Komandan Satuan atau Administrator Denintel.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = LivinElderTextSecondary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 confirmButton = {
                     Button(
                         onClick = { showPermissionDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = LivinSkyBlue)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text("MENGERTI", fontWeight = FontWeight.Bold)
                     }
@@ -723,123 +595,67 @@ fun DashboardScreen(
     }
 }
 
-// KOMPONEN TOMBOL BULAT BESAR FITUR UTAMA SESUAI FIGMA LIVIN' ELDER-FRIENDLY
+/**
+ * Modern interactive SaaS action tile with tactile bounce response,
+ * clean subtle border, and responsive light/dark background.
+ */
 @Composable
-fun LivinCircleActionButton(
-    title: String,
-    icon: ImageVector,
-    circleColor: Color,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clickable { onClick() }
-            .width(76.dp)
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = circleColor,
-            modifier = Modifier.size(60.dp),
-            shadowElevation = 3.dp
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = LivinElderTextPrimary,
-            textAlign = TextAlign.Center,
-            fontSize = 11.sp,
-            lineHeight = 14.sp
-        )
-    }
-}
-
-// KOMPONEN KARTU BARIS AKSI SESUAI FIGMA LIVIN'
-@Composable
-fun LivinActionRowCard(
+fun SaaSActionTile(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    pillColor: Color,
+    iconColor: Color,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(18.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, LivinElderBorder),
-        shadowElevation = 1.dp
+    SaaSCard(
+        modifier = modifier,
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(vertical = 12.dp, horizontal = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.weight(1f)
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = iconColor.copy(alpha = 0.12f),
+                modifier = Modifier.size(38.dp)
             ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = pillColor.copy(alpha = 0.15f),
-                    modifier = Modifier.size(42.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = pillColor,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-
-                Column {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = LivinElderTextPrimary
-                    )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = LivinElderTextSecondary
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
                 Text(
-                    text = "Buka",
-                    style = MaterialTheme.typography.labelMedium,
+                    text = title,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = LivinSkyBlueDark
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = LivinSkyBlueDark,
-                    modifier = Modifier.size(16.dp)
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 9.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

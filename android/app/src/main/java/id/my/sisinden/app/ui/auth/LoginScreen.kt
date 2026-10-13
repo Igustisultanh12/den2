@@ -320,11 +320,17 @@ fun LoginScreen(
                                     viewModel.login(username, password)
                                 },
                                 enabled = loginState !is LoginUiState.Loading,
-                                shape = RoundedCornerShape(26.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = LivinSkyBlue),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(54.dp)
+                                    .height(52.dp)
+                                    .bounceClick {
+                                        if (loginState !is LoginUiState.Loading) {
+                                            focusManager.clearFocus()
+                                            viewModel.login(username, password)
+                                        }
+                                    }
                             ) {
                                 if (loginState is LoginUiState.Loading) {
                                     CircularProgressIndicator(
@@ -431,10 +437,16 @@ fun LoginScreen(
                                 },
                                 enabled = activateState !is ActivateUiState.Loading,
                                 shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = SindenOceanPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
+                                    .height(50.dp)
+                                    .bounceClick {
+                                        if (activateState !is ActivateUiState.Loading) {
+                                            focusManager.clearFocus()
+                                            viewModel.activate(actNrp, actName, actPass)
+                                        }
+                                    }
                             ) {
                                 if (activateState is ActivateUiState.Loading) {
                                     CircularProgressIndicator(

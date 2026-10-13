@@ -104,18 +104,18 @@ fun SindenApp(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
                         .navigationBarsPadding(),
-                    shape = RoundedCornerShape(28.dp),
-                    shadowElevation = 8.dp,
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 2.dp
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                    shadowElevation = 4.dp,
+                    color = MaterialTheme.colorScheme.surface
                 ) {
                     NavigationBar(
                         containerColor = Color.Transparent,
                         contentColor = MaterialTheme.colorScheme.onSurface,
                         tonalElevation = 0.dp,
-                        modifier = Modifier.height(70.dp)
+                        modifier = Modifier.height(68.dp)
                     ) {
                         // 1. Beranda
                         NavigationBarItem(
@@ -134,13 +134,13 @@ fun SindenApp(
                                     Icon(
                                         imageVector = Icons.Default.Home,
                                         contentDescription = "Beranda",
-                                        tint = if (currentRoute == NavRoute.Main.route) LivinSkyBlue else Color(0xFF94A3B8)
+                                        tint = if (currentRoute == NavRoute.Main.route) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     if (currentRoute == NavRoute.Main.route) {
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Surface(
                                             shape = CircleShape,
-                                            color = LivinSkyBlue,
+                                            color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(4.dp)
                                         ) {}
                                     }
@@ -151,7 +151,7 @@ fun SindenApp(
                                     "Beranda",
                                     fontSize = 11.sp,
                                     fontWeight = if (currentRoute == NavRoute.Main.route) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (currentRoute == NavRoute.Main.route) LivinSkyBlue else Color(0xFF64748B)
+                                    color = if (currentRoute == NavRoute.Main.route) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -175,7 +175,7 @@ fun SindenApp(
                                 Icon(
                                     Icons.Default.AccountBalanceWallet,
                                     contentDescription = "Kas",
-                                    tint = if (currentRoute == NavRoute.Cash.route) LivinSkyBlue else Color(0xFF94A3B8)
+                                    tint = if (currentRoute == NavRoute.Cash.route) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             label = {
@@ -183,7 +183,7 @@ fun SindenApp(
                                     "Kas",
                                     fontSize = 11.sp,
                                     fontWeight = if (currentRoute == NavRoute.Cash.route) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (currentRoute == NavRoute.Cash.route) LivinSkyBlue else Color(0xFF64748B)
+                                    color = if (currentRoute == NavRoute.Cash.route) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -191,7 +191,7 @@ fun SindenApp(
                             )
                         )
 
-                        // 3. Center Elevated Floating Button: PRESENSI (Iconic Livin' Center Action)
+                        // 3. Center Elevated Action Button: PRESENSI
                         NavigationBarItem(
                             selected = currentRoute == NavRoute.Attendance.route,
                             onClick = {
@@ -206,17 +206,16 @@ fun SindenApp(
                             icon = {
                                 Surface(
                                     shape = CircleShape,
-                                    color = LivinSkyBlue,
-                                    shadowElevation = 5.dp,
-                                    border = androidx.compose.foundation.BorderStroke(2.5.dp, Color.White),
-                                    modifier = Modifier.size(50.dp)
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shadowElevation = 3.dp,
+                                    modifier = Modifier.size(46.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Default.HowToReg,
                                             contentDescription = "Presensi",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(26.dp)
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(24.dp)
                                         )
                                     }
                                 }
@@ -226,7 +225,7 @@ fun SindenApp(
                                     "PRESENSI",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = LivinSkyBlue
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -250,7 +249,7 @@ fun SindenApp(
                                 Icon(
                                     Icons.Default.Email,
                                     contentDescription = "Surat",
-                                    tint = if (currentRoute == NavRoute.LetterLogs.route) LivinSkyBlue else Color(0xFF94A3B8)
+                                    tint = if (currentRoute == NavRoute.LetterLogs.route) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             label = {
@@ -258,7 +257,7 @@ fun SindenApp(
                                     "Surat",
                                     fontSize = 11.sp,
                                     fontWeight = if (currentRoute == NavRoute.LetterLogs.route) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (currentRoute == NavRoute.LetterLogs.route) LivinSkyBlue else Color(0xFF64748B)
+                                    color = if (currentRoute == NavRoute.LetterLogs.route) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
@@ -280,17 +279,17 @@ fun SindenApp(
                             },
                             icon = {
                                 Icon(
-                                    Icons.Default.Person,
-                                    contentDescription = "Akun",
-                                    tint = if (currentRoute == NavRoute.Settings.route) LivinSkyBlue else Color(0xFF94A3B8)
+                                    Icons.Default.Settings,
+                                    contentDescription = "Setelan",
+                                    tint = if (currentRoute == NavRoute.Settings.route) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             label = {
                                 Text(
-                                    "Akun",
+                                    "Setelan",
                                     fontSize = 11.sp,
                                     fontWeight = if (currentRoute == NavRoute.Settings.route) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (currentRoute == NavRoute.Settings.route) LivinSkyBlue else Color(0xFF64748B)
+                                    color = if (currentRoute == NavRoute.Settings.route) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(

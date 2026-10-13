@@ -73,7 +73,6 @@ fun SkhppScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // Baris Filter Status
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -81,11 +80,10 @@ fun SkhppScreen(
             ) {
                 items(filters) { (label, value) ->
                     val isSelected = statusFilter == value
-                    FilterChip(
+                    SaaSTabChip(
                         selected = isSelected,
-                        onClick = { viewModel.setFilter(value) },
-                        label = { Text(label, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                        shape = RoundedCornerShape(10.dp)
+                        text = label,
+                        onClick = { viewModel.setFilter(value) }
                     )
                 }
             }
@@ -108,10 +106,8 @@ fun SkhppScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(state.list) { item ->
-                                ElevatedCard(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                SaaSCard(
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(
                                         modifier = Modifier.padding(16.dp),
