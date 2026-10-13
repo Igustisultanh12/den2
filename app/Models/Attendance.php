@@ -25,7 +25,7 @@ class Attendance extends Model
     ];
 
     protected $casts = [
-        'attendance_date' => 'date',
+        'attendance_date' => 'date:Y-m-d', // hindari pergeseran tanggal akibat konversi UTC saat serialisasi JSON
         'latitude' => 'double',
         'longitude' => 'double',
     ];

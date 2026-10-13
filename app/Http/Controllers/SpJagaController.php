@@ -485,7 +485,7 @@ class SpJagaController extends Controller
             'approved_at' => now(),
             'penandatangan_user_id' => $pasopsUser?->id ?: $user->id,
             'penandatangan_nama' => $pName,
-            'penandatangan_pangkat_nrp' => "{\} {\}",
+            'penandatangan_pangkat_nrp' => trim("{$pRank} {$pNrp}"),
             'penandatangan_jabatan' => 'Pasiops',
         ]);
 

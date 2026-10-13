@@ -1,0 +1,447 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\SpJaga;
+use App\Models\User;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
+
+/**
+ * Pengujian keamanan & kontrak API mobile.
+ *
+ * Catatan: migrasi bawaan repo belum dapat dijalankan di SQLite (ada tabel
+ * yang dibuat dua kali, lihat docs/SISINDEN_ANDROID_AUDIT.md), sehingga test
+ * ini membangun skema minimal yang dibutuhkan secara eksplisit.
+ */
+class MobileApiSecurityTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Schema::create('users', function (Blueprint $t) {
+            $t->id();
+            $t->string('name');
+            $t->string('email')->unique();
+            $t->string('nrp')->nullable();
+            $t->string('pangkat')->nullable();
+            $t->string('korps')->nullable();
+            $t->string('jabatan')->nullable();
+            $t->string('phone')->nullable();
+            $t->string('avatar')->nullable();
+            $t->string('role')->default('personel');
+            $t->string('password');
+            $t->boolean('is_active')->default(true);
+            $t->boolean('can_access_mitra')->default(false);
+            $t->boolean('can_access_technical_cash')->default(false);
+            $t->boolean('can_manage_koperasi')->default(false);
+            $t->boolean('can_access_ibu_beti')->default(false);
+            $t->string('activation_token')->nullable();
+            $t->boolean('must_change_password')->default(false);
+            $t->rememberToken();
+            $t->timestamps();
+        });
+        Schema::create('settings', function (Blueprint $t) {
+            $t->id();
+            $t->string('key')->unique();
+            $t->text('value')->nullable();
+            $t->timestamps();
+        });
+        Schema::create('personal_access_tokens', function (Blueprint $t) {
+            $t->id();
+            $t->morphs('tokenable');
+            $t->string('name');
+            $t->string('token', 64)->unique();
+            $t->text('abilities')->nullable();
+            $t->timestamp('last_used_at')->nullable();
+            $t->timestamp('expires_at')->nullable();
+            $t->timestamps();
+        });
+        Schema::create('cashes', function (Blueprint $t) {
+            $t->id();
+            $t->date('date');
+            $t->string('description');
+            $t->decimal('debit', 15, 2)->default(0);
+            $t->decimal('credit', 15, 2)->default(0);
+            $t->decimal('balance', 15, 2)->default(0);
+            $t->text('receipt_path')->nullable();
+            $t->timestamps();
+        });
+        Schema::create('attendances', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('user_id');
+            $t->date('attendance_date');
+            $t->string('time_in')->nullable();
+            $t->string('status')->default('hadir');
+            $t->string('ip_address')->nullable();
+            $t->string('device')->nullable();
+            $t->string('user_agent')->nullable();
+            $t->double('latitude')->nullable();
+            $t->double('longitude')->nullable();
+            $t->string('location_name')->nullable();
+            $t->text('notes')->nullable();
+            $t->string('photo')->nullable();
+            $t->timestamps();
+        });
+        Schema::create('app_notifications', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('user_id')->nullable();
+            $t->string('role')->nullable();
+            $t->string('title');
+            $t->text('message');
+            $t->string('type')->default('info');
+            $t->string('link')->nullable();
+            $t->boolean('is_read')->default(false);
+            $t->timestamps();
+        });
+        Schema::create('sp_jagas', function (Blueprint $t) {
+            $t->id();
+            $t->string('nomor_sprin')->nullable();
+            $t->string('nomor_urut')->nullable();
+            $t->integer('bulan');
+            $t->integer('tahun');
+            $t->string('bulan_romawi')->nullable();
+            $t->date('tmt_mulai')->nullable();
+            $t->date('tmt_selesai')->nullable();
+            $t->date('tanggal_surat')->nullable();
+            $t->foreignId('perwira_tertua_user_id')->nullable();
+            $t->string('perwira_tertua_nama')->nullable();
+            $t->string('perwira_tertua_pangkat_nrp')->nullable();
+            $t->string('perwira_tertua_jabatan')->nullable();
+            $t->integer('total_personel_count')->default(0);
+            $t->string('total_personel_terbilang')->nullable();
+            $t->string('ttd_type')->default('tte');
+            $t->string('status')->default('draft');
+            $t->string('signed_file_path')->nullable();
+            $t->string('verification_code')->nullable();
+            $t->foreignId('penandatangan_user_id')->nullable();
+            $t->string('penandatangan_nama')->nullable();
+            $t->string('penandatangan_pangkat_nrp')->nullable();
+            $t->string('penandatangan_jabatan')->nullable();
+            $t->foreignId('approved_by')->nullable();
+            $t->timestamp('approved_at')->nullable();
+            $t->foreignId('created_by');
+            $t->timestamps();
+        });
+        Schema::create('sp_jaga_perwiras', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('sp_jaga_id');
+            $t->foreignId('user_id')->nullable();
+            $t->integer('no_urut')->default(1);
+            $t->string('nama');
+            $t->string('pangkat_korps')->nullable();
+            $t->string('nrp')->nullable();
+            foreach (range(1, 7) as $i) {
+                $t->string("tgl_{$i}")->nullable();
+            }
+            $t->json('tgl_list')->nullable();
+            $t->timestamps();
+        });
+        Schema::create('sp_jaga_anggotas', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('sp_jaga_id');
+            $t->integer('divisi_no')->default(1);
+            $t->string('tanggal_list_text')->nullable();
+            $t->json('tanggal_array')->nullable();
+            $t->json('anggota_items')->nullable();
+            $t->timestamps();
+        });
+    }
+
+    /**
+     * Di produksi setiap request adalah proses baru; di test, guard auth tetap
+     * hidup antar-request. Reset agar perilaku identik dengan produksi.
+     */
+    public function json($method, $uri, array $data = [], array $headers = [], $options = 0)
+    {
+        $this->app['auth']->forgetGuards();
+        return parent::json($method, $uri, $data, $headers, $options);
+    }
+
+    private function makeUser(array $attrs = []): User
+    {
+        static $n = 0;
+        $n++;
+        return User::forceCreate(array_merge([
+            'name' => "Personel {$n}",
+            'email' => "p{$n}@example.test",
+            'nrp' => "NRP{$n}",
+            'role' => 'personel',
+            'password' => Hash::make('rahasia123'),
+            'is_active' => true,
+        ], $attrs));
+    }
+
+    private function tokenFor(User $user): string
+    {
+        return $user->createToken('test')->plainTextToken;
+    }
+
+    public function test_data_endpoints_reject_requests_without_token(): void
+    {
+        foreach (['/api/mobile/cash', '/api/mobile/users', '/api/mobile/me', '/api/mobile/attendances', '/api/mobile/duty-roster'] as $uri) {
+            $this->getJson($uri)->assertStatus(401)->assertJson(['code' => 'unauthenticated']);
+        }
+        $this->postJson('/api/mobile/users', ['name' => 'x', 'role' => 'admin'])->assertStatus(401);
+        $this->deleteJson('/api/mobile/cash/1')->assertStatus(401);
+    }
+
+    public function test_forged_identity_headers_are_ignored(): void
+    {
+        $admin = $this->makeUser(['role' => 'admin']);
+        $this->withHeaders(['X-User-Id' => (string) $admin->id])
+            ->getJson('/api/mobile/users')
+            ->assertStatus(401);
+    }
+
+    public function test_invalid_token_is_rejected(): void
+    {
+        $this->withToken('1|bukan-token-asli')->getJson('/api/mobile/me')->assertStatus(401);
+    }
+
+    public function test_login_returns_permissions_and_working_token(): void
+    {
+        $this->makeUser(['nrp' => '12345', 'role' => 'personel']);
+
+        $res = $this->postJson('/api/mobile/login', ['username' => '12345', 'password' => 'rahasia123'])
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('user.can_access_cash', false);
+
+        $perms = $res->json('user.permissions');
+        $this->assertContains('duty_roster.view', $perms);
+        $this->assertNotContains('cash.view', $perms);
+        $this->assertNotContains('users.manage', $perms);
+
+        $this->withToken($res->json('token'))->getJson('/api/mobile/me')
+            ->assertOk()->assertJsonPath('user.nrp', '12345');
+    }
+
+    public function test_login_error_does_not_reveal_whether_user_exists(): void
+    {
+        $this->makeUser(['nrp' => '777']);
+        $a = $this->postJson('/api/mobile/login', ['username' => '777', 'password' => 'salah'])->assertStatus(401)->json('message');
+        $b = $this->postJson('/api/mobile/login', ['username' => 'tidakada', 'password' => 'salah'])->assertStatus(401)->json('message');
+        $this->assertSame($a, $b);
+    }
+
+    public function test_inactive_user_cannot_login_or_use_token(): void
+    {
+        $u = $this->makeUser(['nrp' => '888']);
+        $token = $this->tokenFor($u);
+        $u->forceFill(['is_active' => false])->save();
+
+        $this->withToken($token)->getJson('/api/mobile/me')->assertStatus(403);
+        $this->postJson('/api/mobile/login', ['username' => '888', 'password' => 'rahasia123'])->assertStatus(403);
+    }
+
+    public function test_permissions_are_enforced_by_backend(): void
+    {
+        $personel = $this->makeUser(['role' => 'personel']);
+        $token = $this->tokenFor($personel);
+
+        $this->withToken($token)->getJson('/api/mobile/cash')
+            ->assertStatus(403)->assertJsonPath('required_permission', 'cash.view');
+        $this->withToken($token)->getJson('/api/mobile/users')->assertStatus(403);
+        $this->withToken($token)->postJson('/api/mobile/users', [
+            'name' => 'Penyusup', 'email' => 'x@x.test', 'nrp' => '1', 'role' => 'admin', 'password' => 'rahasia123',
+        ])->assertStatus(403);
+        $this->assertDatabaseMissing('users', ['email' => 'x@x.test']);
+    }
+
+    public function test_admin_can_access_cash_and_validation_applies(): void
+    {
+        $admin = $this->makeUser(['role' => 'admin']);
+        $token = $this->tokenFor($admin);
+
+        $this->withToken($token)->getJson('/api/mobile/cash')->assertOk()->assertJsonPath('status', 'success');
+        $this->withToken($token)->postJson('/api/mobile/cash', ['description' => 'x'])->assertStatus(422);
+        $this->withToken($token)->postJson('/api/mobile/cash', [
+            'date' => '2026-10-01', 'description' => 'Saldo awal', 'type' => 'masuk', 'amount' => 1,
+        ])->assertOk();
+        $this->withToken($token)->postJson('/api/mobile/cash', [
+            'date' => '2026-10-02', 'description' => 'Belanja ATK', 'type' => 'keluar', 'amount' => 0.5,
+        ])->assertOk();
+        $this->withToken($token)->getJson('/api/mobile/cash')->assertJsonPath('balance', 0.5);
+    }
+
+    public function test_permission_change_by_admin_applies_on_next_request(): void
+    {
+        $u = $this->makeUser(['role' => 'personel']);
+        $token = $this->tokenFor($u);
+        $this->withToken($token)->getJson('/api/mobile/me')->assertOk();
+        $this->assertNotContains('technical_cash.view', $this->withToken($token)->getJson('/api/mobile/me')->json('user.permissions'));
+
+        $u->forceFill(['can_access_technical_cash' => true])->save();
+        $this->assertContains('technical_cash.view', $this->withToken($token)->getJson('/api/mobile/me')->json('user.permissions'));
+    }
+
+    public function test_anggota_sintel_gets_restricted_menu(): void
+    {
+        $sintel = $this->makeUser(['role' => 'anggotasintel']);
+        $perms = $this->withToken($this->tokenFor($sintel))->getJson('/api/mobile/me')->json('user.permissions');
+        $this->assertContains('duty_roster.view', $perms);
+        $this->assertContains('attendance.create', $perms);
+        $this->assertNotContains('letter_logs.view', $perms);
+        $this->assertNotContains('skhpp.view', $perms);
+    }
+
+    public function test_attendance_is_recorded_for_token_owner_only(): void
+    {
+        $victim = $this->makeUser();
+        $actor = $this->makeUser();
+
+        $this->withToken($this->tokenFor($actor))
+            ->withHeaders(['X-User-Id' => (string) $victim->id])
+            ->postJson('/api/mobile/attendances', ['status' => 'hadir', 'user_id' => $victim->id])
+            ->assertOk();
+
+        $this->assertSame(1, DB::table('attendances')->where('user_id', $actor->id)->count());
+        $this->assertSame(0, DB::table('attendances')->where('user_id', $victim->id)->count());
+
+        // Tanggal presensi harus dikirim sebagai Y-m-d lokal (bukan ISO UTC yang bergeser sehari).
+        $this->withToken($this->tokenFor($actor))->getJson('/api/mobile/attendances')
+            ->assertOk()
+            ->assertJsonPath('today_attendance.attendance_date', now()->toDateString());
+    }
+
+    public function test_activation_requires_valid_token(): void
+    {
+        $u = $this->makeUser(['nrp' => '999', 'is_active' => false, 'activation_token' => 'TOKEN-ABC']);
+        $oldHash = $u->password;
+
+        $this->postJson('/api/mobile/activate', ['nrp' => '999', 'password' => 'barubaru123'])->assertStatus(422);
+        $this->postJson('/api/mobile/activate', ['nrp' => '999', 'token' => 'SALAH', 'password' => 'barubaru123'])->assertStatus(422);
+        $this->assertSame($oldHash, $u->fresh()->password);
+
+        $this->postJson('/api/mobile/activate', ['nrp' => '999', 'token' => 'TOKEN-ABC', 'password' => 'barubaru123'])->assertOk();
+        $this->assertTrue($u->fresh()->is_active);
+        $this->assertNull($u->fresh()->activation_token);
+    }
+
+    public function test_logout_revokes_token(): void
+    {
+        $u = $this->makeUser();
+        $token = $this->tokenFor($u);
+        $this->withToken($token)->postJson('/api/mobile/logout')->assertOk();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($token)->getJson('/api/mobile/me')->assertStatus(401);
+    }
+
+    public function test_notifications_are_scoped_to_user(): void
+    {
+        $me = $this->makeUser(['role' => 'personel']);
+        $other = $this->makeUser(['role' => 'komandan']);
+        DB::table('app_notifications')->insert([
+            ['user_id' => $me->id, 'role' => null, 'title' => 'Untuk saya', 'message' => 'a', 'type' => 'info', 'is_read' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => $other->id, 'role' => null, 'title' => 'Rahasia komandan', 'message' => 'b', 'type' => 'info', 'is_read' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => null, 'role' => 'komandan', 'title' => 'Role komandan', 'message' => 'c', 'type' => 'info', 'is_read' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => null, 'role' => null, 'title' => 'Broadcast', 'message' => 'd', 'type' => 'info', 'is_read' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $titles = collect($this->withToken($this->tokenFor($me))->getJson('/api/mobile/notifications')->json('notifications'))->pluck('title')->all();
+        sort($titles);
+        $this->assertSame(['Broadcast', 'Untuk saya'], $titles);
+    }
+
+    public function test_duty_roster_is_built_from_sp_jaga_and_marks_my_schedule(): void
+    {
+        $me = $this->makeUser(['name' => 'Bambang', 'nrp' => '82068']);
+        $creator = $this->makeUser(['role' => 'admin']);
+        $sp = SpJaga::forceCreate([
+            'nomor_sprin' => 'Sprin/ 29 /X/2026', 'bulan' => 10, 'tahun' => 2026,
+            'tmt_mulai' => '2026-10-01', 'tmt_selesai' => '2026-10-31',
+            'status' => 'published', 'ttd_type' => 'tte', 'created_by' => $creator->id,
+        ]);
+        DB::table('sp_jaga_perwiras')->insert([
+            'sp_jaga_id' => $sp->id, 'nama' => 'Bambang', 'pangkat_korps' => 'Peltu Saa', 'nrp' => '82068',
+            'tgl_1' => '04', 'tgl_2' => '11', 'tgl_3' => '-', 'tgl_4' => '-', 'tgl_5' => '-', 'tgl_6' => '-', 'tgl_7' => '-',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('sp_jaga_anggotas')->insert([
+            'sp_jaga_id' => $sp->id, 'divisi_no' => 2, 'tanggal_list_text' => '05, 11 OKTOBER 2026',
+            'anggota_items' => json_encode([['nama' => 'Erwan Junaidi', 'pangkat_korps' => 'Peltu Ttg', 'nrp_nip' => '84025', 'role_jaga' => 'BAGA']]),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        // SP draft tidak boleh terlihat oleh personel biasa
+        SpJaga::forceCreate(['bulan' => 11, 'tahun' => 2026, 'status' => 'draft', 'created_by' => $creator->id]);
+
+        $res = $this->withToken($this->tokenFor($me))
+            ->getJson('/api/mobile/duty-roster?bulan=10&tahun=2026')
+            ->assertOk()
+            ->assertJsonPath('sp.id', $sp->id)
+            ->assertJsonPath('my_dates', ['2026-10-04', '2026-10-11']);
+
+        $days = collect($res->json('days'))->keyBy('date');
+        $this->assertSame(['2026-10-04', '2026-10-05', '2026-10-11'], $days->keys()->all());
+        $this->assertTrue($days['2026-10-04']['has_me']);
+        $this->assertFalse($days['2026-10-05']['has_me']);
+        $this->assertSame('Bintara Jaga (BAGA)', $days['2026-10-05']['entries'][0]['role']);
+        $this->assertCount(2, $days['2026-10-11']['entries']);
+        $this->assertCount(1, $res->json('available'), 'SP draft tidak boleh tampil untuk personel');
+
+        $this->withToken($this->tokenFor($me))
+            ->getJson('/api/mobile/duty-roster?bulan=11&tahun=2026')
+            ->assertOk()->assertJsonPath('sp', null);
+    }
+
+    public function test_dashboard_only_contains_permitted_modules(): void
+    {
+        Schema::create('technical_unit_cashes', function (Blueprint $t) {
+            $t->id(); $t->date('date'); $t->string('description'); $t->decimal('debit', 15, 2)->default(0);
+            $t->decimal('credit', 15, 2)->default(0); $t->decimal('balance', 15, 2)->default(0); $t->timestamps();
+        });
+        Schema::create('letter_logs', function (Blueprint $t) {
+            $t->id(); $t->foreignId('category_id')->nullable(); $t->string('sequence')->nullable(); $t->string('full_number')->nullable();
+            $t->string('subject')->nullable(); $t->string('recipient')->nullable(); $t->date('date')->nullable(); $t->timestamps();
+        });
+        Schema::create('skhpps', function (Blueprint $t) {
+            $t->id(); $t->string('status')->default('pending'); $t->foreignId('submitted_by')->nullable(); $t->timestamps();
+        });
+        Schema::create('signature_requests', function (Blueprint $t) {
+            $t->id(); $t->foreignId('user_id')->nullable(); $t->string('status')->default('pending'); $t->timestamps();
+        });
+        $personel = $this->makeUser(['role' => 'personel']);
+        $summary = $this->withToken($this->tokenFor($personel))->getJson('/api/mobile/dashboard')
+            ->assertOk()->json('summary');
+        $this->assertArrayNotHasKey('cash_balance', $summary);
+        $this->assertArrayHasKey('attendance', $summary);
+
+        $admin = $this->makeUser(['role' => 'admin']);
+        DB::table('cashes')->insert(['date' => '2026-10-01', 'description' => 'x', 'debit' => 5000, 'credit' => 0, 'balance' => 5000, 'created_at' => now(), 'updated_at' => now()]);
+        $adminSummary = $this->withToken($this->tokenFor($admin))->getJson('/api/mobile/dashboard')
+            ->assertOk()->json('summary');
+        $this->assertEquals(5000, $adminSummary['cash_balance']);
+    }
+
+    public function test_cash_pdf_is_real_pdf_and_permission_guarded(): void
+    {
+        $personel = $this->makeUser(['role' => 'personel']);
+        $this->withToken($this->tokenFor($personel))->getJson('/api/mobile/pdf/cash')->assertStatus(403);
+
+        $admin = $this->makeUser(['role' => 'admin']);
+        DB::table('cashes')->insert(['date' => '2026-10-01', 'description' => 'Saldo awal', 'debit' => 1, 'credit' => 0, 'balance' => 1, 'created_at' => now(), 'updated_at' => now()]);
+        $this->app['auth']->forgetGuards();
+        $res = $this->withToken($this->tokenFor($admin))->get('/api/mobile/pdf/cash');
+        $res->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $res->headers->get('Content-Type'));
+        $this->assertStringStartsWith('%PDF', $res->getContent());
+    }
+
+    public function test_unpublished_sp_jaga_pdf_is_forbidden_for_regular_personnel(): void
+    {
+        $me = $this->makeUser();
+        $creator = $this->makeUser(['role' => 'admin']);
+        $draft = SpJaga::forceCreate(['bulan' => 11, 'tahun' => 2026, 'status' => 'draft', 'created_by' => $creator->id]);
+        $this->withToken($this->tokenFor($me))->getJson("/api/mobile/pdf/sp-jaga/{$draft->id}")->assertStatus(403);
+    }
+
+    public function test_laravel_log_viewer_is_no_longer_public(): void
+    {
+        $this->get('/admin/laravel-logs')->assertRedirect();
+    }
+}
