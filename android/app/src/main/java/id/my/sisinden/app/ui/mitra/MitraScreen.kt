@@ -375,7 +375,8 @@ fun MitraScreen(
             }
 
             // MODAL FORM EDIT MITRA
-            selectedMitraForEdit?.let { editingMitra ->
+            val editingMitra = selectedMitraForEdit
+            if (editingMitra != null) {
                 ModalBottomSheet(onDismissRequest = { selectedMitraForEdit = null }) {
                     var editName by remember(editingMitra) { mutableStateOf(editingMitra.name) }
                     var editPhone by remember(editingMitra) { mutableStateOf(editingMitra.phone) }
@@ -447,7 +448,8 @@ fun MitraScreen(
             }
 
             // MODAL MATRIKS 12 BULAN PEMBAYARAN MITRA
-            selectedMitraForMatrix?.let { matrixMitra ->
+            val matrixMitra = selectedMitraForMatrix
+            if (matrixMitra != null) {
                 val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
                 val monthNames = remember {
                     listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des")
@@ -551,7 +553,8 @@ fun MitraScreen(
             }
 
             // DIALOG KONFIRMASI HAPUS MITRA
-            selectedMitraForDelete?.let { deletingMitra ->
+            val deletingMitra = selectedMitraForDelete
+            if (deletingMitra != null) {
                 AlertDialog(
                     onDismissRequest = { selectedMitraForDelete = null },
                     icon = {

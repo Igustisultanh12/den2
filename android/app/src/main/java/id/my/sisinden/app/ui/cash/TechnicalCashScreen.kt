@@ -355,7 +355,8 @@ fun TechnicalCashScreen(
             }
 
             // MODAL FORM EDIT TRANSAKSI KAS TAKTIS
-            selectedTxForEdit?.let { editingTx ->
+            val editingTx = selectedTxForEdit
+            if (editingTx != null) {
                 ModalBottomSheet(onDismissRequest = { selectedTxForEdit = null }) {
                     var editType by remember(editingTx) { mutableStateOf(if (editingTx.isIncome) "masuk" else "keluar") }
                     var editAmount by remember(editingTx) { mutableStateOf(editingTx.effectiveAmount.toLong().toString()) }
@@ -422,7 +423,8 @@ fun TechnicalCashScreen(
             }
 
             // DIALOG KONFIRMASI HAPUS TRANSAKSI KAS TAKTIS
-            selectedTxForDelete?.let { deletingTx ->
+            val deletingTx = selectedTxForDelete
+            if (deletingTx != null) {
                 AlertDialog(
                     onDismissRequest = { selectedTxForDelete = null },
                     icon = {

@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import id.my.sisinden.app.core.ui.components.*
 import id.my.sisinden.app.core.ui.theme.*
+import id.my.sisinden.app.data.model.CashTransactionDto
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -365,7 +366,8 @@ fun CashScreen(
             }
 
             // MODAL FORM EDIT TRANSAKSI KAS
-            selectedTxForEdit?.let { editingTx ->
+            val editingTx = selectedTxForEdit
+            if (editingTx != null) {
                 ModalBottomSheet(
                     onDismissRequest = { selectedTxForEdit = null }
                 ) {
@@ -446,7 +448,8 @@ fun CashScreen(
             }
 
             // DIALOG KONFIRMASI HAPUS TRANSAKSI KAS
-            selectedTxForDelete?.let { deletingTx ->
+            val deletingTx = selectedTxForDelete
+            if (deletingTx != null) {
                 AlertDialog(
                     onDismissRequest = { selectedTxForDelete = null },
                     icon = {
