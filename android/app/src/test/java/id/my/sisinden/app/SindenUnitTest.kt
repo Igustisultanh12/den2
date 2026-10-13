@@ -230,10 +230,8 @@ class SindenUnitTest {
                     "device_model": "Android Device",
                     "notes": "Apel pagi tepat waktu"
                 },
-                "officer_stats": {
-                    "total_attended_today": 25,
-                    "total_active_personnel": 30
-                },
+                "total_attended_today": 25,
+                "total_active_personnel": 30,
                 "attendances": [
                     {
                         "id": 10,
@@ -255,8 +253,8 @@ class SindenUnitTest {
         assertNotNull(response.todayAttendance)
         assertEquals("hadir", response.todayAttendance?.status)
         assertEquals(-7.2053, response.todayAttendance?.latitude ?: 0.0, 0.0001)
-        assertEquals(25, response.officerStats?.totalAttendedToday)
-        assertEquals(30, response.officerStats?.totalActivePersonnel)
+        assertEquals(25, response.totalAttendedToday)
+        assertEquals(30, response.totalActivePersonnel)
         assertEquals(1, response.attendances.size)
     }
 
