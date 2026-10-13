@@ -12,8 +12,8 @@ Panduan ini menjelaskan tata cara kompilasi, pengujian, penandatanganan (*signin
   - `minSdk`: 26 (Android 8.0 Oreo)
   - `targetSdk`: 34
 - **Versi Rilis Saat Ini:**
-  - `versionCode`: 2
-  - `versionName`: "1.0.1"
+  - `versionCode`: 3
+  - `versionName`: "1.0.2"
 - **Build System:** Gradle 8.9 dengan Gradle Kotlin DSL (`build.gradle.kts`)
 - **Android Gradle Plugin (AGP):** 8.5.2
 - **Kotlin:** 2.0.21
@@ -41,8 +41,8 @@ android/
 │       │   │   ├── data/
 │       │   │   │   ├── model/
 │       │   │   │   └── repository/
-│       │   │   ├── ui/
 │       │   │   │   ├── auth/
+│       │   │   │   ├── attendance/
 │       │   │   │   ├── dashboard/
 │       │   │   │   ├── letters/
 │       │   │   │   ├── skhpp/
@@ -106,8 +106,8 @@ Repositori dilengkapi alur kerja `.github/workflows/android-release.yml` yang te
 
 ## 5. Status dan Tautan Rilis Terverifikasi
 
-- **Tag Rilis:** `v1.0.20`
-- **Tautan Rilis:** [SISINDEN Android Native v1.0.20](https://github.com/Igustisultanh12/kantor/releases/tag/v1.0.20)
-- **Aset Rilis Utama:** [SISINDEN-v1.0.1.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.20/SISINDEN-v1.0.1.apk)
-- **Aset Standar:** [app-release.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.20/app-release.apk)
-- **Aset Debug:** [app-debug.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.20/app-debug.apk)
+- **Tag Rilis:** `v1.0.24`
+- **Tautan Rilis:** [SISINDEN Android Native v1.0.24](https://github.com/Igustisultanh12/kantor/releases/tag/v1.0.24)
+- **Aset Rilis Utama:** [SISINDEN-v1.0.2.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.24/SISINDEN-v1.0.2.apk)
+- **Aset Standar:** [app-release.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.24/app-release.apk)
+- **Aset Debug:** [app-debug.apk](https://github.com/Igustisultanh12/kantor/releases/download/v1.0.24/app-debug.apk)
