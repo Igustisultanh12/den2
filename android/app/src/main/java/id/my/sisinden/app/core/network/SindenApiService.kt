@@ -8,7 +8,7 @@ import retrofit2.Response
 import retrofit2.http.*
 
 /**
- * Kontrak REST /api/mobile/* (lihat routes/mobile_api.php di repo yang sama).
+ * Kontrak REST /api/mobile/… (lihat routes/mobile_api.php di repo yang sama).
  * Path relatif (tanpa "/" di depan) agar base URL dengan sub-path tetap valid.
  */
 interface SindenApiService {
