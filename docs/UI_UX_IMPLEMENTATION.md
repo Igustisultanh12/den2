@@ -80,6 +80,32 @@ Sesuai arahan desain terbaru yang terinspirasi dari referensi Livin' by Mandiri 
    - Deteksi visual titik koordinat kedinasan.
    - Input catatan penugasan kedinasan yang lapang.
    - Kartu riwayat presensi 30 hari terakhir dengan visualisasi badge status dinas.
-5. **Navigasi Terintegrasi**:
-   - Tab navigasi permanen "Presensi" pada bilah navigasi bawah (NavigationBar) dan quick banner di dashboard utama.
+5. **Navigasi Terintegrasi & Center Elevated Floating Button**:
+   - Tab navigasi bawah (NavigationBar) 5 menu dengan tombol mengambang terangkat di tengah khusus untuk **PRESENSI** (lingkaran 50dp elevated circle, `LivinSkyBlue`, garis batas putih 2.5dp, ikon `Icons.Default.HowToReg`).
+   - 4 tombol tab pendukung: Beranda (dengan titik indikator biru aktif), Kas, Surat, dan Akun.
+
+---
+
+## 6. Detail Arsitektur Desain Figma Elder-Friendly (1:1 Livin' Sky Blue)
+
+Berdasarkan referensi resmi Figma Elder-Friendly Livin' by Mandiri:
+1. **Header Sky Blue Bergradien**:
+   - Latar belakang gradien biru cerah (`LivinSkyBlue` `#0084F4` ke `LivinSkyBlueDark` `#0066CC`).
+   - Penataan identitas satuan SISINDEN Kodaeral V di kiri atas.
+   - Kolom aksi kanan: Notifikasi kedinasan ("Warta") dan menu "Keluar".
+2. **Floating Executive White Card**:
+   - Kartu melayang putih bersih dengan radius lengkungan 26dp dan elevasi halus.
+   - Menampilkan sapaan prajurit, foto profil avatar prajurit, kartu tanda pengenal militer, saldo kas dinas dengan toggle privasi mata, serta indikator pagination titik bulat.
+3. **4 Tombol Aksi Taktil Melingkar (Fitur Utama Anda)**:
+   - Presensi Kehadiran: Tombol bulat 60dp warna Teal (`#00C2A8`).
+   - Kas Denintel: Tombol bulat 60dp warna Oranye Mandiri (`#FF7A00`).
+   - Kas Taktis: Tombol bulat 60dp warna Biru Mandiri (`#00A3FF`).
+   - Mitra Intelijen: Tombol bulat 60dp warna Hijau Lime (`#87C038`).
+4. **Pill Filter Chips & Kartu Aksi Vertikal (Fitur Lainnya)**:
+   - Filter chips horizontal: "Sering Dipakai", "Surat Dinas", "SKHPP".
+   - Kartu baris aksi berbingkai 18dp dengan kontainer ikon bergradasi dan tombol arah "Buka >".
+5. **Form Autentikasi Pill-Shaped**:
+   - Kolom isian NRP dan Kata Sandi dengan lengkungan 22dp pill radius.
+   - Tombol masuk berdimensi tinggi 54dp dengan lengkungan 26dp berlatar belakang `LivinSkyBlue`.
+
 

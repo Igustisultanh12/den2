@@ -310,11 +310,11 @@ fun LoginScreen(
                                     focusedContainerColor = Color.Black.copy(alpha = 0.2f),
                                     unfocusedContainerColor = Color.Black.copy(alpha = 0.15f)
                                 ),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(22.dp),
                                 modifier = Modifier.fillMaxWidth()
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
                             Button(
                                 onClick = {
@@ -322,24 +322,24 @@ fun LoginScreen(
                                     viewModel.login(username, password)
                                 },
                                 enabled = loginState !is LoginUiState.Loading,
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = SindenTealPrimary),
+                                shape = RoundedCornerShape(26.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = LivinSkyBlue),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
+                                    .height(54.dp)
                             ) {
                                 if (loginState is LoginUiState.Loading) {
                                     CircularProgressIndicator(
-                                        modifier = Modifier.size(22.dp),
+                                        modifier = Modifier.size(24.dp),
                                         color = Color.White,
                                         strokeWidth = 2.dp
                                     )
                                 } else {
                                     Text(
-                                        text = "MASUK KE SISTEM",
+                                        text = "MASUK KEDINASAN",
                                         fontWeight = FontWeight.Black,
-                                        fontSize = 13.sp,
-                                        letterSpacing = 0.5.sp
+                                        fontSize = 14.sp,
+                                        letterSpacing = 0.8.sp
                                     )
                                 }
                             }

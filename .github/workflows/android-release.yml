@@ -128,7 +128,7 @@ jobs:
             - Pelanggaran Personel & Direktori Personel Satuan.
             
             ### Detail Teknis:
-            - Versi: 1.0.2 (versionCode 3)
+            - Versi: 1.0.2 (versionCode 4)
             - Kerangka Kerja: Kotlin Jetpack Compose (Material 3)
             - Min SDK: Android 8.0 (API 26)
             - Target SDK: Android 14 (API 34)
