@@ -74,11 +74,11 @@ jobs:
         continue-on-error: true
         run: gradle :app:lintDebug
 
-      - name: Assemble debug & release
+      - name: Assemble debug, release APK & Play Store AAB Bundle
         working-directory: android
         run: |
           set -o pipefail
-          gradle :app:assembleDebug :app:assembleRelease --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle-assemble.log"
+          gradle :app:assembleDebug :app:assembleRelease :app:bundleRelease --stacktrace 2>&1 | tee "$RUNNER_TEMP/gradle-assemble.log"
 
       - name: Report Gradle errors as annotations
         if: failure()
@@ -98,7 +98,7 @@ jobs:
             echo "::error title=Gradle errors part $n::$msg"
           done
 
-      - name: Collect APKs, verify signature, compute SHA-256
+      - name: Collect APKs & Play Store AAB, verify signature, compute SHA-256
         id: collect
         run: |
           set -euo pipefail
@@ -106,6 +106,12 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           mkdir -p out
           cp android/app/build/outputs/apk/debug/app-debug.apk "out/SISINDEN-${VERSION}-debug.apk"
+          
+          # Android App Bundle (.aab) untuk Play Store
+          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
+            cp android/app/build/outputs/bundle/release/app-release.aab "out/SISINDEN-${VERSION}.aab"
+          fi
+
           SIGNED=false
           if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
             cp android/app/build/outputs/apk/release/app-release.apk "out/SISINDEN-${VERSION}.apk"
@@ -117,7 +123,7 @@ jobs:
             echo "::warning title=Unsigned release::Secrets keystore belum dikonfigurasi; APK rilis tidak ditandatangani dan tidak akan dipublikasikan."
           fi
           echo "signed=$SIGNED" >> "$GITHUB_OUTPUT"
-          (cd out && sha256sum *.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          (cd out && sha256sum *.{apk,aab} > SHA256SUMS.txt 2>/dev/null || sha256sum *.apk > SHA256SUMS.txt; cat SHA256SUMS.txt)
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -125,6 +131,7 @@ jobs:
           name: SISINDEN-Android-${{ steps.collect.outputs.version }}
           path: |
             out/*.apk
+            out/*.aab
             out/SHA256SUMS.txt
             android/app/build/reports/lint-results-debug.html
 
@@ -137,6 +144,7 @@ jobs:
           body_path: docs/ANDROID_RELEASE_NOTES.md
           files: |
             out/SISINDEN-${{ steps.collect.outputs.version }}.apk
+            out/SISINDEN-${{ steps.collect.outputs.version }}.aab
             out/SHA256SUMS.txt
           make_latest: true
         env:
