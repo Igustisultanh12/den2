@@ -1,663 +1,527 @@
 package id.my.sisinden.app.ui.dashboard
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Create
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.EventAvailable
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.HowToReg
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import id.my.sisinden.app.core.ui.components.*
-import id.my.sisinden.app.core.ui.theme.*
-import id.my.sisinden.app.data.model.LetterLogDto
-import id.my.sisinden.app.data.model.UserDto
-import java.text.NumberFormat
-import java.util.Locale
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import id.my.sisinden.app.core.data.SessionState
+import id.my.sisinden.app.core.security.Perm
+import id.my.sisinden.app.core.ui.components.ErrorState
+import id.my.sisinden.app.core.ui.components.IconBadge
+import id.my.sisinden.app.core.ui.components.LoadState
+import id.my.sisinden.app.core.ui.components.dataOrNull
+import id.my.sisinden.app.core.ui.components.RefreshableBox
+import id.my.sisinden.app.core.ui.components.SectionHeader
+import id.my.sisinden.app.core.ui.components.SindenCard
+import id.my.sisinden.app.core.ui.components.SkeletonBlock
+import id.my.sisinden.app.core.ui.components.StatTile
+import id.my.sisinden.app.core.ui.components.StatusChip
+import id.my.sisinden.app.core.ui.components.Tone
+import id.my.sisinden.app.core.ui.components.shimmerBrush
+import id.my.sisinden.app.core.ui.components.toneAccent
+import id.my.sisinden.app.core.ui.theme.Navy900
+import id.my.sisinden.app.core.ui.theme.Ocean600
+import id.my.sisinden.app.core.ui.theme.Ocean700
+import id.my.sisinden.app.core.ui.theme.Spacing
+import id.my.sisinden.app.core.util.Fmt
+import id.my.sisinden.app.data.model.DashboardDuty
+import id.my.sisinden.app.data.model.DashboardResponse
+import id.my.sisinden.app.data.model.DashboardSummary
+import id.my.sisinden.app.data.repository.SindenRepository
+import id.my.sisinden.app.ui.duty.DutyEntryRow
+import id.my.sisinden.app.ui.duty.UpcomingDutyChip
+import id.my.sisinden.app.ui.navigation.Feature
+import id.my.sisinden.app.ui.navigation.Routes
+import java.time.LocalDate
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    viewModel: DashboardViewModel,
-    onNavigateToLetters: () -> Unit,
-    onNavigateToSkhpp: () -> Unit,
-    onNavigateToCash: () -> Unit,
-    onNavigateToTechnicalCash: () -> Unit,
-    onNavigateToMitra: () -> Unit,
-    onNavigateToSignature: () -> Unit,
-    onNavigateToViolations: () -> Unit,
-    onNavigateToPersonnel: () -> Unit,
-    onNavigateToNotifications: () -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onNavigateToAttendance: () -> Unit = {}
+    repository: SindenRepository,
+    session: SessionState.LoggedIn,
+    onNavigate: (String) -> Unit,
+    onOpenDutyDay: (Int?, String) -> Unit,
 ) {
     val context = LocalContext.current
-    val currentUser by viewModel.currentUser.collectAsState(initial = null)
-    val isDarkMode by viewModel.isDarkMode.collectAsState(initial = null)
-    val uiState by viewModel.uiState.collectAsState()
-    val isPrivacyHidden by viewModel.isPrivacyHidden.collectAsState()
-    val config by viewModel.configState.collectAsState()
+    val vm: DashboardViewModel = viewModel { DashboardViewModel(repository, context.applicationContext) }
+    val state by vm.state.collectAsStateWithLifecycle()
+    val refreshing by vm.refreshing.collectAsStateWithLifecycle()
+    val hideBalance by vm.hideBalance.collectAsStateWithLifecycle()
 
-    var showPermissionDialog by remember { mutableStateOf(false) }
-    var deniedModuleName by remember { mutableStateOf("") }
-    var selectedFilterCategory by remember { mutableStateOf("Semua Fitur") }
+    val data = state.dataOrNull
+    val summary = data?.summary
+    val unread = summary?.notificationsUnread ?: 0
+    val perms = session.permissions
 
-    LaunchedEffect(Unit) {
-        viewModel.loadDashboardData(context)
-    }
-
-    val formatter = remember {
-        NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
-            maximumFractionDigits = 0
-        }
-    }
-
-    val userRole = currentUser?.role?.lowercase() ?: "user"
-    val canAccessCash = userRole in listOf("admin", "superadmin", "bendahara", "keuangan", "komandan")
-    val canAccessSignature = userRole in listOf("admin", "superadmin", "komandan")
-
-    Scaffold(
-        topBar = {
-            // Modern SaaS Dashboard Executive Header
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                shadowElevation = 0.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 18.dp, vertical = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "SISINDEN",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 1.sp
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                                ) {
-                                    Text(
-                                        text = "KODAERAL V",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        fontSize = 9.sp,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = "Selamat bertugas, ${currentUser?.name?.ifEmpty { "Personel Intelijen" } ?: "Personel Intelijen"}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Interactive Theme Toggle Button (Light / Dark)
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .bounceClick {
-                                        viewModel.toggleDarkMode(isDarkMode)
-                                    }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = if (isDarkMode == true) Icons.Default.LightMode else Icons.Default.DarkMode,
-                                        contentDescription = "Ganti Tema",
-                                        tint = if (isDarkMode == true) SindenGold else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(19.dp)
-                                    )
-                                }
-                            }
-
-                            // Interactive Notifications Icon with Badge
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .bounceClick { onNavigateToNotifications() }
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    BadgedBox(
-                                        badge = {
-                                            if (uiState is DashboardUiState.Success && (uiState as DashboardUiState.Success).stats.unreadNotifCount > 0) {
-                                                Badge(containerColor = StatusError) {
-                                                    Text(
-                                                        text = "${(uiState as DashboardUiState.Success).stats.unreadNotifCount}",
-                                                        color = Color.White,
-                                                        fontSize = 9.sp,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Notifications,
-                                            contentDescription = "Notifikasi",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(19.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
+    RefreshableBox(isRefreshing = refreshing, onRefresh = { vm.load(pullToRefresh = true) }) {
+        Column(
+            Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .verticalScroll(rememberScrollState()),
         ) {
-            when (val state = uiState) {
-                is DashboardUiState.Loading -> {
-                    item {
-                        ShimmerLoadingList()
-                    }
+            HeroHeader(
+                session = session,
+                unread = unread,
+                canOpenNotifications = perms.has(Perm.NOTIFICATIONS_VIEW),
+                onOpenNotifications = { onNavigate(Routes.NOTIFICATIONS) },
+            )
+
+            // Kartu presensi menumpang di bawah header
+            AttendanceQuickCard(
+                summary = summary,
+                loading = state is LoadState.Loading,
+                onClick = { onNavigate(Routes.ATTENDANCE) },
+                modifier = Modifier.offset(y = (-36).dp).padding(horizontal = Spacing.screen),
+            )
+
+            Column(Modifier.offset(y = (-20).dp), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
+                // ---------------------------------------------- DAFTAR JAGA (utama)
+                if (perms.has(Perm.DUTY_VIEW)) {
+                    DutySection(
+                        state = state,
+                        duty = data?.duty,
+                        onRetry = { vm.load() },
+                        onOpenDay = onOpenDutyDay,
+                        onOpenAll = { onNavigate(Routes.DUTY) },
+                    )
                 }
-                is DashboardUiState.Error -> {
-                    item {
-                        ErrorStateView(
-                            message = state.message,
-                            onRetry = { viewModel.loadDashboardData(context) }
-                        )
-                    }
+
+                // ---------------------------------------------- Ringkasan per hak akses
+                if (summary != null) {
+                    SummarySection(summary, hideBalance, vm::toggleHideBalance, onNavigate)
                 }
-                is DashboardUiState.Success -> {
-                    val stats = state.stats
 
-                    // 1. RINGKASAN METRIK OPERASIONAL SAAS (2x2 Grid)
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "RINGKASAN OPERASIONAL",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    letterSpacing = 1.sp
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                    modifier = Modifier.bounceClick(scaleDown = 0.9f) { viewModel.togglePrivacy() }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isPrivacyHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                            contentDescription = "Privasi Saldo",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                        Text(
-                                            text = if (isPrivacyHidden) "Tampilkan" else "Sembunyikan",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontSize = 10.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
+                // ---------------------------------------------- Akses cepat
+                QuickAccess(features = Feature.permitted(perms).filter { it != Feature.DUTY && it != Feature.ATTENDANCE }, onNavigate = onNavigate)
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                // Stat 1: Presensi Kehadiran
-                                SaaSStatCard(
-                                    title = "Presensi Hari Ini",
-                                    value = "Hadir Dinas",
-                                    icon = Icons.Default.HowToReg,
-                                    iconTint = MaterialTheme.colorScheme.primary,
-                                    iconBg = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                                    badgeText = "PRESENSI",
-                                    badgeColor = StatusSuccess,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = onNavigateToAttendance
-                                )
+                if (session.isStale) {
+                    Text(
+                        "Hak akses ditampilkan dari data tersimpan. Tarik ke bawah untuk menyinkronkan dengan server.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = Spacing.screen),
+                    )
+                }
+                Spacer(Modifier.height(Spacing.lg))
+            }
+        }
+    }
+}
 
-                                // Stat 2: Kas Denintel
-                                val cashText = if (isPrivacyHidden) "••••••••" else formatter.format(stats.cashBalance)
-                                SaaSStatCard(
-                                    title = "Kas Denintel",
-                                    value = cashText,
-                                    icon = Icons.Default.AccountBalanceWallet,
-                                    iconTint = Color(0xFF0284C7),
-                                    iconBg = Color(0xFFE0F2FE),
-                                    badgeText = "SATUAN",
-                                    badgeColor = Color(0xFF0284C7),
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        if (canAccessCash) onNavigateToCash()
-                                        else {
-                                            deniedModuleName = "Kas Denintel"
-                                            showPermissionDialog = true
-                                        }
-                                    }
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                // Stat 3: Kas Taktis Satuan
-                                val techText = if (isPrivacyHidden) "••••••••" else formatter.format(stats.technicalCashBalance)
-                                SaaSStatCard(
-                                    title = "Kas Taktis Operasi",
-                                    value = techText,
-                                    icon = Icons.Default.MonetizationOn,
-                                    iconTint = Color(0xFFFF7A00),
-                                    iconBg = Color(0xFFFFEDD5),
-                                    badgeText = "DANA TAKTIS",
-                                    badgeColor = Color(0xFFFF7A00),
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        if (canAccessCash) onNavigateToTechnicalCash()
-                                        else {
-                                            deniedModuleName = "Kas Taktis Satuan"
-                                            showPermissionDialog = true
-                                        }
-                                    }
-                                )
-
-                                // Stat 4: Agenda Surat
-                                SaaSStatCard(
-                                    title = "Agenda Surat",
-                                    value = "${stats.totalLetters} Naskah",
-                                    icon = Icons.Default.Email,
-                                    iconTint = Color(0xFF8B5CF6),
-                                    iconBg = Color(0xFFEDE9FE),
-                                    badgeText = "DINAS",
-                                    badgeColor = Color(0xFF8B5CF6),
-                                    modifier = Modifier.weight(1f),
-                                    onClick = onNavigateToLetters
-                                )
-                            }
-                        }
-                    }
-
-                    // 2. MODUL OPERASIONAL SAAS (8 Interactive Tiles)
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(
-                                text = "MENU OPERASIONAL DINAS",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 1.sp
+@Composable
+private fun HeroHeader(
+    session: SessionState.LoggedIn,
+    unread: Int,
+    canOpenNotifications: Boolean,
+    onOpenNotifications: () -> Unit,
+) {
+    val user = session.user
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+            .background(Brush.linearGradient(listOf(Navy900, Ocean700, Ocean600)))
+            .statusBarsPadding()
+            .padding(start = Spacing.screen, end = Spacing.screen, top = Spacing.lg, bottom = 56.dp),
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(user.initials, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.width(Spacing.md))
+                Column(Modifier.weight(1f)) {
+                    Text("${Fmt.greeting()},", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        user.displayName,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (canOpenNotifications) {
+                    IconButton(onClick = onOpenNotifications) {
+                        BadgedBox(badge = { if (unread > 0) Badge { Text(if (unread > 99) "99+" else unread.toString()) } }) {
+                            Icon(
+                                Icons.Outlined.Notifications,
+                                contentDescription = if (unread > 0) "Notifikasi, $unread belum dibaca" else "Notifikasi",
+                                tint = Color.White,
                             )
-
-                            // Row 1
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                SaaSActionTile(
-                                    title = "Presensi",
-                                    subtitle = "Kehadiran",
-                                    icon = Icons.Default.HowToReg,
-                                    iconColor = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = onNavigateToAttendance
-                                )
-                                SaaSActionTile(
-                                    title = "Kas Denintel",
-                                    subtitle = "Keuangan",
-                                    icon = Icons.Default.AccountBalanceWallet,
-                                    iconColor = Color(0xFF0284C7),
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        if (canAccessCash) onNavigateToCash()
-                                        else {
-                                            deniedModuleName = "Kas Denintel"
-                                            showPermissionDialog = true
-                                        }
-                                    }
-                                )
-                                SaaSActionTile(
-                                    title = "Kas Taktis",
-                                    subtitle = "Operasional",
-                                    icon = Icons.Default.MonetizationOn,
-                                    iconColor = Color(0xFFFF7A00),
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        if (canAccessCash) onNavigateToTechnicalCash()
-                                        else {
-                                            deniedModuleName = "Kas Taktis Satuan"
-                                            showPermissionDialog = true
-                                        }
-                                    }
-                                )
-                                SaaSActionTile(
-                                    title = "Surat Dinas",
-                                    subtitle = "Agenda",
-                                    icon = Icons.Default.Email,
-                                    iconColor = Color(0xFF8B5CF6),
-                                    modifier = Modifier.weight(1f),
-                                    onClick = onNavigateToLetters
-                                )
-                            }
-
-                            // Row 2
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                SaaSActionTile(
-                                    title = "Layanan SKHPP",
-                                    subtitle = "Penelitian",
-                                    icon = Icons.Default.Assignment,
-                                    iconColor = Color(0xFF10B981),
-                                    modifier = Modifier.weight(1f),
-                                    onClick = onNavigateToSkhpp
-                                )
-                                SaaSActionTile(
-                                    title = "Mitra Kerja",
-                                    subtitle = "Jaringan",
-                                    icon = Icons.Default.Groups,
-                                    iconColor = Color(0xFF06B6D4),
-                                    modifier = Modifier.weight(1f),
-                                    onClick = onNavigateToMitra
-                                )
-                                SaaSActionTile(
-                                    title = "Tanda Tangan",
-                                    subtitle = "Komandan",
-                                    icon = Icons.Default.Draw,
-                                    iconColor = Color(0xFFEF4444),
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        if (canAccessSignature) onNavigateToSignature()
-                                        else {
-                                            deniedModuleName = "Tanda Tangan Elektronik Komandan"
-                                            showPermissionDialog = true
-                                        }
-                                    }
-                                )
-                                SaaSActionTile(
-                                    title = "Personel",
-                                    subtitle = "Direktori",
-                                    icon = Icons.Default.Badge,
-                                    iconColor = Color(0xFFF59E0B),
-                                    modifier = Modifier.weight(1f),
-                                    onClick = onNavigateToPersonnel
-                                )
-                            }
-                        }
-                    }
-
-                    // 3. PENYARING KATEGORI SAAS & DAFTAR AGENDA TERKINI
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "AGENDA SURAT TERAKHIR",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    letterSpacing = 1.sp
-                                )
-                                TextButton(onClick = onNavigateToLetters) {
-                                    Text(
-                                        text = "Lihat Semua",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-
-                            // Filter Chips
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                SaaSTabChip(
-                                    selected = selectedFilterCategory == "Semua Fitur",
-                                    text = "Semua",
-                                    onClick = { selectedFilterCategory = "Semua Fitur" }
-                                )
-                                SaaSTabChip(
-                                    selected = selectedFilterCategory == "Surat Masuk",
-                                    text = "Surat Masuk",
-                                    onClick = { selectedFilterCategory = "Surat Masuk" }
-                                )
-                                SaaSTabChip(
-                                    selected = selectedFilterCategory == "Surat Keluar",
-                                    text = "Surat Keluar",
-                                    onClick = { selectedFilterCategory = "Surat Keluar" }
-                                )
-                            }
-                        }
-                    }
-
-                    val filteredLetters = when (selectedFilterCategory) {
-                        "Surat Masuk" -> state.recentLetters.filter { it.type.lowercase().contains("masuk") }
-                        "Surat Keluar" -> state.recentLetters.filter { it.type.lowercase().contains("keluar") }
-                        else -> state.recentLetters
-                    }
-
-                    if (filteredLetters.isEmpty()) {
-                        item {
-                            EmptyStateView(
-                                title = "Belum Ada Naskah Dinas",
-                                message = "Belum ada agenda surat terbaru pada kategori yang dipilih."
-                            )
-                        }
-                    } else {
-                        items(filteredLetters) { letter ->
-                            SaaSCard(
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = onNavigateToLetters
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(14.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = letter.letterNumber.ifEmpty { "Tanpa Nomor" },
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        StatusPill(status = letter.type)
-                                    }
-                                    Text(
-                                        text = letter.subject.ifEmpty { "Perihal Surat Kedinasan" },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = "Dari: ${letter.sender.ifEmpty { "-" }}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = letter.date,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
                         }
                     }
                 }
             }
-        }
-
-        // Dialog Akses Terbatas
-        if (showPermissionDialog) {
-            AlertDialog(
-                onDismissRequest = { showPermissionDialog = false },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(36.dp)
-                    )
-                },
-                title = {
-                    Text(
-                        text = "Akses Modul Terbatas",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                },
-                text = {
-                    Text(
-                        text = "Akun Anda saat ini belum memiliki izin khusus untuk membuka modul '$deniedModuleName'. Silakan berkoordinasi dengan Komandan Satuan atau Administrator Denintel.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = { showPermissionDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text("MENGERTI", fontWeight = FontWeight.Bold)
-                    }
-                }
+            Spacer(Modifier.height(Spacing.lg))
+            Text(Fmt.fullDate(LocalDate.now()), color = Color.White, style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(Spacing.xs))
+            Text(
+                user.subtitle,
+                color = Color.White.copy(alpha = 0.75f),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
 }
 
-/**
- * Modern interactive SaaS action tile with tactile bounce response,
- * clean subtle border, and responsive light/dark background.
- */
 @Composable
-fun SaaSActionTile(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    iconColor: Color,
+private fun AttendanceQuickCard(
+    summary: DashboardSummary?,
+    loading: Boolean,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
 ) {
-    SaaSCard(
-        modifier = modifier,
+    val today = summary?.attendance?.today
+    Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp)
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 4.dp,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 6.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = iconColor.copy(alpha = 0.12f),
-                modifier = Modifier.size(38.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = title,
-                        tint = iconColor,
-                        modifier = Modifier.size(20.dp)
-                    )
+        Row(Modifier.padding(Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(
+                if (today != null) Icons.Outlined.CheckCircle else Icons.Outlined.HowToReg,
+                tint = if (today != null) toneAccent(Tone.SUCCESS) else MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(Spacing.md))
+            Column(Modifier.weight(1f)) {
+                when {
+                    loading && summary == null -> {
+                        SkeletonBlock(Modifier.fillMaxWidth(0.6f), 14.dp)
+                        Spacer(Modifier.height(6.dp))
+                        SkeletonBlock(Modifier.fillMaxWidth(0.4f), 12.dp)
+                    }
+                    today != null -> {
+                        Text("Presensi tercatat", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "${today.statusLabel} · pukul ${today.timeShort ?: "-"} WIB",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    else -> {
+                        Text("Belum presensi hari ini", style = MaterialTheme.typography.titleSmall)
+                        Text("Ketuk untuk lapor kehadiran", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(1.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 9.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            val att = summary?.attendance
+            if (att != null) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "${att.totalAttendedToday}/${att.totalActivePersonnel}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text("hadir hari ini", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }
 }
+
+@Composable
+private fun DutySection(
+    state: LoadState<DashboardResponse>,
+    duty: DashboardDuty?,
+    onRetry: () -> Unit,
+    onOpenDay: (Int?, String) -> Unit,
+    onOpenAll: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SectionHeader(
+            title = "Daftar Jaga",
+            subtitle = duty?.sources?.firstOrNull()?.let { "${it.nomorSprin ?: "SP Jaga"} · ${it.periodeLabel ?: ""}" }
+                ?: "Jadwal jaga siaga sintel",
+            actionLabel = "Lihat semua",
+            onAction = onOpenAll,
+        )
+
+        Box(Modifier.animateContentSize()) {
+            val failed = state as? LoadState.Failed
+            when {
+                state is LoadState.Loading && duty == null -> DutySkeleton()
+                failed != null && duty == null -> SindenCard(Modifier.padding(horizontal = Spacing.screen).fillMaxWidth()) {
+                    ErrorState(failed.error, onRetry)
+                }
+                else -> DutyContent(duty, onOpenDay, onOpenAll)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DutySkeleton() {
+    val brush = shimmerBrush()
+    SindenCard(Modifier.padding(horizontal = Spacing.screen).fillMaxWidth()) {
+        SkeletonBlock(Modifier.fillMaxWidth(0.5f), 16.dp, brush)
+        Spacer(Modifier.height(Spacing.md))
+        repeat(3) {
+            SkeletonBlock(Modifier.fillMaxWidth(), 36.dp, brush)
+            Spacer(Modifier.height(Spacing.sm))
+        }
+    }
+}
+
+@Composable
+private fun DutyContent(
+    duty: DashboardDuty?,
+    onOpenDay: (Int?, String) -> Unit,
+    onOpenAll: () -> Unit,
+) {
+    val hasSource = !duty?.sources.isNullOrEmpty()
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        if (!hasSource) {
+            SindenCard(Modifier.padding(horizontal = Spacing.screen).fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(Icons.Outlined.EventAvailable, MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(Spacing.md))
+                    Column(Modifier.weight(1f)) {
+                        Text("Belum ada SP Jaga terbit", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Jadwal akan muncul di sini setelah Surat Perintah Jaga periode ini disahkan.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            return@Column
+        }
+
+        val today = duty?.today
+        val todayDate = LocalDate.now()
+        SindenCard(
+            modifier = Modifier.padding(horizontal = Spacing.screen).fillMaxWidth(),
+            onClick = { onOpenDay(today?.spId, today?.date ?: Fmt.iso(todayDate)) },
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Jaga hari ini", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(Fmt.fullDate(todayDate), style = MaterialTheme.typography.titleSmall)
+                }
+                StatusChip(
+                    if (today != null) "${today.safeEntries.size} personel" else "Tidak ada",
+                    if (today != null) Tone.INFO else Tone.NEUTRAL,
+                )
+            }
+            if (today?.hasMe == true) {
+                Spacer(Modifier.height(Spacing.md))
+                val myRole = today.safeEntries.firstOrNull { it.isMe }?.role
+                Row(
+                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.colorScheme.primaryContainer).padding(Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Outlined.VerifiedUser, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Spacer(Modifier.width(Spacing.sm))
+                    Text(
+                        "Anda bertugas hari ini${myRole?.let { " sebagai $it" } ?: ""}.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+            Spacer(Modifier.height(Spacing.sm))
+            if (today == null || today.safeEntries.isEmpty()) {
+                Text(
+                    "Tidak ada personel terjadwal jaga hari ini.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                today.safeEntries.sortedByDescending { it.isMe }.take(5).forEach { DutyEntryRow(it) }
+                val more = today.safeEntries.size - 5
+                if (more > 0) Text("+$more personel lainnya", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+
+        // Jadwal saya berikutnya
+        val next = Fmt.parseDate(duty?.myNextDate)
+        if (next != null && next != todayDate) {
+            SindenCard(
+                modifier = Modifier.padding(horizontal = Spacing.screen).fillMaxWidth(),
+                onClick = { onOpenDay(null, Fmt.iso(next)) },
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                border = null,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(Icons.Outlined.EventAvailable, MaterialTheme.colorScheme.onSecondaryContainer)
+                    Spacer(Modifier.width(Spacing.md))
+                    Column(Modifier.weight(1f)) {
+                        Text("Jadwal jaga Anda berikutnya", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text(Fmt.fullDate(next), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                    }
+                    StatusChip(Fmt.relativeDay(next), Tone.SUCCESS)
+                }
+            }
+        }
+
+        val upcoming = duty?.upcoming.orEmpty()
+        if (upcoming.isNotEmpty()) {
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()).padding(PaddingValues(horizontal = Spacing.screen)),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                upcoming.forEach { day -> UpcomingDutyChip(day) { onOpenDay(day.spId, day.date) } }
+            }
+        }
+
+        OutlinedButton(onClick = onOpenAll, modifier = Modifier.padding(horizontal = Spacing.screen).fillMaxWidth()) {
+            Text("Buka daftar jaga lengkap")
+        }
+    }
+}
+
+@Composable
+private fun SummarySection(
+    s: DashboardSummary,
+    hideBalance: Boolean,
+    onToggleHide: () -> Unit,
+    onNavigate: (String) -> Unit,
+) {
+    val tiles = buildList {
+        s.letterLogsThisMonth?.let { add(Tile("Agenda surat bulan ini", Fmt.number(it), Icons.Outlined.Email, Tone.INFO, Routes.LETTERS, s.letterLogsTotal?.let { t -> "Total ${Fmt.number(t)}" })) }
+        s.skhppPending?.let { add(Tile("SKHPP menunggu", Fmt.number(it), Icons.Outlined.VerifiedUser, Tone.WARNING, Routes.SKHPP)) }
+        s.signaturePending?.let { add(Tile("Dokumen menunggu TTE", Fmt.number(it), Icons.Outlined.Create, Tone.WARNING, Routes.SIGNATURE)) }
+        s.cashBalance?.let { add(Tile("Saldo kas pangkalan", Fmt.rupiah(it, hideBalance), Icons.Outlined.AccountBalanceWallet, Tone.SUCCESS, Routes.CASH)) }
+        s.technicalCashBalance?.let { add(Tile("Saldo kas unit teknis", Fmt.rupiah(it, hideBalance), Icons.Outlined.Build, Tone.SUCCESS, Routes.TECHNICAL_CASH)) }
+        s.attendance?.let { add(Tile("Personel aktif", Fmt.number(it.totalActivePersonnel), Icons.Outlined.Groups, Tone.NEUTRAL, Routes.ATTENDANCE)) }
+    }
+    if (tiles.isEmpty()) return
+    val hasMoney = s.cashBalance != null || s.technicalCashBalance != null
+
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        Row(Modifier.fillMaxWidth().padding(end = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+            SectionHeader("Ringkasan", Modifier.weight(1f))
+            if (hasMoney) {
+                IconButton(onClick = onToggleHide) {
+                    Icon(
+                        if (hideBalance) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                        contentDescription = if (hideBalance) "Tampilkan saldo" else "Sembunyikan saldo",
+                    )
+                }
+            }
+        }
+        tiles.chunked(2).forEach { row ->
+            Row(Modifier.padding(horizontal = Spacing.screen), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                row.forEach { t ->
+                    StatTile(
+                        label = t.label,
+                        value = t.value,
+                        icon = t.icon,
+                        tint = toneAccent(t.tone),
+                        caption = t.caption,
+                        onClick = { onNavigate(t.route) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickAccess(features: List<Feature>, onNavigate: (String) -> Unit) {
+    if (features.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SectionHeader("Akses cepat", actionLabel = "Semua menu", onAction = { onNavigate(Routes.MENU) })
+        features.take(8).chunked(4).forEach { row ->
+            Row(Modifier.padding(horizontal = Spacing.screen), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                row.forEach { f ->
+                    Column(
+                        Modifier.weight(1f).clip(MaterialTheme.shapes.medium),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Surface(
+                            onClick = { onNavigate(f.route) },
+                            shape = MaterialTheme.shapes.medium,
+                            color = toneAccent(f.tone).copy(alpha = 0.12f),
+                            modifier = Modifier.size(56.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(f.icon, contentDescription = f.title, tint = toneAccent(f.tone))
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            f.title,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
+                }
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+private data class Tile(
+    val label: String,
+    val value: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val tone: Tone,
+    val route: String,
+    val caption: String? = null,
+)

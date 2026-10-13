@@ -4,6 +4,20 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// ---------------------------------------------------------------------------
+// Signing rilis: kredensial TIDAK pernah disimpan di repository.
+// Sediakan lewat environment variable (lokal) atau GitHub Secrets (CI):
+//   SISINDEN_KEYSTORE_PATH, SISINDEN_KEYSTORE_PASSWORD,
+//   SISINDEN_KEY_ALIAS, SISINDEN_KEY_PASSWORD
+// Tanpa variabel tersebut, build release menghasilkan APK *unsigned* yang
+// jujur (app-release-unsigned.apk), bukan APK bertanda tangan debug.
+// ---------------------------------------------------------------------------
+val releaseKeystorePath: String? = System.getenv("SISINDEN_KEYSTORE_PATH")
+val hasReleaseKey: Boolean = !releaseKeystorePath.isNullOrBlank() &&
+    file(releaseKeystorePath).exists() &&
+    !System.getenv("SISINDEN_KEYSTORE_PASSWORD").isNullOrBlank() &&
+    !System.getenv("SISINDEN_KEY_ALIAS").isNullOrBlank()
+
 android {
     namespace = "id.my.sisinden.app"
     compileSdk = 34
@@ -12,12 +26,23 @@ android {
         applicationId = "id.my.sisinden.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.0.4"
+        versionCode = 7
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = file(releaseKeystorePath!!)
+                storePassword = System.getenv("SISINDEN_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("SISINDEN_KEY_ALIAS")
+                keyPassword = System.getenv("SISINDEN_KEY_PASSWORD") ?: System.getenv("SISINDEN_KEYSTORE_PASSWORD")
+            }
         }
     }
 
@@ -28,8 +53,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Menggunakan debug signing sebagai fallback aman jika tersedia
-            signingConfig = signingConfigs.findByName("debug")
+            signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else null
         }
         debug {
             applicationIdSuffix = ".debug"

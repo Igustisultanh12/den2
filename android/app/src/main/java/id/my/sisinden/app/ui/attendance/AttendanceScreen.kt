@@ -1,399 +1,179 @@
 package id.my.sisinden.app.ui.attendance
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Business
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import id.my.sisinden.app.core.ui.components.*
-import id.my.sisinden.app.core.ui.theme.*
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import id.my.sisinden.app.core.ui.components.IconBadge
+import id.my.sisinden.app.core.ui.components.ListRowCard
+import id.my.sisinden.app.core.ui.components.LoadStateContent
+import id.my.sisinden.app.core.ui.components.PrimaryButton
+import id.my.sisinden.app.core.ui.components.RefreshableBox
+import id.my.sisinden.app.core.ui.components.SindenCard
+import id.my.sisinden.app.core.ui.components.SindenScaffold
+import id.my.sisinden.app.core.ui.components.SindenTextField
+import id.my.sisinden.app.core.ui.components.StatusChip
+import id.my.sisinden.app.core.ui.components.Tone
+import id.my.sisinden.app.core.ui.components.toneAccent
+import id.my.sisinden.app.core.ui.theme.Spacing
+import id.my.sisinden.app.core.util.Fmt
 import id.my.sisinden.app.data.model.AttendanceDto
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import id.my.sisinden.app.data.model.AttendanceStatus
+import id.my.sisinden.app.data.repository.SindenRepository
+import id.my.sisinden.app.ui.common.CollectMessages
+import java.time.LocalDate
 
-@OptIn(ExperimentalMaterial3Api::class)
+private fun AttendanceStatus.icon(): ImageVector = when (this) {
+    AttendanceStatus.HADIR -> Icons.Outlined.Business
+    AttendanceStatus.DINAS_LUAR -> Icons.Outlined.DirectionsCar
+    AttendanceStatus.PIKET -> Icons.Outlined.Security
+    AttendanceStatus.IZIN -> Icons.Outlined.EventBusy
+}
+
+private fun statusTone(code: String?): Tone = when (code) {
+    "hadir" -> Tone.SUCCESS
+    "dinas_luar" -> Tone.INFO
+    "piket" -> Tone.WARNING
+    else -> Tone.NEUTRAL
+}
+
 @Composable
-fun AttendanceScreen(
-    viewModel: AttendanceViewModel,
-    onBackClick: () -> Unit
-) {
-    val uiState by viewModel.uiState.collectAsState()
-    val actionState by viewModel.actionState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+fun AttendanceScreen(repository: SindenRepository, canSubmit: Boolean) {
+    val context = LocalContext.current
+    val vm: AttendanceViewModel = viewModel { AttendanceViewModel(repository, context.applicationContext) }
+    val state by vm.state.collectAsStateWithLifecycle()
+    val form by vm.form.collectAsStateWithLifecycle()
+    val refreshing by vm.refreshing.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    CollectMessages(vm.messages, snackbar)
 
-    var selectedStatus by remember { mutableStateOf("hadir") }
-    var notes by remember { mutableStateOf("") }
-    var locationName by remember { mutableStateOf("Mako Denintel Kodaeral V, Surabaya") }
-    var latitude by remember { mutableDoubleStateOf(-7.2053) }
-    var longitude by remember { mutableDoubleStateOf(112.7358) }
-
-    val indonesianDate = remember {
-        val sdf = SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id", "ID"))
-        sdf.format(Date())
+    val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        if (result.values.any { it }) vm.fetchLocation()
+    }
+    val requestLocation = {
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (granted) vm.fetchLocation()
+        else locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
     }
 
-    LaunchedEffect(actionState) {
-        when (val state = actionState) {
-            is AttendanceActionUiState.Success -> {
-                snackbarHostState.showSnackbar(state.message)
-                viewModel.resetActionState()
-            }
-            is AttendanceActionUiState.Error -> {
-                snackbarHostState.showSnackbar(state.message)
-                viewModel.resetActionState()
-            }
-            else -> {}
-        }
-    }
+    SindenScaffold(title = "Presensi", subtitle = Fmt.fullDate(LocalDate.now()), snackbarHostState = snackbar) { padding ->
+        RefreshableBox(refreshing, { vm.load(pullToRefresh = true) }, Modifier.padding(padding)) {
+            LoadStateContent(state = state, onRetry = { vm.load() }) { data ->
+                LazyColumn(
+                    Modifier.fillMaxSize().imePadding(),
+                    contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, bottom = Spacing.xxl),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                ) {
+                    item { TodayCard(data.todayAttendance, data.totalAttendedToday, data.totalActivePersonnel) }
 
-    Scaffold(
-        topBar = {
-            SindenTopBar(
-                title = "Presensi Kehadiran",
-                subtitle = "Pencatatan Kehadiran Personel Satuan",
-                onBackClick = onBackClick
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            when (val state = uiState) {
-                is AttendanceUiState.Loading -> {
-                    ShimmerLoadingList()
-                }
-                is AttendanceUiState.Error -> {
-                    ErrorStateView(
-                        message = state.message,
-                        onRetry = { viewModel.loadAttendances() }
-                    )
-                }
-                is AttendanceUiState.Success -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        // 1. HERO CARD: STATUS PRESENSI HARI INI
+                    if (canSubmit) {
                         item {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(20.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                                shadowElevation = 1.dp
-                            ) {
-                                Column(modifier = Modifier.padding(18.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = indonesianDate.uppercase(),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            letterSpacing = 0.8.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-
-                                        val hasAttended = state.todayAttendance != null
-                                        StatusPill(
-                                            status = if (hasAttended) "TERCATAT" else "BELUM ABSEN"
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    val today = state.todayAttendance
-                                    if (today != null) {
-                                        Text(
-                                            text = today.displayTime,
-                                            style = MaterialTheme.typography.headlineLarge,
-                                            fontWeight = FontWeight.Black,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            letterSpacing = 0.5.sp
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "Status: ${today.displayStatus}",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.LocationOn,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Text(
-                                                text = today.locationName ?: "Mako Denintel Kodaeral V",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    } else {
-                                        Text(
-                                            text = "--:-- WIB",
-                                            style = MaterialTheme.typography.headlineLarge,
-                                            fontWeight = FontWeight.Black,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "Silakan catat kehadiran dinas hari ini.",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // 2. FORMULIR PRESENSI MANDIRI (SAAS INTERACTIVE INPUT)
-                        item {
-                            SaaSCard(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(18.dp),
-                                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                                ) {
-                                    Text(
-                                        text = "Isi Presensi Kehadiran",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Black,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-
-                                    Text(
-                                        text = "Pilih Status Kehadiran Kedinasan:",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-
-                                    // 4 PILIHAN STATUS PRESENSI
-                                    val statusOptions = listOf(
-                                        Pair("hadir", "Hadir Kantor"),
-                                        Pair("dinas_luar", "Dinas Luar"),
-                                        Pair("piket", "Piket Jaga"),
-                                        Pair("izin", "Izin Dinas")
-                                    )
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        statusOptions.take(2).forEach { (code, label) ->
-                                            val isSelected = selectedStatus == code
-                                            Surface(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .height(46.dp)
-                                                    .bounceClick { selectedStatus = code },
-                                                shape = RoundedCornerShape(12.dp),
-                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                                border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Text(
-                                                        text = label,
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        statusOptions.takeLast(2).forEach { (code, label) ->
-                                            val isSelected = selectedStatus == code
-                                            Surface(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .height(46.dp)
-                                                    .bounceClick { selectedStatus = code },
-                                                shape = RoundedCornerShape(12.dp),
-                                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                                border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Text(
-                                                        text = label,
-                                                        style = MaterialTheme.typography.labelMedium,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // LOKASI TERDETEKSI
-                                    Surface(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Place,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = "Titik Koordinat Kedinasan",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                                Text(
-                                                    text = locationName,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    // INPUT CATATAN PENUGASAN
-                                    OutlinedTextField(
-                                        value = notes,
-                                        onValueChange = { notes = it },
-                                        label = { Text("Keterangan Penugasan (Opsional)") },
-                                        placeholder = { Text("Contoh: Monitoring pengamanan pangkalan laut") },
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        minLines = 2
-                                    )
-
-                                    // TOMBOL EKSEKUSI PRESENSI
-                                    Button(
-                                        onClick = {
-                                            viewModel.submitAttendance(
-                                                status = selectedStatus,
-                                                latitude = latitude,
-                                                longitude = longitude,
-                                                locationName = locationName,
-                                                notes = notes.ifEmpty { null }
-                                            )
-                                        },
-                                        enabled = actionState !is AttendanceActionUiState.Loading,
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = MaterialTheme.colorScheme.onPrimary
-                                        ),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(50.dp)
-                                            .bounceClick {
-                                                if (actionState !is AttendanceActionUiState.Loading) {
-                                                    viewModel.submitAttendance(
-                                                        status = selectedStatus,
-                                                        latitude = latitude,
-                                                        longitude = longitude,
-                                                        locationName = locationName,
-                                                        notes = notes.ifEmpty { null }
-                                                    )
-                                                }
-                                            }
-                                    ) {
-                                        if (actionState is AttendanceActionUiState.Loading) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(22.dp),
-                                                color = MaterialTheme.colorScheme.onPrimary,
-                                                strokeWidth = 2.dp
-                                            )
-                                        } else {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.CheckCircle,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                                Text(
-                                                    text = if (state.todayAttendance != null) "PERBARUI PRESENSI HARI INI" else "KIRIM PRESENSI KEHADIRAN",
-                                                    fontWeight = FontWeight.Black,
-                                                    fontSize = 13.sp
+                            SindenCard(Modifier.fillMaxWidth()) {
+                                Text(
+                                    if (data.todayAttendance == null) "Lapor kehadiran" else "Perbarui laporan hari ini",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Spacer(Modifier.height(Spacing.md))
+                                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                                    AttendanceStatus.entries.chunked(2).forEach { row ->
+                                        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                                            row.forEach { st ->
+                                                StatusOption(
+                                                    status = st,
+                                                    selected = form.status == st,
+                                                    onSelect = { vm.setStatus(st) },
+                                                    modifier = Modifier.weight(1f),
                                                 )
                                             }
                                         }
                                     }
                                 }
-                            }
-                        }
-
-                        // 3. RIWAYAT PRESENSI KEHADIRAN (30 HARI TERAKHIR)
-                        item {
-                            Text(
-                                text = "RIWAYAT PRESENSI (30 HARI TERAKHIR)",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 1.sp
-                            )
-                        }
-
-                        if (state.attendances.isEmpty()) {
-                            item {
-                                EmptyStateView(
-                                    title = "Belum Ada Riwayat Presensi",
-                                    message = "Belum terdapat catatan kehadiran pada 30 hari terakhir."
+                                Spacer(Modifier.height(Spacing.md))
+                                SindenTextField(
+                                    value = form.notes,
+                                    onValueChange = vm::setNotes,
+                                    label = "Catatan (opsional)",
+                                    placeholder = "Mis. tujuan dinas luar",
+                                    singleLine = false,
+                                    minLines = 2,
+                                )
+                                Spacer(Modifier.height(Spacing.sm))
+                                LocationRow(
+                                    form = form,
+                                    onRequest = requestLocation,
+                                    onClear = vm::clearLocation,
+                                )
+                                Spacer(Modifier.height(Spacing.lg))
+                                PrimaryButton(
+                                    text = if (data.todayAttendance == null) "Kirim presensi" else "Perbarui presensi",
+                                    onClick = vm::submit,
+                                    loading = form.submitting,
                                 )
                             }
-                        } else {
-                            items(state.attendances) { item ->
-                                AttendanceItemCard(attendance = item)
-                            }
                         }
+                    }
+
+                    item {
+                        Text("Riwayat 30 hari", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = Spacing.sm))
+                    }
+                    val history = data.attendances.orEmpty()
+                    if (history.isEmpty()) {
+                        item {
+                            Text(
+                                "Belum ada riwayat presensi.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        items(history, key = { it.id }) { HistoryRow(it) }
                     }
                 }
             }
@@ -402,66 +182,109 @@ fun AttendanceScreen(
 }
 
 @Composable
-fun AttendanceItemCard(attendance: AttendanceDto) {
-    SaaSCard(
-        modifier = Modifier.fillMaxWidth()
+private fun TodayCard(today: AttendanceDto?, attended: Int, active: Int) {
+    val tone = if (today != null) Tone.SUCCESS else Tone.WARNING
+    SindenCard(
+        Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, toneAccent(tone).copy(alpha = 0.4f)),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = when (attendance.status.lowercase()) {
-                                "hadir" -> Icons.Default.Check
-                                "dinas_luar" -> Icons.Default.DirectionsCar
-                                "piket" -> Icons.Default.Security
-                                else -> Icons.Default.Assignment
-                            },
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Column {
-                    Text(
-                        text = attendance.attendanceDate,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Masuk: ${attendance.displayTime}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (!attendance.notes.isNullOrEmpty()) {
-                        Text(
-                            text = attendance.notes,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(if (today != null) Icons.Outlined.CheckCircle else Icons.Outlined.EventBusy, toneAccent(tone), size = 52.dp, iconSize = 26.dp)
+            Spacer(Modifier.width(Spacing.md))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (today != null) "Sudah presensi" else "Belum presensi",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    if (today != null) "${today.statusLabel} · ${today.timeShort ?: "-"} WIB" else "Silakan lapor kehadiran hari ini.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                today?.locationName?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+        }
+        Spacer(Modifier.height(Spacing.md))
+        Text(
+            "Kehadiran satuan hari ini: $attended dari $active personel aktif",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
 
-            StatusPill(status = attendance.displayStatus)
+@Composable
+private fun StatusOption(status: AttendanceStatus, selected: Boolean, onSelect: () -> Unit, modifier: Modifier = Modifier) {
+    val color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+    val border = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    Surface(
+        modifier = modifier
+            .height(64.dp)
+            .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton),
+        shape = MaterialTheme.shapes.small,
+        color = color,
+        border = BorderStroke(if (selected) 1.5.dp else 1.dp, border),
+    ) {
+        Row(Modifier.padding(horizontal = Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                status.icon(),
+                contentDescription = null,
+                tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(Spacing.sm))
+            Text(
+                status.label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
+}
+
+@Composable
+private fun LocationRow(form: AttendanceForm, onRequest: () -> Unit, onClear: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(Spacing.sm))
+        Column(Modifier.weight(1f)) {
+            val loc = form.location
+            when {
+                form.locating -> Text("Mengambil lokasi…", style = MaterialTheme.typography.bodyMedium)
+                loc != null -> {
+                    Text("Lokasi terlampir", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        String.format(java.util.Locale.US, "%.5f, %.5f", loc.latitude, loc.longitude) + (loc.accuracyMeters?.let { " (±${it.toInt()} m)" } ?: ""),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                else -> {
+                    Text("Tanpa lokasi", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        form.locationError ?: "Lampirkan lokasi GPS bila diminta satuan.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (form.locationError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        when {
+            form.locating -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            form.location != null -> IconButton(onClick = onClear) { Icon(Icons.Outlined.Close, contentDescription = "Hapus lokasi") }
+            else -> OutlinedButton(onClick = onRequest) { Text("Ambil") }
+        }
+    }
+}
+
+@Composable
+private fun HistoryRow(item: AttendanceDto) {
+    ListRowCard(
+        title = Fmt.parseDate(item.dateOnly)?.let { Fmt.fullDate(it) } ?: (item.dateOnly ?: "-"),
+        subtitle = listOfNotNull(item.timeShort?.let { "$it WIB" }, item.locationName?.takeIf { it.isNotBlank() }).joinToString(" · "),
+        supporting = item.notes,
+        trailing = { StatusChip(item.statusLabel, statusTone(item.status)) },
+    )
 }

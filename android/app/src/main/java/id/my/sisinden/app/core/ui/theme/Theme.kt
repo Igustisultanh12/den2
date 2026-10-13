@@ -6,75 +6,140 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF0D9488),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFCCFBF1),
-    onPrimaryContainer = Color(0xFF115E59),
-    secondary = Color(0xFF0284C7),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFE0F2FE),
-    onSecondaryContainer = Color(0xFF0369A1),
-    tertiary = Color(0xFFF59E0B),
-    onTertiary = Color(0xFFFFFFFF),
-    background = Color(0xFFF8FAFC),
+/** Preferensi tema yang disimpan pengguna. */
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+private val LightColors = lightColorScheme(
+    primary = Ocean600,
+    onPrimary = Color.White,
+    primaryContainer = Ocean100,
+    onPrimaryContainer = Color(0xFF0B1F5C),
+    inversePrimary = Ocean300,
+    secondary = Teal600,
+    onSecondary = Color.White,
+    secondaryContainer = Teal100,
+    onSecondaryContainer = Teal800,
+    tertiary = Amber600,
+    onTertiary = Color.White,
+    tertiaryContainer = Amber100,
+    onTertiaryContainer = Amber900,
+    background = Slate50,
     onBackground = Color(0xFF0F172A),
-    surface = Color(0xFFFFFFFF),
+    surface = Color.White,
     onSurface = Color(0xFF0F172A),
-    surfaceVariant = Color(0xFFF1F5F9),
-    onSurfaceVariant = Color(0xFF64748B),
-    outline = Color(0xFFCBD5E1),
-    outlineVariant = Color(0xFFE2E8F0)
+    surfaceVariant = Slate100,
+    onSurfaceVariant = Slate500,
+    surfaceTint = Ocean600,
+    inverseSurface = Slate800,
+    inverseOnSurface = Slate50,
+    error = Red500,
+    onError = Color.White,
+    errorContainer = Red100,
+    onErrorContainer = Red900,
+    outline = Slate300,
+    outlineVariant = Slate200,
+    scrim = Color.Black,
+    surfaceBright = Color.White,
+    surfaceDim = Slate100,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Color(0xFFF8FAFD),
+    surfaceContainer = Slate100,
+    surfaceContainerHigh = Slate200,
+    surfaceContainerHighest = Color(0xFFD9DFEA),
 )
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF14B8A6),
-    onPrimary = Color(0xFF042F2E),
-    primaryContainer = Color(0xFF134E4A),
-    onPrimaryContainer = Color(0xFF5EEAD4),
-    secondary = Color(0xFF38BDF8),
-    onSecondary = Color(0xFF082F49),
-    secondaryContainer = Color(0xFF075985),
-    onSecondaryContainer = Color(0xFFBAE6FD),
-    tertiary = Color(0xFFFBBF24),
-    onTertiary = Color(0xFF451A03),
-    background = Color(0xFF0B0F19),
-    onBackground = Color(0xFFF8FAFC),
-    surface = Color(0xFF111827),
-    onSurface = Color(0xFFF8FAFC),
-    surfaceVariant = Color(0xFF1F2937),
-    onSurfaceVariant = Color(0xFF9CA3AF),
-    outline = Color(0xFF4B5563),
-    outlineVariant = Color(0xFF374151)
+private val DarkColors = darkColorScheme(
+    primary = Ocean300,
+    onPrimary = Color(0xFF0A1F5C),
+    primaryContainer = Color(0xFF1B3A9A),
+    onPrimaryContainer = Ocean100,
+    inversePrimary = Ocean600,
+    secondary = Teal300,
+    onSecondary = Color(0xFF00382F),
+    secondaryContainer = Teal800,
+    onSecondaryContainer = Teal100,
+    tertiary = Amber300,
+    onTertiary = Color(0xFF452B00),
+    tertiaryContainer = Color(0xFF5E3D00),
+    onTertiaryContainer = Amber100,
+    background = Slate950,
+    onBackground = Color(0xFFE8ECF4),
+    surface = Slate900,
+    onSurface = Color(0xFFE8ECF4),
+    surfaceVariant = Slate800,
+    onSurfaceVariant = Slate400,
+    surfaceTint = Ocean300,
+    inverseSurface = Slate100,
+    inverseOnSurface = Slate900,
+    error = Red300,
+    onError = Color(0xFF5C1111),
+    errorContainer = Color(0xFF7A1C1C),
+    onErrorContainer = Red100,
+    outline = Slate600,
+    outlineVariant = Slate700,
+    scrim = Color.Black,
+    surfaceBright = Slate800,
+    surfaceDim = Slate950,
+    surfaceContainerLowest = Slate950,
+    surfaceContainerLow = Slate900,
+    surfaceContainer = Slate850,
+    surfaceContainerHigh = Slate800,
+    surfaceContainerHighest = Slate700,
 )
+
+private val LocalStatusColors = staticCompositionLocalOf { LightStatusColors }
+private val LocalIsDark = staticCompositionLocalOf { false }
+
+/** Akses cepat token desain SISINDEN yang tidak tersedia di MaterialTheme. */
+object SindenTheme {
+    val status: StatusColors
+        @Composable @ReadOnlyComposable get() = LocalStatusColors.current
+
+    val isDark: Boolean
+        @Composable @ReadOnlyComposable get() = LocalIsDark.current
+}
 
 @Composable
 fun SindenTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-    val view = LocalView.current
+    val dark = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
+    val colors = if (dark) DarkColors else LightColors
 
+    val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as? Activity)?.window ?: return@SideEffect
-            window.statusBarColor = colorScheme.background.toArgb()
-            window.navigationBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !dark
+                controller.isAppearanceLightNavigationBars = !dark
+            }
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(
+        LocalStatusColors provides if (dark) DarkStatusColors else LightStatusColors,
+        LocalIsDark provides dark,
+    ) {
+        MaterialTheme(
+            colorScheme = colors,
+            typography = SindenTypography,
+            shapes = SindenShapes,
+            content = content,
+        )
+    }
 }

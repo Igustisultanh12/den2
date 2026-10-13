@@ -1,0 +1,175 @@
+{
+    "status": "success",
+    "server_time": "2026-10-13T09:15:00+07:00",
+    "user": {
+        "id": 1,
+        "name": "Bambang",
+        "email": "bambang@example.test",
+        "username": "82068",
+        "nrp": "82068",
+        "role": "personel",
+        "pangkat": "Peltu Saa",
+        "korps": "",
+        "jabatan": "Anggota Unit 1",
+        "phone": "",
+        "avatar_url": null,
+        "is_active": true,
+        "permissions": [
+            "dashboard.view",
+            "profile.view",
+            "notifications.view",
+            "attendance.view",
+            "attendance.create",
+            "duty_roster.view",
+            "duty_roster.pdf",
+            "letter_logs.view",
+            "letter_logs.create",
+            "letter_logs.update",
+            "letter_logs.delete",
+            "letter_logs.pdf",
+            "letters.view",
+            "letters.create",
+            "skhpp.view",
+            "skhpp.create",
+            "skhpp.pdf",
+            "signature.view",
+            "violations.view",
+            "violations.manage",
+            "activities.view",
+            "activities.manage",
+            "categories.view"
+        ],
+        "can_access_agenda": true,
+        "can_access_letters": true,
+        "can_access_skhpp": true,
+        "can_access_categories": true,
+        "can_access_signature": true,
+        "can_access_cash": false,
+        "can_access_commander": false,
+        "can_access_mitra": false,
+        "can_access_technical_cash": false,
+        "can_access_ibu_beti": false,
+        "can_access_violations": true,
+        "can_access_activities": true,
+        "can_access_users": false,
+        "can_access_settings": false
+    },
+    "summary": {
+        "attendance": {
+            "today": {
+                "id": 1,
+                "user_id": 1,
+                "attendance_date": "2026-10-13",
+                "time_in": "07:12:00",
+                "status": "hadir",
+                "ip_address": null,
+                "device": null,
+                "user_agent": null,
+                "latitude": null,
+                "longitude": null,
+                "location_name": "GPS: -7.2, 112.7",
+                "notes": null,
+                "photo": null,
+                "created_at": "2026-10-13T02:15:00.000000Z",
+                "updated_at": "2026-10-13T02:15:00.000000Z",
+                "photo_url": null
+            },
+            "total_attended_today": 1,
+            "total_active_personnel": 2
+        },
+        "notifications_unread": 1,
+        "letter_logs_total": 0,
+        "letter_logs_this_month": 0,
+        "skhpp_pending": 0
+    },
+    "duty": {
+        "sources": [
+            {
+                "id": 1,
+                "nomor_sprin": "Sprin/ 29 /X/2026",
+                "bulan": 10,
+                "tahun": 2026,
+                "periode_label": "Oktober 2026",
+                "status": "published",
+                "ttd_type": "tte",
+                "tmt_mulai": "2026-10-01",
+                "tmt_selesai": "2026-10-31",
+                "tanggal_surat": "2026-09-30",
+                "total_personel": 2,
+                "perwira_tertua": "Bambang",
+                "penandatangan": "Roni Sumantri",
+                "approved_at": null
+            }
+        ],
+        "today": {
+            "date": "2026-10-13",
+            "day_of_week": 2,
+            "is_today": true,
+            "has_me": true,
+            "entries": [
+                {
+                    "name": "Bambang",
+                    "pangkat_korps": "Peltu Saa",
+                    "nrp": "82068",
+                    "role": "Perwira Siaga Sintel",
+                    "role_code": "PERWIRA",
+                    "divisi_no": null,
+                    "is_me": true
+                },
+                {
+                    "name": "Erwan Junaidi",
+                    "pangkat_korps": "Peltu Ttg",
+                    "nrp": "84025",
+                    "role": "Bintara Jaga (BAGA)",
+                    "role_code": "BAGA",
+                    "divisi_no": 2,
+                    "is_me": false
+                }
+            ],
+            "sp_id": 1
+        },
+        "upcoming": [
+            {
+                "date": "2026-10-16",
+                "day_of_week": 5,
+                "is_today": false,
+                "has_me": true,
+                "entries": [
+                    {
+                        "name": "Bambang",
+                        "pangkat_korps": "Peltu Saa",
+                        "nrp": "82068",
+                        "role": "Perwira Siaga Sintel",
+                        "role_code": "PERWIRA",
+                        "divisi_no": null,
+                        "is_me": true
+                    }
+                ],
+                "sp_id": 1
+            },
+            {
+                "date": "2026-10-18",
+                "day_of_week": 7,
+                "is_today": false,
+                "has_me": false,
+                "entries": [
+                    {
+                        "name": "Erwan Junaidi",
+                        "pangkat_korps": "Peltu Ttg",
+                        "nrp": "84025",
+                        "role": "Bintara Jaga (BAGA)",
+                        "role_code": "BAGA",
+                        "divisi_no": 2,
+                        "is_me": false
+                    }
+                ],
+                "sp_id": 1
+            }
+        ],
+        "my_next_date": "2026-10-13",
+        "my_dates": [
+            "2026-10-13",
+            "2026-10-16"
+        ]
+    }
+}

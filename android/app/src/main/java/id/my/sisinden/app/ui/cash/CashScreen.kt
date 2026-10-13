@@ -1,497 +1,322 @@
 package id.my.sisinden.app.ui.cash
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.PictureAsPdf
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import id.my.sisinden.app.core.ui.components.*
-import id.my.sisinden.app.core.ui.theme.*
-import id.my.sisinden.app.data.model.CashTransactionDto
-import java.text.NumberFormat
-import java.util.Locale
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import id.my.sisinden.app.core.network.ApiResult
+import id.my.sisinden.app.core.security.Perm
+import id.my.sisinden.app.core.security.PermissionSet
+import id.my.sisinden.app.core.ui.components.ConfirmDialog
+import id.my.sisinden.app.core.ui.components.DateField
+import id.my.sisinden.app.core.ui.components.EmptyState
+import id.my.sisinden.app.core.ui.components.FilterChipRow
+import id.my.sisinden.app.core.ui.components.FormSheet
+import id.my.sisinden.app.core.ui.components.IconBadge
+import id.my.sisinden.app.core.ui.components.InfoRow
+import id.my.sisinden.app.core.ui.components.ListRowCard
+import id.my.sisinden.app.core.ui.components.LoadStateContent
+import id.my.sisinden.app.core.ui.components.PrimaryButton
+import id.my.sisinden.app.core.ui.components.RefreshableBox
+import id.my.sisinden.app.core.ui.components.SindenCard
+import id.my.sisinden.app.core.ui.components.SindenScaffold
+import id.my.sisinden.app.core.ui.components.SindenTextField
+import id.my.sisinden.app.core.ui.components.Tone
+import id.my.sisinden.app.core.ui.components.toneAccent
+import id.my.sisinden.app.core.ui.theme.Spacing
+import id.my.sisinden.app.core.util.Fmt
+import id.my.sisinden.app.data.model.CashEntryDto
+import id.my.sisinden.app.data.model.CashEntryRequest
+import id.my.sisinden.app.data.model.CashLedgerResponse
+import id.my.sisinden.app.data.repository.CashKind
+import id.my.sisinden.app.data.repository.SindenRepository
+import id.my.sisinden.app.ui.common.CollectMessages
+import id.my.sisinden.app.ui.common.LoadableViewModel
+import kotlinx.coroutines.launch
+import java.time.LocalDate
 
-@OptIn(ExperimentalMaterial3Api::class)
+class CashViewModel(
+    private val repository: SindenRepository,
+    private val kind: CashKind,
+) : LoadableViewModel<CashLedgerResponse>() {
+    init { load() }
+
+    override suspend fun fetch(): ApiResult<CashLedgerResponse> = repository.cashLedger(kind)
+
+    fun save(id: Int?, date: String, description: String, income: Boolean, amount: Double, onDone: () -> Unit) =
+        action(if (id == null) "Transaksi tersimpan." else "Transaksi diperbarui.", onDone) {
+            repository.saveCash(kind, id, CashEntryRequest(date, description.trim(), if (income) "masuk" else "keluar", amount))
+        }
+
+    fun delete(id: Int, onDone: () -> Unit) = action("Transaksi dihapus.", onDone) { repository.deleteCash(kind, id) }
+}
+
+private enum class CashFilter(val label: String) { ALL("Semua"), IN("Pemasukan"), OUT("Pengeluaran") }
+
 @Composable
 fun CashScreen(
-    viewModel: CashViewModel,
-    onBackClick: () -> Unit
+    repository: SindenRepository,
+    kind: CashKind,
+    permissions: PermissionSet,
+    onBack: () -> Unit,
+    onOpenPdf: (String, String, String) -> Unit,
 ) {
-    val uiState by viewModel.cashState.collectAsState()
-    var showAddModal by remember { mutableStateOf(false) }
-    var selectedFilter by remember { mutableStateOf("semua") } // semua, masuk, keluar
-    var selectedTxForEdit by remember { mutableStateOf<CashTransactionDto?>(null) }
-    var selectedTxForDelete by remember { mutableStateOf<CashTransactionDto?>(null) }
+    val vm: CashViewModel = viewModel(key = "cash-${kind.name}") { CashViewModel(repository, kind) }
+    val state by vm.state.collectAsStateWithLifecycle()
+    val refreshing by vm.refreshing.collectAsStateWithLifecycle()
+    val busy by vm.busy.collectAsStateWithLifecycle()
+    val hide by repository.hideBalanceFlow.collectAsStateWithLifecycle(initialValue = false)
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    CollectMessages(vm.messages, snackbar)
 
-    val formatter = remember {
-        NumberFormat.getCurrencyInstance(Locale("id", "ID")).apply {
-            maximumFractionDigits = 0
+    val canManage = permissions.has(if (kind == CashKind.BASE) Perm.CASH_MANAGE else Perm.TECHNICAL_CASH_MANAGE)
+    val canPdf = kind == CashKind.BASE && permissions.has(Perm.CASH_PDF)
+
+    var filter by rememberSaveable { mutableStateOf(CashFilter.ALL) }
+    var editing by remember { mutableStateOf<CashEntryDto?>(null) }
+    var creating by rememberSaveable { mutableStateOf(false) }
+    var detail by remember { mutableStateOf<CashEntryDto?>(null) }
+    var confirmDelete by remember { mutableStateOf<CashEntryDto?>(null) }
+
+    SindenScaffold(
+        title = kind.title,
+        subtitle = kind.subtitle,
+        onBack = onBack,
+        snackbarHostState = snackbar,
+        actions = {
+            IconButton(onClick = { scope.launch { repository.setHideBalance(!hide) } }) {
+                Icon(if (hide) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, contentDescription = if (hide) "Tampilkan nominal" else "Sembunyikan nominal")
+            }
+            if (canPdf) {
+                IconButton(onClick = { onOpenPdf("api/mobile/pdf/cash", "Laporan Buku Kas", "BUKU_KAS_SISINDEN_${LocalDate.now()}.pdf") }) {
+                    Icon(Icons.Outlined.PictureAsPdf, contentDescription = "Laporan PDF")
+                }
+            }
+        },
+        floatingActionButton = {
+            if (canManage) {
+                ExtendedFloatingActionButton(
+                    onClick = { creating = true },
+                    icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
+                    text = { Text("Transaksi") },
+                )
+            }
+        },
+    ) { padding ->
+        RefreshableBox(refreshing, { vm.load(pullToRefresh = true) }, Modifier.padding(padding)) {
+            LoadStateContent(state, onRetry = { vm.load() }) { ledger ->
+                val entries = ledger.data.orEmpty().filter {
+                    when (filter) {
+                        CashFilter.ALL -> true
+                        CashFilter.IN -> it.isIncome
+                        CashFilter.OUT -> !it.isIncome
+                    }
+                }
+                LazyColumn(
+                    contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    item { BalanceCard(ledger, hide) }
+                    item {
+                        FilterChipRow(
+                            CashFilter.entries, filter, { it.label }, { filter = it },
+                            contentPadding = PaddingValues(0.dp),
+                            modifier = Modifier.padding(vertical = Spacing.xs),
+                        )
+                    }
+                    if (entries.isEmpty()) {
+                        item { EmptyState("Belum ada transaksi", "Transaksi yang tercatat akan tampil di sini.") }
+                    } else {
+                        items(entries, key = { it.id }) { e ->
+                            ListRowCard(
+                                title = e.description.orEmpty().ifBlank { "-" },
+                                subtitle = Fmt.longDate(e.date),
+                                supporting = "Saldo: ${Fmt.rupiah(e.balance, hide)}",
+                                leading = {
+                                    IconBadge(
+                                        if (e.isIncome) Icons.Outlined.ArrowDownward else Icons.Outlined.ArrowUpward,
+                                        toneAccent(if (e.isIncome) Tone.SUCCESS else Tone.DANGER),
+                                        size = 40.dp, iconSize = 20.dp,
+                                    )
+                                },
+                                trailing = {
+                                    Text(
+                                        (if (e.isIncome) "+" else "−") + Fmt.rupiah(e.amount, hide).removePrefix("-"),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = toneAccent(if (e.isIncome) Tone.SUCCESS else Tone.DANGER),
+                                    )
+                                },
+                                onClick = { detail = e },
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 
-    Scaffold(
-        topBar = {
-            SindenTopBar(
-                title = "Kas Denintel",
-                subtitle = "Pembukuan Kas Satuan Kedinasan",
-                onBackClick = onBackClick
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddModal = true },
-                containerColor = SindenTealPrimary,
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Tambah Transaksi")
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            when (val state = uiState) {
-                is CashUiState.Loading -> {
-                    ShimmerLoadingList()
-                }
-                is CashUiState.Success -> {
-                    val filteredTransactions = remember(state.data.transactions, selectedFilter) {
-                        when (selectedFilter) {
-                            "masuk" -> state.data.transactions.filter { it.isIncome }
-                            "keluar" -> state.data.transactions.filter { !it.isIncome }
-                            else -> state.data.transactions
-                        }
+    detail?.let { e ->
+        FormSheet(title = "Detail transaksi", onDismiss = { detail = null }) {
+            InfoRow("Tanggal", Fmt.longDate(e.date))
+            InfoRow("Uraian", e.description)
+            InfoRow("Jenis", if (e.isIncome) "Pemasukan (debit)" else "Pengeluaran (kredit)")
+            InfoRow("Nominal", Fmt.rupiah(e.amount))
+            InfoRow("Saldo setelah", Fmt.rupiah(e.balance))
+            if (!e.receiptUrls.isNullOrEmpty()) InfoRow("Nota", "${e.receiptUrls.size} lampiran (lihat di web)")
+            if (canManage) {
+                Spacer(Modifier.height(Spacing.lg))
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    OutlinedButton(onClick = { editing = e; detail = null }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Outlined.Edit, contentDescription = null)
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text("Ubah")
                     }
-
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        // 1. KARTU SALDO UTAMA BERGAYA EDITORIAL
-                        item {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(22.dp),
-                                shadowElevation = 4.dp
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(
-                                            Brush.linearGradient(
-                                                colors = listOf(
-                                                    SindenNavyDark,
-                                                    SindenNavyMedium,
-                                                    SindenNavyLight
-                                                )
-                                            )
-                                        )
-                                        .padding(22.dp)
-                                ) {
-                                    Column {
-                                        Text(
-                                            text = "TOTAL SALDO BERJALAN",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Black,
-                                            color = Color.White.copy(alpha = 0.85f),
-                                            letterSpacing = 1.sp
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = formatter.format(state.data.totalBalance),
-                                            style = MaterialTheme.typography.headlineLarge,
-                                            fontWeight = FontWeight.Black,
-                                            color = Color.White
-                                        )
-
-                                        Spacer(modifier = Modifier.height(18.dp))
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Column {
-                                                Text(text = "Pemasukan (+)", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
-                                                Text(
-                                                    text = formatter.format(state.data.totalIncome),
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF67E8F9)
-                                                )
-                                            }
-                                            Column(horizontalAlignment = Alignment.End) {
-                                                Text(text = "Pengeluaran (-)", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.75f))
-                                                Text(
-                                                    text = formatter.format(state.data.totalExpense),
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFFCA5A5)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // 2. FILTER PILLS
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                SaaSTabChip(
-                                    selected = selectedFilter == "semua",
-                                    text = "Semua (${state.data.transactions.size})",
-                                    onClick = { selectedFilter = "semua" }
-                                )
-                                SaaSTabChip(
-                                    selected = selectedFilter == "masuk",
-                                    text = "Kas Masuk",
-                                    onClick = { selectedFilter = "masuk" }
-                                )
-                                SaaSTabChip(
-                                    selected = selectedFilter == "keluar",
-                                    text = "Kas Keluar",
-                                    onClick = { selectedFilter = "keluar" }
-                                )
-                            }
-                        }
-
-                        // 3. DAFTAR RIWAYAT TRANSAKSI KAS
-                        if (filteredTransactions.isEmpty()) {
-                            item {
-                                EmptyStateView(
-                                    title = "Tidak Ada Transaksi",
-                                    message = "Belum ada transaksi kas yang sesuai dengan filter yang dipilih."
-                                )
-                            }
-                        } else {
-                            items(filteredTransactions) { tx ->
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                                ) {
-                                    Column(modifier = Modifier.padding(14.dp)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                        ) {
-                                            Surface(
-                                                color = if (tx.isIncome) Color(0xFFDCFCE7) else Color(0xFFFFE4E6),
-                                                shape = RoundedCornerShape(12.dp),
-                                                modifier = Modifier.size(42.dp)
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Icon(
-                                                        imageVector = if (tx.isIncome) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                                                        contentDescription = null,
-                                                        tint = if (tx.isIncome) Color(0xFF16A34A) else Color(0xFFE11D48),
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
-                                            }
-
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = tx.description.ifEmpty { "Transaksi Kas" },
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Text(
-                                                    text = "${tx.category} • ${tx.date}",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-
-                                            Column(horizontalAlignment = Alignment.End) {
-                                                Text(
-                                                    text = "${if (tx.isIncome) "+" else "-"}${formatter.format(tx.effectiveAmount)}",
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    fontWeight = FontWeight.Black,
-                                                    color = if (tx.isIncome) Color(0xFF16A34A) else Color(0xFFE11D48)
-                                                )
-                                                if (tx.balance > 0) {
-                                                    Text(
-                                                        text = "Sisa: ${formatter.format(tx.balance)}",
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        fontSize = 10.sp,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), thickness = 0.5.dp)
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.End,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            TextButton(
-                                                onClick = { selectedTxForEdit = tx },
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                            ) {
-                                                Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Edit", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                            }
-
-                                            Spacer(modifier = Modifier.width(4.dp))
-
-                                            TextButton(
-                                                onClick = { selectedTxForDelete = tx },
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                            ) {
-                                                Icon(Icons.Default.Delete, contentDescription = "Hapus", modifier = Modifier.size(15.dp), tint = Color(0xFFE11D48))
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Hapus", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color(0xFFE11D48))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    OutlinedButton(onClick = { confirmDelete = e }, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text("Hapus", color = MaterialTheme.colorScheme.error)
                     }
                 }
-                is CashUiState.Error -> {
-                    ErrorStateView(
-                        message = state.message,
-                        onRetry = { viewModel.loadCash() }
-                    )
-                }
-            }
-
-            // MODAL FORM TAMBAH TRANSAKSI KAS
-            if (showAddModal) {
-                ModalBottomSheet(
-                    onDismissRequest = { showAddModal = false }
-                ) {
-                    var txType by remember { mutableStateOf("masuk") }
-                    var txAmount by remember { mutableStateOf("") }
-                    var txCategory by remember { mutableStateOf("Operasional") }
-                    var txDesc by remember { mutableStateOf("") }
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Text(
-                            text = "Tambah Transaksi Kas Denintel",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = txType == "masuk",
-                                onClick = { txType = "masuk" },
-                                label = { Text("Kas Masuk") }
-                            )
-                            FilterChip(
-                                selected = txType == "keluar",
-                                onClick = { txType = "keluar" },
-                                label = { Text("Kas Keluar") }
-                            )
-                        }
-
-                        OutlinedTextField(
-                            value = txAmount,
-                            onValueChange = { txAmount = it },
-                            label = { Text("Nominal (Rp) *") },
-                            placeholder = { Text("Contoh: 1500000") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        OutlinedTextField(
-                            value = txCategory,
-                            onValueChange = { txCategory = it },
-                            label = { Text("Kategori") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        OutlinedTextField(
-                            value = txDesc,
-                            onValueChange = { txDesc = it },
-                            label = { Text("Uraian / Keterangan *") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Button(
-                            onClick = {
-                                val amountVal = txAmount.toDoubleOrNull() ?: 0.0
-                                if (amountVal > 0 && txDesc.isNotEmpty()) {
-                                    viewModel.addCashTransaction(txType, amountVal, txCategory, txDesc) {
-                                        showAddModal = false
-                                    }
-                                }
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = SindenTealPrimary),
-                            modifier = Modifier.fillMaxWidth().height(48.dp)
-                        ) {
-                            Text("SIMPAN TRANSAKSI", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            // MODAL FORM EDIT TRANSAKSI KAS
-            val editingTx = selectedTxForEdit
-            if (editingTx != null) {
-                ModalBottomSheet(
-                    onDismissRequest = { selectedTxForEdit = null }
-                ) {
-                    var editType by remember(editingTx) { mutableStateOf(if (editingTx.isIncome) "masuk" else "keluar") }
-                    var editAmount by remember(editingTx) { mutableStateOf(editingTx.effectiveAmount.toLong().toString()) }
-                    var editCategory by remember(editingTx) { mutableStateOf(editingTx.category) }
-                    var editDesc by remember(editingTx) { mutableStateOf(editingTx.description) }
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Text(
-                            text = "Edit Transaksi Kas Denintel",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = editType == "masuk",
-                                onClick = { editType = "masuk" },
-                                label = { Text("Kas Masuk") }
-                            )
-                            FilterChip(
-                                selected = editType == "keluar",
-                                onClick = { editType = "keluar" },
-                                label = { Text("Kas Keluar") }
-                            )
-                        }
-
-                        OutlinedTextField(
-                            value = editAmount,
-                            onValueChange = { editAmount = it },
-                            label = { Text("Nominal (Rp) *") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        OutlinedTextField(
-                            value = editCategory,
-                            onValueChange = { editCategory = it },
-                            label = { Text("Kategori") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        OutlinedTextField(
-                            value = editDesc,
-                            onValueChange = { editDesc = it },
-                            label = { Text("Uraian / Keterangan *") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Button(
-                            onClick = {
-                                val amountVal = editAmount.toDoubleOrNull() ?: 0.0
-                                if (amountVal > 0 && editDesc.isNotEmpty()) {
-                                    viewModel.editCashTransaction(editingTx.id, editType, amountVal, editCategory, editDesc) {
-                                        selectedTxForEdit = null
-                                    }
-                                }
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = SindenTealPrimary),
-                            modifier = Modifier.fillMaxWidth().height(48.dp)
-                        ) {
-                            Text("PERBARUI TRANSAKSI", fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            // DIALOG KONFIRMASI HAPUS TRANSAKSI KAS
-            val deletingTx = selectedTxForDelete
-            if (deletingTx != null) {
-                AlertDialog(
-                    onDismissRequest = { selectedTxForDelete = null },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = null,
-                            tint = Color(0xFFE11D48),
-                            modifier = Modifier.size(36.dp)
-                        )
-                    },
-                    title = {
-                        Text(
-                            text = "Hapus Transaksi Kas?",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    },
-                    text = {
-                        Text(
-                            text = "Apakah Anda yakin ingin menghapus transaksi '${deletingTx.description}' sebesar ${formatter.format(deletingTx.effectiveAmount)}? Saldo berjalan akan otomatis direkalkulasi secara kronologis.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                viewModel.deleteCashTransaction(deletingTx.id) {
-                                    selectedTxForDelete = null
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
-                        ) {
-                            Text("HAPUS", fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { selectedTxForDelete = null }) {
-                            Text("BATAL")
-                        }
-                    }
-                )
             }
         }
+    }
+
+    if (creating || editing != null) {
+        CashForm(
+            initial = editing,
+            busy = busy,
+            onDismiss = { creating = false; editing = null },
+            onSubmit = { date, desc, income, amount ->
+                vm.save(editing?.id, date, desc, income, amount) { creating = false; editing = null }
+            },
+        )
+    }
+
+    confirmDelete?.let { e ->
+        ConfirmDialog(
+            title = "Hapus transaksi?",
+            message = "Transaksi \"${e.description.orEmpty()}\" sebesar ${Fmt.rupiah(e.amount)} akan dihapus dan saldo dihitung ulang.",
+            confirmLabel = "Hapus",
+            destructive = true,
+            loading = busy,
+            onDismiss = { confirmDelete = null },
+            onConfirm = { vm.delete(e.id) { confirmDelete = null; detail = null } },
+        )
+    }
+}
+
+@Composable
+private fun BalanceCard(ledger: CashLedgerResponse, hide: Boolean) {
+    SindenCard(Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.primary, border = null) {
+        Text("Saldo saat ini", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
+        Text(
+            Fmt.rupiah(ledger.balance, hide),
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onPrimary,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(Spacing.md))
+        Row {
+            Column(Modifier.weight(1f)) {
+                Text("Total pemasukan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
+                Text(Fmt.rupiah(ledger.totalDebit, hide), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimary)
+            }
+            Column(Modifier.weight(1f)) {
+                Text("Total pengeluaran", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f))
+                Text(Fmt.rupiah(ledger.totalCredit, hide), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimary)
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun CashForm(
+    initial: CashEntryDto?,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (date: String, description: String, income: Boolean, amount: Double) -> Unit,
+) {
+    var date by rememberSaveable { mutableStateOf(initial?.date?.take(10) ?: LocalDate.now().toString()) }
+    var description by rememberSaveable { mutableStateOf(initial?.description.orEmpty()) }
+    var income by rememberSaveable { mutableStateOf(initial?.isIncome ?: true) }
+    var amountText by rememberSaveable {
+        mutableStateOf(initial?.amount?.let { if (it % 1.0 == 0.0) it.toLong().toString() else it.toString().replace('.', ',') }.orEmpty())
+    }
+    var errors by remember { mutableStateOf(emptyMap<String, String>()) }
+
+    FormSheet(title = if (initial == null) "Transaksi baru" else "Ubah transaksi", onDismiss = onDismiss) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().selectableGroup()) {
+            SegmentedButton(
+                selected = income,
+                onClick = { income = true },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+            ) { Text("Pemasukan") }
+            SegmentedButton(
+                selected = !income,
+                onClick = { income = false },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+            ) { Text("Pengeluaran") }
+        }
+        Spacer(Modifier.height(Spacing.md))
+        DateField(date, { date = it }, "Tanggal", error = errors["date"])
+        SindenTextField(description, { description = it }, "Uraian", error = errors["description"], singleLine = false, minLines = 2)
+        SindenTextField(
+            amountText, { v -> amountText = v.filter { it.isDigit() || it == ',' || it == '.' } }, "Nominal (Rp)",
+            error = errors["amount"], keyboardType = KeyboardType.Decimal,
+            supporting = Fmt.parseAmount(amountText)?.let { Fmt.rupiah(it) },
+        )
+        Spacer(Modifier.height(Spacing.lg))
+        PrimaryButton(text = "Simpan", loading = busy, onClick = {
+            val amount = Fmt.parseAmount(amountText)
+            errors = buildMap {
+                if (date.isBlank()) put("date", "Tanggal wajib diisi")
+                if (description.isBlank()) put("description", "Uraian wajib diisi")
+                if (amount == null || amount <= 0.0) put("amount", "Nominal harus lebih dari 0")
+            }
+            if (errors.isEmpty() && amount != null) onSubmit(date, description, income, amount)
+        })
     }
 }

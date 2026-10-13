@@ -1,0 +1,43 @@
+{
+    "status": "success",
+    "today_attendance": {
+        "id": 1,
+        "user_id": 1,
+        "attendance_date": "2026-10-13",
+        "time_in": "07:12:00",
+        "status": "hadir",
+        "ip_address": null,
+        "device": null,
+        "user_agent": null,
+        "latitude": null,
+        "longitude": null,
+        "location_name": "GPS: -7.2, 112.7",
+        "notes": null,
+        "photo": null,
+        "created_at": "2026-10-13T02:15:00.000000Z",
+        "updated_at": "2026-10-13T02:15:00.000000Z",
+        "photo_url": null
+    },
+    "attendances": [
+        {
+            "id": 1,
+            "user_id": 1,
+            "attendance_date": "2026-10-13",
+            "time_in": "07:12:00",
+            "status": "hadir",
+            "ip_address": null,
+            "device": null,
+            "user_agent": null,
+            "latitude": null,
+            "longitude": null,
+            "location_name": "GPS: -7.2, 112.7",
+            "notes": null,
+            "photo": null,
+            "created_at": "2026-10-13T02:15:00.000000Z",
+            "updated_at": "2026-10-13T02:15:00.000000Z",
+            "photo_url": null
+        }
+    ],
+    "total_attended_today": 1,
+    "total_active_personnel": 2
+}

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lambang perisai SISINDEN (sama dengan ikon peluncur) untuk dipakai di dalam aplikasi -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,24L30,34v20c0,14.8 10.2,28.6 24,32c13.8,-3.4 24,-17.2 24,-32V34L54,24zM50,66l-12,-12l4.2,-4.2l7.8,7.8l15.8,-15.8l4.2,4.2L50,66z" />
+</vector>

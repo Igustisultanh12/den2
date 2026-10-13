@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Hanya folder cache PDF yang dapat dibagikan ke aplikasi lain -->
+    <cache-path name="pdf_cache" path="pdf/" />
+</paths>

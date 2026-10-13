@@ -1,0 +1,106 @@
+{
+    "status": "success",
+    "sp": {
+        "id": 1,
+        "nomor_sprin": "Sprin/ 29 /X/2026",
+        "bulan": 10,
+        "tahun": 2026,
+        "periode_label": "Oktober 2026",
+        "status": "published",
+        "ttd_type": "tte",
+        "tmt_mulai": "2026-10-01",
+        "tmt_selesai": "2026-10-31",
+        "tanggal_surat": "2026-09-30",
+        "total_personel": 2,
+        "perwira_tertua": "Bambang",
+        "penandatangan": "Roni Sumantri",
+        "approved_at": null
+    },
+    "available": [
+        {
+            "id": 1,
+            "nomor_sprin": "Sprin/ 29 /X/2026",
+            "bulan": 10,
+            "tahun": 2026,
+            "periode_label": "Oktober 2026",
+            "status": "published",
+            "ttd_type": "tte",
+            "tmt_mulai": "2026-10-01",
+            "tmt_selesai": "2026-10-31",
+            "tanggal_surat": "2026-09-30",
+            "total_personel": 2,
+            "perwira_tertua": "Bambang",
+            "penandatangan": "Roni Sumantri",
+            "approved_at": null
+        }
+    ],
+    "days": [
+        {
+            "date": "2026-10-13",
+            "day_of_week": 2,
+            "is_today": true,
+            "has_me": true,
+            "entries": [
+                {
+                    "name": "Bambang",
+                    "pangkat_korps": "Peltu Saa",
+                    "nrp": "82068",
+                    "role": "Perwira Siaga Sintel",
+                    "role_code": "PERWIRA",
+                    "divisi_no": null,
+                    "is_me": true
+                },
+                {
+                    "name": "Erwan Junaidi",
+                    "pangkat_korps": "Peltu Ttg",
+                    "nrp": "84025",
+                    "role": "Bintara Jaga (BAGA)",
+                    "role_code": "BAGA",
+                    "divisi_no": 2,
+                    "is_me": false
+                }
+            ]
+        },
+        {
+            "date": "2026-10-16",
+            "day_of_week": 5,
+            "is_today": false,
+            "has_me": true,
+            "entries": [
+                {
+                    "name": "Bambang",
+                    "pangkat_korps": "Peltu Saa",
+                    "nrp": "82068",
+                    "role": "Perwira Siaga Sintel",
+                    "role_code": "PERWIRA",
+                    "divisi_no": null,
+                    "is_me": true
+                }
+            ]
+        },
+        {
+            "date": "2026-10-18",
+            "day_of_week": 7,
+            "is_today": false,
+            "has_me": false,
+            "entries": [
+                {
+                    "name": "Erwan Junaidi",
+                    "pangkat_korps": "Peltu Ttg",
+                    "nrp": "84025",
+                    "role": "Bintara Jaga (BAGA)",
+                    "role_code": "BAGA",
+                    "divisi_no": 2,
+                    "is_me": false
+                }
+            ]
+        }
+    ],
+    "my_dates": [
+        "2026-10-13",
+        "2026-10-16"
+    ],
+    "my_roles": [
+        "Perwira Siaga Sintel"
+    ]
+}

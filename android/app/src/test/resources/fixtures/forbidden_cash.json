@@ -1,0 +1,6 @@
+{
+    "status": "error",
+    "code": "forbidden",
+    "message": "Anda tidak memiliki otoritas untuk tindakan ini.",
+    "required_permission": "cash.view"
+}

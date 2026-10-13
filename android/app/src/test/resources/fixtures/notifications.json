@@ -1,0 +1,15 @@
+{
+    "status": "success",
+    "notifications": [
+        {
+            "id": 1,
+            "title": "Jadwal jaga terbit",
+            "message": "SP Jaga bulan ini telah terbit.",
+            "type": "primary",
+            "link": null,
+            "is_read": false,
+            "created_at": "2026-10-13T09:15:00+07:00"
+        }
+    ],
+    "unreadCount": 1
+}

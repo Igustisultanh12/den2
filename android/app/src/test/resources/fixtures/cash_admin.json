@@ -1,0 +1,70 @@
+{
+    "status": "success",
+    "balance": 1249999.5,
+    "totalSaldo": 1249999.5,
+    "total_balance": 1249999.5,
+    "total_income": 1500000,
+    "total_expense": 250000.5,
+    "total_debit": 1500000,
+    "total_credit": 250000.5,
+    "cashes": [
+        {
+            "id": 2,
+            "date": "2026-10-02",
+            "description": "Belanja ATK",
+            "debit": 0,
+            "credit": 250000.5,
+            "balance": 1249999.5,
+            "receipt_urls": []
+        },
+        {
+            "id": 1,
+            "date": "2026-10-01",
+            "description": "Saldo awal",
+            "debit": 1500000,
+            "credit": 0,
+            "balance": 1500000,
+            "receipt_urls": []
+        }
+    ],
+    "transactions": [
+        {
+            "id": 2,
+            "date": "2026-10-02",
+            "description": "Belanja ATK",
+            "debit": 0,
+            "credit": 250000.5,
+            "balance": 1249999.5,
+            "receipt_urls": []
+        },
+        {
+            "id": 1,
+            "date": "2026-10-01",
+            "description": "Saldo awal",
+            "debit": 1500000,
+            "credit": 0,
+            "balance": 1500000,
+            "receipt_urls": []
+        }
+    ],
+    "data": [
+        {
+            "id": 2,
+            "date": "2026-10-02",
+            "description": "Belanja ATK",
+            "debit": 0,
+            "credit": 250000.5,
+            "balance": 1249999.5,
+            "receipt_urls": []
+        },
+        {
+            "id": 1,
+            "date": "2026-10-01",
+            "description": "Saldo awal",
+            "debit": 1500000,
+            "credit": 0,
+            "balance": 1500000,
+            "receipt_urls": []
+        }
+    ]
+}

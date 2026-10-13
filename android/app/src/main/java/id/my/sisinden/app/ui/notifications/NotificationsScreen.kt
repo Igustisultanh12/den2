@@ -9,212 +9,182 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.outlined.DoneAll
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import id.my.sisinden.app.core.ui.components.EmptyStateView
-import id.my.sisinden.app.core.ui.components.ErrorStateView
-import id.my.sisinden.app.core.ui.components.ShimmerLoadingList
-import id.my.sisinden.app.core.ui.components.SindenTopBar
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import id.my.sisinden.app.core.network.ApiResult
+import id.my.sisinden.app.core.ui.components.EmptyState
+import id.my.sisinden.app.core.ui.components.IconBadge
+import id.my.sisinden.app.core.ui.components.LoadState
+import id.my.sisinden.app.core.ui.components.LoadStateContent
+import id.my.sisinden.app.core.ui.components.RefreshableBox
+import id.my.sisinden.app.core.ui.components.SindenCard
+import id.my.sisinden.app.core.ui.components.SindenScaffold
+import id.my.sisinden.app.core.ui.components.Tone
+import id.my.sisinden.app.core.ui.components.dataOrNull
+import id.my.sisinden.app.core.ui.components.toneAccent
+import id.my.sisinden.app.core.ui.theme.Spacing
+import id.my.sisinden.app.core.util.Fmt
 import id.my.sisinden.app.data.model.NotificationDto
+import id.my.sisinden.app.data.repository.SindenRepository
+import id.my.sisinden.app.ui.common.CollectMessages
+import id.my.sisinden.app.ui.common.UiMessages
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun NotificationsScreen(
-    viewModel: NotificationsViewModel,
-    onBack: () -> Unit
-) {
-    val uiState by viewModel.uiState.collectAsState()
+class NotificationsViewModel(private val repository: SindenRepository) : ViewModel() {
+    private val _state = MutableStateFlow<LoadState<List<NotificationDto>>>(LoadState.Loading)
+    val state: StateFlow<LoadState<List<NotificationDto>>> = _state.asStateFlow()
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+    val messages = UiMessages()
 
-    Scaffold(
-        topBar = {
-            SindenTopBar(
-                title = "Notifikasi Dinas",
-                onBackClick = onBack,
-                actions = {
-                    IconButton(onClick = { viewModel.loadNotifications() }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Muat Ulang",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+    init { load() }
+
+    fun load(pull: Boolean = false) {
+        if (pull) _refreshing.value = true else _state.value = LoadState.Loading
+        viewModelScope.launch {
+            when (val res = repository.notifications()) {
+                is ApiResult.Success -> _state.value = LoadState.Ready(res.data.notifications.orEmpty())
+                is ApiResult.Failure -> {
+                    if (pull && _state.value is LoadState.Ready) messages.post(res.error.message)
+                    else _state.value = LoadState.Failed(res.error)
                 }
-            )
+            }
+            _refreshing.value = false
         }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            when (val state = uiState) {
-                is NotificationUiState.Loading -> {
-                    ShimmerLoadingList()
-                }
-                is NotificationUiState.Error -> {
-                    ErrorStateView(
-                        message = state.message,
-                        onRetry = { viewModel.loadNotifications() }
-                    )
-                }
-                is NotificationUiState.Success -> {
-                    if (state.list.isEmpty()) {
-                        EmptyStateView(
-                            title = "Belum Ada Notifikasi",
-                            message = "Semua instruksi dan pembaruan kedinasan akan tampil pada halaman ini."
-                        )
-                    } else {
-                        LazyColumn(
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(state.list, key = { it.id }) { notif ->
-                                NotificationCard(notification = notif)
-                            }
-                        }
-                    }
+    }
+
+    fun markRead(item: NotificationDto) {
+        if (item.isRead) return
+        // Pembaruan optimistis; dikembalikan bila server menolak.
+        val before = _state.value.dataOrNull ?: return
+        _state.value = LoadState.Ready(before.map { if (it.id == item.id) it.copy(isRead = true) else it })
+        viewModelScope.launch {
+            val res = repository.markNotificationRead(item.id)
+            if (res is ApiResult.Failure) {
+                _state.value = LoadState.Ready(before)
+                messages.post(res.error.message)
+            }
+        }
+    }
+
+    fun markAll() {
+        val before = _state.value.dataOrNull ?: return
+        if (before.none { !it.isRead }) return
+        _state.value = LoadState.Ready(before.map { it.copy(isRead = true) })
+        viewModelScope.launch {
+            when (val res = repository.markAllNotificationsRead()) {
+                is ApiResult.Success -> messages.post("Semua notifikasi ditandai dibaca.")
+                is ApiResult.Failure -> {
+                    _state.value = LoadState.Ready(before)
+                    messages.post(res.error.message)
                 }
             }
         }
     }
 }
 
+private fun toneFor(type: String?): Tone = when (type?.lowercase()) {
+    "success" -> Tone.SUCCESS
+    "warning" -> Tone.WARNING
+    "danger", "error" -> Tone.DANGER
+    "primary", "info" -> Tone.INFO
+    else -> Tone.NEUTRAL
+}
+
 @Composable
-fun NotificationCard(
-    notification: NotificationDto
-) {
-    val icon = when (notification.type.lowercase()) {
-        "warning", "alert" -> Icons.Default.Warning
-        "success" -> Icons.Default.CheckCircle
-        else -> Icons.Default.Info
-    }
+fun NotificationsScreen(repository: SindenRepository, onBack: () -> Unit) {
+    val vm: NotificationsViewModel = viewModel { NotificationsViewModel(repository) }
+    val state by vm.state.collectAsStateWithLifecycle()
+    val refreshing by vm.refreshing.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    CollectMessages(vm.messages, snackbar)
+    val unread = state.dataOrNull?.count { !it.isRead } ?: 0
 
-    val iconTint = when (notification.type.lowercase()) {
-        "warning", "alert" -> MaterialTheme.colorScheme.error
-        "success" -> Color(0xFF2E7D32)
-        else -> MaterialTheme.colorScheme.primary
-    }
-
-    val iconBg = when (notification.type.lowercase()) {
-        "warning", "alert" -> MaterialTheme.colorScheme.errorContainer
-        "success" -> Color(0xFFE8F5E9)
-        else -> MaterialTheme.colorScheme.primaryContainer
-    }
-
-    Card(
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (notification.isRead) {
-                MaterialTheme.colorScheme.surface
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    SindenScaffold(
+        title = "Notifikasi",
+        subtitle = if (unread > 0) "$unread belum dibaca" else "Semua sudah dibaca",
+        onBack = onBack,
+        snackbarHostState = snackbar,
+        actions = {
+            if (unread > 0) {
+                IconButton(onClick = vm::markAll) { Icon(Icons.Outlined.DoneAll, contentDescription = "Tandai semua dibaca") }
             }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(iconBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = notification.title.ifBlank { "Pemberitahuan Dinas" },
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f)
+        },
+    ) { padding ->
+        RefreshableBox(refreshing, { vm.load(pull = true) }, Modifier.padding(padding)) {
+            LoadStateContent(state, onRetry = { vm.load() }) { list ->
+                if (list.isEmpty()) {
+                    EmptyState(
+                        title = "Belum ada notifikasi",
+                        message = "Warta dan instruksi kedinasan untuk Anda akan muncul di sini.",
+                        icon = Icons.Outlined.NotificationsNone,
                     )
-
-                    if (!notification.isRead) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 6.dp)
-                        ) {
-                            Text(
-                                text = "BARU",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                            )
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, bottom = Spacing.xxl),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    ) {
+                        items(list, key = { it.id }) { n ->
+                            SindenCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = { vm.markRead(n) },
+                                containerColor = if (n.isRead) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                                contentPadding = Spacing.md,
+                            ) {
+                                Row(verticalAlignment = Alignment.Top) {
+                                    IconBadge(Icons.Outlined.Notifications, toneAccent(toneFor(n.type)), size = 40.dp, iconSize = 20.dp)
+                                    Spacer(Modifier.width(Spacing.md))
+                                    Column(Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                n.title.orEmpty().ifBlank { "Notifikasi" },
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = if (n.isRead) FontWeight.Medium else FontWeight.Bold,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                            if (!n.isRead) {
+                                                Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                                            }
+                                        }
+                                        Text(n.message.orEmpty(), style = MaterialTheme.typography.bodyMedium)
+                                        Text(
+                                            Fmt.relative(n.createdAt),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = notification.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                if (notification.createdAt.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = notification.createdAt,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
                 }
             }
         }
