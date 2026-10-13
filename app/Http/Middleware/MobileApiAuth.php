@@ -32,6 +32,10 @@ class MobileApiAuth
             return $this->deny(401, 'unauthenticated', 'Sesi tidak ditemukan. Silakan masuk kembali.');
         }
 
+        if (!\Illuminate\Support\Facades\Schema::hasTable('personal_access_tokens')) {
+            return $this->deny(503, 'service_unavailable', 'Layanan mobile sedang dalam pemeliharaan database.');
+        }
+
         $token = PersonalAccessToken::findToken($plain);
         if (!$token || !$token->tokenable) {
             return $this->deny(401, 'unauthenticated', 'Sesi tidak valid atau telah berakhir. Silakan masuk kembali.');

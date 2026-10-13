@@ -88,7 +88,7 @@ private val allTabs = listOf(
 
 private const val REFRESH_KEY = "refresh_signal"
 
-private fun deepLink(path: String) = listOf(navDeepLink { uriPattern = Routes.DEEP_LINK_PREFIX + path })
+private fun appDeepLink(path: String) = listOf(navDeepLink { uriPattern = Routes.DEEP_LINK_PREFIX + path })
 
 /** Kirim sinyal "muat ulang" ke layar sebelumnya lalu kembali. */
 private fun NavHostController.popWithRefresh() {
@@ -172,7 +172,7 @@ fun MainNavigation(
             popExitTransition = { fadeOut(animationSpec = tween(160)) },
         ) {
             // ------------------------------------------------------ Tab utama
-            composable(Routes.HOME, deepLinks = deepLink("home")) {
+            composable(Routes.HOME, deepLinks = appDeepLink("home")) {
                 DashboardScreen(
                     repository = repository,
                     session = sessionState.value,
@@ -180,7 +180,7 @@ fun MainNavigation(
                     onOpenDutyDay = { sp, date -> nav.navigate(Routes.dutyDay(sp, date)) },
                 )
             }
-            composable(Routes.DUTY, deepLinks = deepLink("duty")) {
+            composable(Routes.DUTY, deepLinks = appDeepLink("duty")) {
                 Guard(currentPerms(), Perm.DUTY_VIEW, back) {
                     DutyRosterScreen(
                         repository = repository,
@@ -190,7 +190,7 @@ fun MainNavigation(
                     )
                 }
             }
-            composable(Routes.ATTENDANCE, deepLinks = deepLink("attendance")) {
+            composable(Routes.ATTENDANCE, deepLinks = appDeepLink("attendance")) {
                 Guard(currentPerms(), Perm.ATTENDANCE_VIEW, back) {
                     AttendanceScreen(repository = repository, canSubmit = currentPerms().has(Perm.ATTENDANCE_CREATE))
                 }
@@ -198,7 +198,7 @@ fun MainNavigation(
             composable(Routes.MENU) {
                 MenuScreen(permissions = currentPerms(), user = sessionState.value.user, onNavigate = navigate)
             }
-            composable(Routes.PROFILE, deepLinks = deepLink("profile")) {
+            composable(Routes.PROFILE, deepLinks = appDeepLink("profile")) {
                 ProfileScreen(
                     repository = repository,
                     session = sessionState.value,
@@ -229,15 +229,15 @@ fun MainNavigation(
             }
 
             // ------------------------------------------------------ Modul
-            composable(Routes.NOTIFICATIONS, deepLinks = deepLink("notifications")) {
+            composable(Routes.NOTIFICATIONS, deepLinks = appDeepLink("notifications")) {
                 Guard(currentPerms(), Perm.NOTIFICATIONS_VIEW, back) { NotificationsScreen(repository, onBack = back) }
             }
-            composable(Routes.LETTERS, deepLinks = deepLink("letters")) {
+            composable(Routes.LETTERS, deepLinks = appDeepLink("letters")) {
                 Guard(currentPerms(), Perm.LETTER_LOGS_VIEW, back) {
                     LetterLogsScreen(repository, currentPerms(), onBack = back, onOpenPdf = openPdf)
                 }
             }
-            composable(Routes.SKHPP, deepLinks = deepLink("skhpp")) { entry ->
+            composable(Routes.SKHPP, deepLinks = appDeepLink("skhpp")) { entry ->
                 Guard(currentPerms(), Perm.SKHPP_VIEW, back) {
                     SkhppScreen(
                         repository = repository,
@@ -254,28 +254,28 @@ fun MainNavigation(
                     SkhppFormScreen(repository, onBack = back, onSubmitted = { nav.popWithRefresh() })
                 }
             }
-            composable(Routes.SIGNATURE, deepLinks = deepLink("signature")) {
+            composable(Routes.SIGNATURE, deepLinks = appDeepLink("signature")) {
                 Guard(currentPerms(), Perm.SIGNATURE_VIEW, back) { SignatureScreen(repository, currentPerms(), onBack = back) }
             }
-            composable(Routes.CASH, deepLinks = deepLink("cash")) {
+            composable(Routes.CASH, deepLinks = appDeepLink("cash")) {
                 Guard(currentPerms(), Perm.CASH_VIEW, back) {
                     CashScreen(repository, CashKind.BASE, currentPerms(), onBack = back, onOpenPdf = openPdf)
                 }
             }
-            composable(Routes.TECHNICAL_CASH, deepLinks = deepLink("technical_cash")) {
+            composable(Routes.TECHNICAL_CASH, deepLinks = appDeepLink("technical_cash")) {
                 Guard(currentPerms(), Perm.TECHNICAL_CASH_VIEW, back) {
                     CashScreen(repository, CashKind.TECHNICAL, currentPerms(), onBack = back, onOpenPdf = openPdf)
                 }
             }
-            composable(Routes.COMMANDER, deepLinks = deepLink("commander")) {
+            composable(Routes.COMMANDER, deepLinks = appDeepLink("commander")) {
                 Guard(currentPerms(), Perm.COMMANDER_VIEW, back) {
                     CommanderScreen(repository, currentPerms(), onBack = back, onOpenPdf = openPdf)
                 }
             }
-            composable(Routes.MITRA, deepLinks = deepLink("mitra")) {
+            composable(Routes.MITRA, deepLinks = appDeepLink("mitra")) {
                 Guard(currentPerms(), Perm.MITRA_VIEW, back) { MitraScreen(repository, currentPerms(), onBack = back) }
             }
-            composable(Routes.VIOLATIONS, deepLinks = deepLink("violations")) { entry ->
+            composable(Routes.VIOLATIONS, deepLinks = appDeepLink("violations")) { entry ->
                 Guard(currentPerms(), Perm.VIOLATIONS_VIEW, back) {
                     ViolationsScreen(
                         repository = repository,
@@ -291,7 +291,7 @@ fun MainNavigation(
                     ViolationFormScreen(repository, onBack = back, onSubmitted = { nav.popWithRefresh() })
                 }
             }
-            composable(Routes.USERS, deepLinks = deepLink("users")) {
+            composable(Routes.USERS, deepLinks = appDeepLink("users")) {
                 Guard(currentPerms(), Perm.USERS_VIEW, back) { UsersScreen(repository, currentPerms(), onBack = back) }
             }
             composable(Routes.SETTINGS) {

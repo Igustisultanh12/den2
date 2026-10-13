@@ -53,7 +53,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else null
+            // Jika keystore rilis tidak dikonfigurasi, gunakan signing debug sebagai fallback agar APK dapat langsung diinstal
+            signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else signingConfigs.findByName("debug")
         }
         debug {
             applicationIdSuffix = ".debug"
