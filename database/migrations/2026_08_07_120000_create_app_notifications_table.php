@@ -11,17 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('app_notifications', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
-            $table->string('role')->nullable(); // 'admin', 'komandan', 'operator'
-            $table->string('title');
-            $table->text('message');
-            $table->string('type')->default('info'); // 'info', 'success', 'warning', 'primary'
-            $table->string('link')->nullable();
-            $table->boolean('is_read')->default(false);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('app_notifications')) {
+            Schema::create('app_notifications', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
+                $table->string('role')->nullable(); // 'admin', 'komandan', 'operator'
+                $table->string('title');
+                $table->text('message');
+                $table->string('type')->default('info'); // 'info', 'success', 'warning', 'primary'
+                $table->string('link')->nullable();
+                $table->boolean('is_read')->default(false);
+                $table->timestamps();
+            });
+        }
     }
 
     /**

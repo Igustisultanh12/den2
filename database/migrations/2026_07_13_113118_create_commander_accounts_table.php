@@ -8,15 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('commander_accounts', function (Blueprint $table) {
-            $table->id();
-            $table->date('tanggal');
-            $table->string('keterangan');
-            $table->enum('jenis', ['MASUK', 'KELUAR']);
-            $table->decimal('jumlah', 15, 2);
-            $table->string('petugas_input'); // Mencatat siapa yang menginput data (Admin/Suma)
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('commander_accounts')) {
+            Schema::create('commander_accounts', function (Blueprint $table) {
+                $table->id();
+                $table->date('tanggal');
+                $table->string('keterangan');
+                $table->enum('jenis', ['MASUK', 'KELUAR']);
+                $table->decimal('jumlah', 15, 2);
+                $table->string('petugas_input'); // Mencatat siapa yang menginput data (Admin/Suma)
+                $table->timestamps();
+            });
+        }
     }
 
     public function down(): void

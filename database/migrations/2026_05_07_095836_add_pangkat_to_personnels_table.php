@@ -8,10 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('personnels', function (Blueprint $table) {
-            // Menambahkan kolom pangkat tepat setelah ID
-            $table->string('pangkat')->nullable()->after('id');
-        });
+        if (Schema::hasTable('personnels')) {
+            Schema::table('personnels', function (Blueprint $table) {
+                if (!Schema::hasColumn('personnels', 'pangkat')) {
+                    $table->string('pangkat')->nullable()->after('id');
+                }
+            });
+        }
     }
 
     public function down(): void

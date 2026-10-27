@@ -11,6 +11,29 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('submissions')) {
+            Schema::create('submissions', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('applicant_id')->nullable();
+                $table->unsignedBigInteger('submission_category_id')->nullable();
+                $table->json('answers_json')->nullable();
+                $table->string('generated_pdf_path')->nullable();
+                $table->json('attachment_paths')->nullable();
+                $table->string('status')->default('verifying')->comment('Pangkalan kontrol status PESS -> Si Sinden -> SINKODV');
+                $table->json('interview_details')->nullable();
+                $table->string('skhpp_path')->nullable();
+                $table->string('jenis_ttd_komandan')->nullable();
+                $table->integer('komandan_coord_x')->nullable();
+                $table->integer('komandan_coord_y')->nullable();
+                $table->string('sc_pdf_path')->nullable();
+                $table->string('jenis_ttd_asintel')->nullable();
+                $table->integer('asintel_coord_x')->nullable();
+                $table->integer('asintel_coord_y')->nullable();
+                $table->timestamps();
+            });
+            return;
+        }
+
         Schema::table('submissions', function (Blueprint $table) {
             // SULTAN PROTEKSI: Cek jika kolom 'status' belum ada, baru buat baru
             if (!Schema::hasColumn('submissions', 'status')) {
