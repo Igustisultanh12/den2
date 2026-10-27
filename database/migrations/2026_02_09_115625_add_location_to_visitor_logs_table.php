@@ -12,11 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('visitor_logs', function (Blueprint $table) {
-            // Menambahkan kolom location setelah kolom ip_address
-            $table->string('location')->nullable()->after('ip_address');
+            if (!Schema::hasColumn('visitor_logs', 'location')) {
+                $table->string('location')->nullable()->after('ip_address');
+            }
             
-            // Menambahkan kolom device untuk menyimpan model HP/Perangkat
-            $table->string('device')->nullable()->after('user_agent');
+            if (!Schema::hasColumn('visitor_logs', 'device')) {
+                $table->string('device')->nullable()->after('user_agent');
+            }
         });
     }
 

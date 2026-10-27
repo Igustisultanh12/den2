@@ -12,8 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('visitor_logs', function (Blueprint $table) {
-            $table->boolean('is_suspicious')->default(false)->after('location');
-            //
+            if (!Schema::hasColumn('visitor_logs', 'is_suspicious')) {
+                $table->boolean('is_suspicious')->default(false)->after('location');
+            }
         });
     }
 
