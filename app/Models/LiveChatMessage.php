@@ -24,6 +24,12 @@ class LiveChatMessage extends Model
         'is_read' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        // Pesan Chat Dinas baru → notifikasi push ke penerima (Firebase); diam bila belum diatur.
+        static::created(fn (self $m) => \App\Support\PushNotifier::chatMessage($m));
+    }
+
     public function thread(): BelongsTo
     {
         return $this->belongsTo(LiveChatThread::class, 'thread_id');

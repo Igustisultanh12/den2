@@ -416,6 +416,9 @@ Route::middleware('auth')->group(function () {
         // Pengaturan Sistem & Konfigurasi Aplikasi / API
         Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
         Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
+        // Pembaruan aplikasi Android: unggah/hapus APK sumber pembaruan di HP personel
+        Route::post('/settings/app-update', [\App\Http\Controllers\AppUpdateController::class, 'store'])->name('settings.app-update.store');
+        Route::delete('/settings/app-update', [\App\Http\Controllers\AppUpdateController::class, 'destroy'])->name('settings.app-update.destroy');
         Route::post('/settings/update-stamp', [SettingController::class, 'updateStamp'])->name('settings.update-stamp');
 
         // Cek Sistem & Monitoring Server Admin (Speedtest, Disk, CPU, RAM, VRAM)

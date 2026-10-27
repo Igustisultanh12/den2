@@ -13,6 +13,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <!-- Kamera depan untuk foto verifikasi senyum saat presensi -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Memasang pembaruan APK yang diunggah Admin di Pengaturan web -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <uses-feature android:name="android.hardware.location" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
@@ -55,6 +57,27 @@
             android:name=".core.tracking.LocationTrackingService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <!-- Notifikasi push Firebase Cloud Messaging -->
+        <service
+            android:name=".core.notification.SindenMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Hasil pemasangan pembaruan APK & pemberitahuan setelah aplikasi diperbarui -->
+        <receiver
+            android:name=".core.update.UpdateInstallReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".core.update.PackageReplacedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Berbagi berkas PDF hasil unduhan tanpa izin penyimpanan luas -->
         <provider

@@ -48,7 +48,8 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             
             // --- DATA PENGATURAN SISTEM ---
-            'settings' => $settingsArray, // Dioptimasi menggunakan variabel agar tidak query ganda
+            // Props ini terkirim ke SETIAP halaman (termasuk login tamu): tanpa secret/sertifikat/token.
+            'settings' => self::publicSettings($settingsArray),
 
             // --- STATUS PERANGKAT ---
             'isMobileDevice' => $isMobile,
@@ -94,5 +95,18 @@ class HandleInertiaRequests extends Middleware
             // --- CSRF TOKEN (Cadangan untuk request manual) ---
             'csrf_token' => csrf_token(),
         ];
+    }
+
+    /** Kunci pengaturan yang bersifat rahasia dan tidak boleh dibagikan ke frontend. */
+    public const SECRET_SETTING_KEYS = ['google_client_secret', 'agora_app_certificate', 'fcm_service_account', 'fcm_client_config', 'app_update_meta'];
+
+    public static function publicSettings(array $settings): array
+    {
+        return array_filter($settings, function ($value, $key) {
+            if (in_array($key, self::SECRET_SETTING_KEYS, true)) {
+                return false;
+            }
+            return !preg_match('/(secret|password|certificate|private_key|api_key|_token)$/i', (string) $key);
+        }, ARRAY_FILTER_USE_BOTH);
     }
 }

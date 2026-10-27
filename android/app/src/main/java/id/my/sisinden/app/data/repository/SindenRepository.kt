@@ -83,12 +83,25 @@ class SindenRepository(
     }
 
     suspend fun logout() {
-        // Cabut token di server (best-effort), lalu hapus sesi lokal apa pun hasilnya.
-        if (session.token != null) call { logout() }
+        // Cabut token di server (best-effort) beserta token push perangkat ini, lalu hapus sesi lokal.
+        if (session.token != null) {
+            val pushToken = id.my.sisinden.app.core.notification.PushManager.lastToken(appContext)
+            call { logout(LogoutRequest(pushToken)) }
+        }
         session.end(LogoutReason.USER)
     }
 
     suspend fun getConfig(): ApiResult<ConfigResponse> = call { getConfig() }
+
+    suspend fun pushTest() = call { pushTest() }
+
+    /** Daftarkan token FCM perangkat ini ke akun yang sedang masuk. */
+    suspend fun registerPushToken(token: String) = call {
+        registerPush(PushRegisterRequest(token, id.my.sisinden.app.BuildConfig.VERSION_NAME, "${Build.MANUFACTURER} ${Build.MODEL}".take(100)))
+    }
+
+    /** Alamat server aktif (dipakai pemeriksa pembaruan aplikasi). */
+    suspend fun currentBaseUrl(): String = store.baseUrl()
 
     // ------------------------------------------------------- Dashboard
 

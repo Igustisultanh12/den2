@@ -67,6 +67,11 @@ import id.my.sisinden.app.ui.signature.SignatureScreen
 import id.my.sisinden.app.ui.skhpp.SkhppFormScreen
 import id.my.sisinden.app.ui.skhpp.SkhppScreen
 import id.my.sisinden.app.ui.tracking.TrackingScreen
+import id.my.sisinden.app.ui.settings.UpdatePromptHost
+import id.my.sisinden.app.core.network.ApiResult
+import id.my.sisinden.app.core.notification.PushManager
+import id.my.sisinden.app.core.update.AppUpdater
+import androidx.compose.ui.platform.LocalContext
 import id.my.sisinden.app.ui.users.UsersScreen
 import id.my.sisinden.app.ui.violations.ViolationFormScreen
 import id.my.sisinden.app.ui.violations.ViolationsScreen
@@ -121,6 +126,18 @@ fun MainNavigation(
     val currentRoute = backStack?.destination?.route
     val tabs = allTabs.filter { perms.has(it.permission) }
     val showBottomBar = currentRoute in Routes.tabs
+
+    // Notifikasi push (FCM) & pembaruan aplikasi dari APK yang diunggah Admin di Pengaturan web.
+    val context = LocalContext.current
+    LaunchedEffect(session.user.id) {
+        AppUpdater.serverBaseUrl = repository.currentBaseUrl()
+        val cfg = (repository.getConfig() as? ApiResult.Success)?.data
+        PushManager.configure(context, cfg?.push)
+        PushManager.register(context, repository)
+        AppUpdater.schedule(context)
+        AppUpdater.autoCheckOnOpen(context)
+    }
+    UpdatePromptHost()
 
     LaunchedEffect(newIntent) {
         if (newIntent != null) {
@@ -298,7 +315,7 @@ fun MainNavigation(
             composable(Routes.TRACKING, deepLinks = appDeepLink("tracking")) {
                 Guard(currentPerms(), Perm.TRACKING_VIEW, back) { TrackingScreen(repository, onBack = back) }
             }
-            composable(Routes.SETTINGS) {
+            composable(Routes.SETTINGS, deepLinks = appDeepLink("settings")) {
                 SettingsScreen(repository, onBack = back)
             }
 

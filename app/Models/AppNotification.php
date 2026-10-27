@@ -23,6 +23,12 @@ class AppNotification extends Model
         'is_read' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        // Notifikasi push ke HP (Firebase) untuk setiap warta baru; diam bila Firebase belum diatur.
+        static::created(fn (self $n) => \App\Support\PushNotifier::appNotification($n));
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

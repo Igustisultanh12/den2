@@ -114,7 +114,34 @@ data class ConfigResponse(
     @SerializedName("api_status") val apiStatus: String? = null,
     @SerializedName("min_version") val minVersion: String? = null,
     @SerializedName("server_time") val serverTime: String? = null,
+    /** Konfigurasi klien Firebase (publik) — null bila admin belum mengatur. */
+    @SerializedName("push") val push: PushConfigDto? = null,
+    @SerializedName("push_enabled") val pushEnabled: Boolean? = null,
 )
+
+data class PushConfigDto(
+    @SerializedName("api_key") val apiKey: String? = null,
+    @SerializedName("app_id") val appId: String? = null,
+    @SerializedName("project_id") val projectId: String? = null,
+    @SerializedName("sender_id") val senderId: String? = null,
+) {
+    val isComplete: Boolean
+        get() = !apiKey.isNullOrBlank() && !appId.isNullOrBlank() && !projectId.isNullOrBlank() && !senderId.isNullOrBlank()
+}
+
+data class PushRegisterRequest(
+    @SerializedName("token") val token: String,
+    @SerializedName("app_version") val appVersion: String?,
+    @SerializedName("device_name") val deviceName: String?,
+)
+
+data class PushTestResponse(
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("code") val code: String? = null,
+    @SerializedName("message") val message: String? = null,
+)
+
+data class LogoutRequest(@SerializedName("push_token") val pushToken: String? = null)
 
 data class SimpleResponse(
     @SerializedName("status") val status: String? = null,

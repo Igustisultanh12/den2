@@ -39,6 +39,12 @@ class MobileApiController extends Controller
     /** Cabut token yang sedang dipakai (logout aman di sisi server). */
     public function logout(Request $request)
     {
+        // Hentikan notifikasi push ke perangkat ini setelah keluar.
+        if ($request->filled('push_token') && \Illuminate\Support\Facades\Schema::hasTable('device_tokens')) {
+            \App\Models\DeviceToken::where('user_id', $request->user()->id)
+                ->where('token_hash', \App\Models\DeviceToken::hashOf((string) $request->input('push_token')))
+                ->delete();
+        }
         $request->user()->currentAccessToken()?->delete();
         return response()->json(['status' => 'success', 'message' => 'Anda telah keluar.']);
     }

@@ -85,15 +85,56 @@ object NotificationHelper {
         return false
     }
 
+    /** Warta dari push FCM: tampilkan bila belum pernah dibunyikan (dedup dengan pemeriksaan berkala). */
+    fun showPushedNotification(context: Context, id: Int, title: String, message: String, link: String?) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val last = prefs.getInt(PREF_LAST_NOTIFIED_ID, 0)
+        if (prefs.getBoolean(PREF_IS_INITIALIZED, false) && id in 1..last) return
+        prefs.edit().putBoolean(PREF_IS_INITIALIZED, true).putInt(PREF_LAST_NOTIFIED_ID, maxOf(id, last)).apply()
+        showNotification(context, id, title, message, deepLinkFor(link))
+    }
+
+    /** Pesan Chat Dinas dari push FCM (satu banner, diperbarui untuk pesan berikutnya). */
+    fun showPushedChat(context: Context, sender: String, text: String) {
+        showNotification(context, CHAT_NOTIFICATION_ID, sender, text, "notifications")
+    }
+
+    /**
+     * Petakan tautan web notifikasi (kolom `link` AppNotification) ke rute
+     * aplikasi. Hak akses tetap diperiksa NavHost saat tautan dibuka.
+     */
+    fun deepLinkFor(link: String?): String {
+        val path = link.orEmpty().substringBefore('?').trim().lowercase()
+        return when {
+            path.startsWith("/signature-requests") || path.startsWith("/signature") -> "signature"
+            path.startsWith("/sp-jaga") || path.startsWith("/duty") -> "duty"
+            path.startsWith("/skhpp") -> "skhpp"
+            path.startsWith("/attendance") || path.startsWith("/absensi") -> "attendance"
+            path.startsWith("/letter") -> "letters"
+            path.startsWith("/violation") -> "violations"
+            path.startsWith("/mitra") -> "mitra"
+            path.startsWith("/pantau-personel") -> "tracking"
+            else -> "notifications"
+        }
+    }
+
+    private const val CHAT_NOTIFICATION_ID = 0x0C4A7
+
     fun showNotification(
         context: Context,
         notificationId: Int,
         title: String,
-        message: String
+        message: String,
+        /** Rute aplikasi (deep link sisinden://app/<route>); null = buka aplikasi saja. */
+        route: String? = null,
     ) {
         createNotificationChannel(context)
 
-        val intent = Intent(context, MainActivity::class.java).apply {
+        val intent = (if (route != null) {
+            Intent(Intent.ACTION_VIEW, android.net.Uri.parse("sisinden://app/$route"), context, MainActivity::class.java)
+        } else {
+            Intent(context, MainActivity::class.java)
+        }).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
 

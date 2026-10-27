@@ -112,6 +112,9 @@ fun SettingsScreen(repository: SindenRepository, onBack: () -> Unit) {
                 )
             }
 
+            UpdateCard()
+            PushCard(repository)
+
             SindenCard(Modifier.fillMaxWidth(), onClick = { showServer = true }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Dns, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -164,7 +167,7 @@ fun SettingsScreen(repository: SindenRepository, onBack: () -> Unit) {
 }
 
 @Composable
-private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()

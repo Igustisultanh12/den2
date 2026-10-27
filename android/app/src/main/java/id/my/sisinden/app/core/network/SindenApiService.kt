@@ -28,7 +28,14 @@ interface SindenApiService {
     suspend fun me(): Response<MeResponse>
 
     @POST("api/mobile/logout")
-    suspend fun logout(): Response<SimpleResponse>
+    suspend fun logout(@Body request: LogoutRequest = LogoutRequest()): Response<SimpleResponse>
+
+    // ------------------------------------------------------ Notifikasi push (FCM)
+    @POST("api/mobile/push/register")
+    suspend fun registerPush(@Body request: PushRegisterRequest): Response<SimpleResponse>
+
+    @POST("api/mobile/push/test")
+    suspend fun pushTest(): Response<PushTestResponse>
 
     @GET("api/mobile/dashboard")
     suspend fun dashboard(): Response<DashboardResponse>

@@ -14,6 +14,15 @@ class SettingController extends Controller
     {
         // Mengambil semua pengaturan dan mengubahnya menjadi format Key-Value
         $settings = Setting::pluck('value', 'key')->toArray();
+        // Firebase: service account (rahasia) tidak pernah dikirim ke browser, hanya statusnya.
+        $settings['fcm_service_account_project'] = \App\Support\PushNotifier::serviceAccountProject();
+        $settings['fcm_client_project'] = \App\Support\PushNotifier::clientConfig()['project_id'] ?? null;
+        $settings['fcm_ready'] = \App\Support\PushNotifier::enabled();
+        unset($settings['fcm_service_account'], $settings['fcm_client_config']);
+        // Pembaruan aplikasi Android (APK yang diunggah Admin).
+        unset($settings[\App\Support\AppRelease::KEY]);
+        $settings['app_update'] = \App\Support\AppRelease::adminSummary();
+        $settings['app_update_limit'] = \App\Http\Controllers\AppUpdateController::uploadLimitBytes();
         return Inertia::render('Settings/Index', [
             'settings' => $settings
         ]);
@@ -31,7 +40,10 @@ class SettingController extends Controller
             'google_login_enabled' => 'nullable|in:0,1',
             'agora_app_id' => 'nullable|string|max:100',
             'agora_app_certificate' => 'nullable|string|max:100',
-            'logo' => 'nullable|image|max:2048', 
+            'fcm_enabled' => 'nullable|in:0,1',
+            'fcm_google_services' => 'nullable|string|max:20000',
+            'fcm_service_account' => 'nullable|string|max:20000',
+            'logo' => 'nullable|image|max:2048',
             'login_background' => 'nullable|image|max:5120', // Background login (Maks 5MB)
             'signature_file' => 'nullable|image|mimes:png|max:2048', // Validasi khusus PNG
             'favicon' => 'nullable|image|mimes:ico,png,jpg,jpeg|max:1024', // Tambahan validasi favicon (Maks 1MB)
@@ -45,12 +57,30 @@ class SettingController extends Controller
             'mobile_theme_mode', 'mobile_primary_color', 'mobile_accent_color', 'mobile_card_radius',
             'mobile_show_balance_card', 'mobile_show_summary_trio', 'mobile_show_quick_actions',
             'google_client_id', 'google_client_secret', 'google_login_enabled',
-            'agora_app_id', 'agora_app_certificate'
+            'agora_app_id', 'agora_app_certificate', 'fcm_enabled',
         ];
         foreach ($request->only($textFields) as $key => $value) {
             if ($value !== null) {
                 Setting::updateOrCreate(['key' => $key], ['value' => (string)$value]);
             }
+        }
+
+        // Firebase Cloud Messaging (notifikasi push aplikasi Android). Kolom kosong = tidak diubah.
+        if (filled($request->input('fcm_google_services'))) {
+            $cfg = \App\Support\PushNotifier::parseGoogleServices((string) $request->input('fcm_google_services'));
+            if (is_string($cfg)) {
+                return back()->with('error', $cfg);
+            }
+            Setting::updateOrCreate(['key' => 'fcm_client_config'], ['value' => json_encode($cfg)]);
+        }
+        if (filled($request->input('fcm_service_account'))) {
+            $err = \App\Support\PushNotifier::storeServiceAccount((string) $request->input('fcm_service_account'));
+            if ($err) {
+                return back()->with('error', $err);
+            }
+        }
+        if ($request->boolean('fcm_clear')) {
+            Setting::whereIn('key', ['fcm_service_account', 'fcm_client_config'])->delete();
         }
 
         // 2. Logika Update Logo Instansi

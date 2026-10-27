@@ -203,9 +203,16 @@ Route::get('/api/mobile/config', function () {
         'mobile_show_balance_card' => ($settings['mobile_show_balance_card'] ?? '1') === '1',
         'mobile_show_summary_trio' => ($settings['mobile_show_summary_trio'] ?? '1') === '1',
         'mobile_show_quick_actions' => ($settings['mobile_show_quick_actions'] ?? '1') === '1',
+        // Konfigurasi klien Firebase (publik, dari google-services.json) agar APK tidak perlu dibuild ulang.
+        'push' => \App\Support\PushNotifier::clientConfig(),
+        'push_enabled' => \App\Support\PushNotifier::enabled(),
         'server_time' => now()->toIso8601String(),
     ]);
 })->middleware('throttle:60,1');
+
+// Pembaruan aplikasi: APK yang diunggah Admin di Pengaturan web (publik; APK diverifikasi SHA-256 & tanda tangan di HP).
+Route::get('/api/mobile/app-update', [\App\Http\Controllers\AppUpdateController::class, 'latest'])->middleware('throttle:60,1');
+Route::get('/api/mobile/app-update/download', [\App\Http\Controllers\AppUpdateController::class, 'download'])->middleware('throttle:30,1');
 
 // AKTIVASI AKUN MOBILE — wajib token aktivasi dari Admin (sama seperti web /aktivasi).
 Route::post('/api/mobile/activate', function (Request $request) {
@@ -1258,3 +1265,57 @@ Route::get('/api/mobile/tracking/{userId}/history', function (Request $request, 
         return mobile_error($e, 'Gagal memuat jejak lokasi.');
     }
 })->whereNumber('userId')->middleware('mobile.auth:tracking.view');
+
+// =====================================================================
+// NOTIFIKASI PUSH (FIREBASE CLOUD MESSAGING) â€” v1.5
+// =====================================================================
+Route::post('/api/mobile/push/register', function (Request $request) {
+    $data = $request->validate([
+        'token' => 'required|string|min:20|max:4096',
+        'app_version' => 'nullable|string|max:20',
+        'device_name' => 'nullable|string|max:100',
+    ]);
+    if (!\Illuminate\Support\Facades\Schema::hasTable('device_tokens')) {
+        return response()->json(['status' => 'error', 'message' => 'Server belum diperbarui (php artisan migrate).'], 503);
+    }
+    \App\Models\DeviceToken::register($request->user()->id, $data['token'], $data['app_version'] ?? null, $data['device_name'] ?? null);
+    return response()->json(['status' => 'success', 'push_enabled' => \App\Support\PushNotifier::enabled()]);
+})->middleware(['mobile.auth', 'throttle:30,1']);
+
+Route::post('/api/mobile/push/unregister', function (Request $request) {
+    $data = $request->validate(['token' => 'required|string|max:4096']);
+    if (\Illuminate\Support\Facades\Schema::hasTable('device_tokens')) {
+        \App\Models\DeviceToken::where('user_id', $request->user()->id)
+            ->where('token_hash', \App\Models\DeviceToken::hashOf($data['token']))->delete();
+    }
+    return response()->json(['status' => 'success']);
+})->middleware(['mobile.auth', 'throttle:30,1']);
+
+// Uji notifikasi push ke perangkat milik pengguna sendiri (menu Pengaturan aplikasi).
+Route::post('/api/mobile/push/test', function (Request $request) {
+    $user = $request->user();
+    $push = \App\Support\PushNotifier::class;
+    if (!$push::clientConfig() || !\App\Support\PushNotifier::serviceAccountProject()) {
+        return response()->json(['status' => 'error', 'code' => 'push_not_configured',
+            'message' => 'Notifikasi push belum diatur Admin (Pengaturan web â†’ Notifikasi Push Aplikasi).']);
+    }
+    if (!\App\Support\PushNotifier::enabled()) {
+        return response()->json(['status' => 'error', 'code' => 'push_disabled', 'message' => 'Notifikasi push dinonaktifkan Admin.']);
+    }
+    $devices = \Illuminate\Support\Facades\Schema::hasTable('device_tokens')
+        ? \App\Models\DeviceToken::where('user_id', $user->id)->count() : 0;
+    if ($devices === 0) {
+        return response()->json(['status' => 'error', 'code' => 'no_device',
+            'message' => 'HP ini belum terdaftar untuk notifikasi push. Buka ulang aplikasi lalu coba lagi.']);
+    }
+    $sent = \App\Support\PushNotifier::sendNow([$user->id], [
+        'type' => 'notification',
+        'id' => (string) (900000000 + random_int(1, 99999999)),
+        'title' => 'Uji notifikasi SiNDEN',
+        'body' => 'Notifikasi push berhasil diterima di HP ini.',
+        'link' => '/notifications',
+    ], 300);
+    return response()->json($sent > 0
+        ? ['status' => 'success', 'message' => "Terkirim ke {$sent} perangkat. Notifikasi akan muncul dalam beberapa detik."]
+        : ['status' => 'error', 'code' => 'send_failed', 'message' => 'Server gagal mengirim ke Firebase. Periksa service account & google-services.json di Pengaturan web (lihat log server [PUSH]).']);
+})->middleware(['mobile.auth', 'throttle:10,1']);

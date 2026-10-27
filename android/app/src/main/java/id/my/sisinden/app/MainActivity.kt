@@ -45,6 +45,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        id.my.sisinden.app.core.notification.AppVisibility.appForeground = true
+    }
+
+    override fun onPause() {
+        id.my.sisinden.app.core.notification.AppVisibility.appForeground = false
+        super.onPause()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

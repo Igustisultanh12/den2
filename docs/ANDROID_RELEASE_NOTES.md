@@ -1,3 +1,21 @@
+# SISINDEN Android v1.3.0 (versionCode 11)
+
+Notifikasi push Firebase dan pembaruan aplikasi dari Pengaturan web (diambil dari SISINDEN Kodaeral V).
+
+> ⚠️ **Wajib di server:** `git pull`, `php artisan migrate --force` (tabel `device_tokens`, kolom `settings.value` menjadi TEXT), `npm run build`. Untuk unggah APK, naikkan `upload_max_filesize` & `post_max_size` PHP serta `client_max_body_size` Nginx (mis. 100M) di aaPanel.
+
+## Yang baru
+
+- **Notifikasi push (Firebase Cloud Messaging)** — warta dinas & Chat Dinas tetap muncul walau aplikasi ditutup. Admin cukup mengunggah `google-services.json` dan service account Firebase di **Pengaturan web → Notifikasi Push Aplikasi**; aplikasi mengambil konfigurasinya dari server tanpa perlu build ulang APK. Kartu **Notifikasi push** di Pengaturan aplikasi untuk uji kirim ke HP sendiri.
+- **Pembaruan aplikasi dari Pengaturan web** — Super Admin mengunggah APK di **Pengaturan → Pembaruan Aplikasi Android**. Versi dibaca otomatis dari APK, APK aplikasi lain/versi lebih lama ditolak, dan personel menerima pemberitahuan. Di HP: dialog "Pembaruan tersedia", unduh dengan verifikasi SHA-256 + tanda tangan, pasang satu ketukan; opsi **Perbarui otomatis** (Wi-Fi).
+
+## Keamanan
+
+- Pengaturan yang dibagikan ke setiap halaman web kini disaring: secret Google OAuth, sertifikat Agora, dan kredensial Firebase tidak lagi terkirim ke browser (sebelumnya terlihat di sumber halaman login).
+- Service account Firebase disimpan terenkripsi; APK pembaruan disimpan di penyimpanan privat (tidak dapat diakses lewat /storage).
+
+---
+
 # SISINDEN Android v1.2.0 (versionCode 10)
 
 Rilis fitur pelacakan lokasi realtime dan presensi foto senyum.

@@ -29,5 +29,7 @@ class SindenApplication : Application() {
         sessionManager = SessionManager(sessionStore, appScope)
         val apiClient = ApiClient(sessionManager, sessionStore)
         repository = SindenRepository(this, apiClient, sessionStore, sessionManager, appScope)
+        // Firebase dari konfigurasi tersimpan agar push tetap diterima saat aplikasi dibangunkan.
+        id.my.sisinden.app.core.notification.PushManager.initFromCache(this)
     }
 }
