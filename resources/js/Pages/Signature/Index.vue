@@ -972,7 +972,7 @@ const getStatusClass = (status) => {
             
             <!-- Kop Header (Rata Tengah & Presisi Single Line) -->
             <div class="text-center max-w-[380px] w-full mx-auto text-[10pt] sm:text-[12pt] font-normal leading-snug">
-                <div class="whitespace-nowrap font-normal">KOMANDO DAERAH TNI ANGKATAN LAUT V</div>
+                <div class="whitespace-nowrap font-normal">KOMANDO ARMADA II</div>
                 <div class="font-normal text-center">DETASEMEN INTELIJEN</div>
                 <div class="w-44 sm:w-48 h-[1.5px] bg-black mx-auto mt-0.5"></div>
             </div>
@@ -1087,7 +1087,7 @@ const getStatusClass = (status) => {
                         <span>pada tanggal</span>
                         <span>{{ selectedSkhpp.tanggal_skhpp ? new Date(selectedSkhpp.tanggal_skhpp).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '5 Agustus 2026' }}</span>
                     </div>
-                    <div class="font-normal text-center whitespace-nowrap mt-1 leading-snug"> Komandan Detasemen Intelijen Kodaeral V,
+                    <div class="font-normal text-center whitespace-nowrap mt-1 leading-snug"> Komandan Detasemen Intelijen Koarmada 2,
                     </div>
 
                     <!-- QR Code TTD Status -->
@@ -1111,7 +1111,7 @@ const getStatusClass = (status) => {
             <!-- Kepada Footer -->
             <div class="pt-3 text-[10pt] sm:text-[12pt] font-normal">
                 <div>Kepada :</div>
-                <div class="whitespace-nowrap">Yth. Asintel Dankodaeral V</div>
+                <div class="whitespace-nowrap">Yth. Asintel Pangkoarmada 2</div>
             </div>
           </div>
         </div>
@@ -1382,7 +1382,7 @@ const getStatusClass = (status) => {
 
             <div>
               <label class="block text-[10px] font-extrabold text-slate-700 uppercase mb-1">Jabatan / Pekerjaan (Opsional)</label>
-              <input v-model="form.jabatan" type="text" class="w-full rounded-xl border-slate-200 bg-slate-50 text-xs font-bold p-2.5 uppercase focus:ring-2 focus:ring-blue-500" placeholder="Personel Denintel Kodaeral V...">
+              <input v-model="form.jabatan" type="text" class="w-full rounded-xl border-slate-200 bg-slate-50 text-xs font-bold p-2.5 uppercase focus:ring-2 focus:ring-blue-500" placeholder="Personel Denintel Koarmada 2...">
             </div>
 
             <div>

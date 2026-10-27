@@ -21,18 +21,16 @@ use App\Models\User;
 class MobileAccess
 {
     /**
-     * Pengecualian berbasis nama yang SUDAH ada di controller web (CashController,
-     * MitraPaymentController, dsb). Dipusatkan di sini agar tidak tersebar dan
-     * mudah dimigrasikan ke kolom database (mis. can_access_cash) oleh pemilik sistem.
+     * Pengecualian berbasis nama yang dipusatkan di sini agar UI mobile konsisten.
      */
     public const DEVELOPER_NAMES = ['I Gusti Sultan H.A, A.Md.Kom'];
-    public const CASH_EXTRA_NAMES = ['I Gusti Sultan H.A, A.Md.Kom', 'Suma Nurhasanah', 'HARI BAGIO WIJAYANTO, M.TR.OPSLA'];
     public const SP_JAGA_ADMIN_NAMES = ['Suma Nurhasanah', 'I Gusti Sultan H.A, A.Md.Kom'];
 
     /** Daftar role yang dikenal sistem (dari form Kelola Pengguna di web). */
     public const KNOWN_ROLES = [
-        'admin', 'komandan', 'wadan', 'pasops', 'staf', 'personel',
-        'anggotasintel', 'danunitteknis', 'kaurmintel', 'paurset', 'danunit1', 'user',
+        'super_admin', 'superadmin', 'admin', 'personel', 'personel_sintel',
+        'komandan', 'wadan', 'pasops', 'staf', 'anggotasintel',
+        'kaurmintel', 'paurset', 'danunit1', 'danunit2', 'user',
     ];
 
     public static function normalizedRole(?User $user): string
@@ -40,9 +38,16 @@ class MobileAccess
         return strtolower(preg_replace('/[\s_-]+/', '', (string) ($user?->role ?? '')));
     }
 
+    public static function isSuperAdmin(User $user): bool
+    {
+        $r = self::normalizedRole($user);
+        return in_array($r, ['superadmin', 'super_admin'], true);
+    }
+
     public static function isAdmin(User $user): bool
     {
-        return $user->role === 'admin';
+        $r = self::normalizedRole($user);
+        return in_array($r, ['superadmin', 'super_admin', 'admin'], true);
     }
 
     public static function isDeveloper(User $user): bool
@@ -55,13 +60,9 @@ class MobileAccess
         if (self::isAdmin($user)) {
             return false;
         }
+        $r = self::normalizedRole($user);
         $jabatan = strtolower((string) ($user->jabatan ?? ''));
-        return self::normalizedRole($user) === 'anggotasintel' || str_contains($jabatan, 'anggota sintel');
-    }
-
-    public static function isDanUnitTeknis(User $user): bool
-    {
-        return self::normalizedRole($user) === 'danunitteknis';
+        return in_array($r, ['anggotasintel', 'personelsintel', 'personel_sintel'], true) || str_contains($jabatan, 'sintel');
     }
 
     public static function isKomandan(User $user): bool
@@ -72,7 +73,7 @@ class MobileAccess
     public static function isPasops(User $user): bool
     {
         $name = strtolower((string) $user->name);
-        return in_array(self::normalizedRole($user), ['pasops', 'admin', 'komandan'], true)
+        return in_array(self::normalizedRole($user), ['pasops', 'admin', 'komandan', 'superadmin', 'super_admin'], true)
             || str_contains($name, 'roni sumantri')
             || str_contains($name, 'sultan');
     }
@@ -84,22 +85,18 @@ class MobileAccess
      */
     public static function permissions(User $user): array
     {
+        $superAdmin = self::isSuperAdmin($user);
         $admin = self::isAdmin($user);
         $dev = self::isDeveloper($user);
         $sintel = self::isAnggotaSintel($user);
-        $danUnitTeknis = self::isDanUnitTeknis($user);
         $komandan = self::isKomandan($user);
         $regular = !$sintel; // menu umum web disembunyikan untuk Anggota Sintel
 
-        // CashController@index: admin atau daftar nama khusus.
-        $cash = $admin || in_array($user->name, self::CASH_EXTRA_NAMES, true);
         // CommanderAccountController@checkAccess
-        $commanderView = $dev || $komandan || in_array($user->role, ['admin', 'user'], true);
-        $commanderManage = in_array($user->role, ['admin', 'user'], true);
+        $commanderView = $dev || $komandan || in_array($user->role, ['super_admin', 'admin', 'user'], true);
+        $commanderManage = in_array($user->role, ['super_admin', 'admin', 'user'], true);
         // MitraPaymentController@index
         $mitra = $admin || $dev || (bool) $user->can_access_mitra;
-        // TechnicalUnitCashController@index
-        $technicalCash = $admin || $danUnitTeknis || (bool) $user->can_access_technical_cash || $dev;
         // SkhppController@approve / SignatureRequestController
         $commanderApproval = $admin || $komandan || $dev;
         // SpJagaController@index
@@ -112,7 +109,7 @@ class MobileAccess
 
             'attendance.view' => true,
             'attendance.create' => true,
-            'attendance.view_all' => in_array(self::normalizedRole($user), ['admin', 'komandan', 'pasops'], true),
+            'attendance.view_all' => in_array(self::normalizedRole($user), ['superadmin', 'super_admin', 'admin', 'komandan', 'pasops'], true),
 
             'duty_roster.view' => true,
             'duty_roster.view_unpublished' => $spJagaAdmin || self::isPasops($user),
@@ -136,19 +133,12 @@ class MobileAccess
             'signature.view' => $regular,
             'signature.approve' => $commanderApproval,
 
-            'cash.view' => $cash,
-            'cash.manage' => $cash,
-            'cash.pdf' => $cash,
-
             'commander_account.view' => $commanderView,
             'commander_account.manage' => $commanderManage,
             'commander_account.pdf' => $commanderView,
 
             'mitra.view' => $mitra,
             'mitra.manage' => $mitra,
-
-            'technical_cash.view' => $technicalCash,
-            'technical_cash.manage' => $technicalCash,
 
             'violations.view' => $regular,
             'violations.manage' => $regular,
@@ -160,6 +150,9 @@ class MobileAccess
 
             'users.view' => $admin,
             'users.manage' => $admin,
+
+            'settings.view' => $superAdmin,
+            'settings.manage' => $superAdmin,
 
             'audit_logs.view' => $admin,
             'backup.view' => $admin,
@@ -208,21 +201,20 @@ class MobileAccess
 
         return array_merge(self::profile($user), [
             'permissions' => self::grantedAbilities($user),
+            'is_super_admin' => self::isSuperAdmin($user),
+            'is_admin' => self::isAdmin($user),
             // Kompatibilitas mundur untuk klien lama:
             'can_access_agenda' => $p['letter_logs.view'],
             'can_access_letters' => $p['letters.view'],
             'can_access_skhpp' => $p['skhpp.view'],
             'can_access_categories' => $p['categories.view'],
             'can_access_signature' => $p['signature.view'],
-            'can_access_cash' => $p['cash.view'],
             'can_access_commander' => $p['commander_account.view'],
             'can_access_mitra' => $p['mitra.view'],
-            'can_access_technical_cash' => $p['technical_cash.view'],
-            'can_access_ibu_beti' => self::isAdmin($user) || self::isDeveloper($user) || (bool) $user->can_access_ibu_beti,
             'can_access_violations' => $p['violations.view'],
             'can_access_activities' => $p['activities.view'],
             'can_access_users' => $p['users.view'],
-            'can_access_settings' => self::isAdmin($user),
+            'can_access_settings' => self::isSuperAdmin($user),
         ]);
     }
 }

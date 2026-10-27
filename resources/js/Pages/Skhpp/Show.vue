@@ -118,7 +118,7 @@ const formatDateIndo = (dateStr) => {
                         
                         <!-- Kop Header -->
                         <div class="mb-5 w-[380px] text-center">
-                            <div class="font-normal uppercase text-[12pt] whitespace-nowrap">KOMANDO DAERAH TNI ANGKATAN LAUT V</div>
+                            <div class="font-normal uppercase text-[12pt] whitespace-nowrap">KOMANDO ARMADA II</div>
                             <div class="font-normal uppercase text-[12pt] whitespace-nowrap">DETASEMEN INTELIJEN</div>
                             <div class="border-b-2 border-black w-full mt-0.5"></div>
                         </div>
@@ -305,7 +305,7 @@ const formatDateIndo = (dateStr) => {
                                     <span>pada tanggal</span>
                                     <span>{{ formatDateIndo(skhpp.tanggal_skhpp || skhpp.approved_at || skhpp.created_at) }}</span>
                                 </div>
-                                <div class="font-normal text-center whitespace-nowrap mt-1 leading-snug"> Komandan Detasemen Intelijen Kodaeral V,
+                                <div class="font-normal text-center whitespace-nowrap mt-1 leading-snug"> Komandan Detasemen Intelijen Koarmada 2,
                                 </div>
 
                                 <!-- QR Code Digital Signature -->
@@ -331,7 +331,7 @@ const formatDateIndo = (dateStr) => {
                         <!-- Footer Kepada -->
                         <div class="mt-8 text-[12pt] font-normal">
                             <div>Kepada :</div>
-                            <div class="font-normal border-b border-black inline-block pb-0.5 whitespace-nowrap">Yth. Asintel Dankodaeral V</div>
+                            <div class="font-normal border-b border-black inline-block pb-0.5 whitespace-nowrap">Yth. Asintel Pangkoarmada 2</div>
                         </div>
                     </div>
 
@@ -345,12 +345,12 @@ const formatDateIndo = (dateStr) => {
                             <!-- Header Lampiran (Kop Kiri & Detail Lampiran Kanan) -->
                             <div class="flex justify-between items-start mb-6">
                                 <div class="w-[380px] text-center">
-                                    <div class="text-[12pt] font-normal uppercase leading-tight whitespace-nowrap">KOMANDO DAERAH TNI ANGKATAN LAUT V</div>
+                                    <div class="text-[12pt] font-normal uppercase leading-tight whitespace-nowrap">KOMANDO ARMADA II</div>
                                     <div class="text-[12pt] font-normal uppercase leading-tight whitespace-nowrap">DETASEMEN INTELIJEN</div>
                                     <div class="border-b-2 border-black w-full mt-0.5"></div>
                                 </div>
                                 <div class="text-right text-[11pt] font-normal" style="line-height: 1.3;">
-                                    <div>Lampiran SKHPP Den Intel Kodaeral V</div>
+                                    <div>Lampiran SKHPP Den Intel Koarmada 2</div>
                                     <div class="border-b border-black inline-block pb-0.5">
                                         <span v-if="skhpp.nomor_skhpp">Nomor {{ skhpp.nomor_skhpp }}</span>
                                         <span v-else>Nomor SKHPP/ <span class="px-2">{{ skhpp.nomor_urut || '   ' }}</span> /{{ skhpp.bulan_romawi || 'VIII' }}/{{ skhpp.tahun || '2026' }}</span><br> Tanggal <span class="px-3">{{ formatDateIndo(skhpp.tanggal_skhpp || skhpp.approved_at || skhpp.created_at) }}</span>
@@ -387,7 +387,7 @@ const formatDateIndo = (dateStr) => {
                             <!-- TTD Komandan Lampiran -->
                             <div class="mt-8 flex justify-end text-[12pt]">
                                 <div class="w-[330px] text-center">
-                                    <div class="font-normal text-center whitespace-nowrap leading-snug"> Komandan Detasemen Intelijen Kodaeral V,
+                                    <div class="font-normal text-center whitespace-nowrap leading-snug"> Komandan Detasemen Intelijen Koarmada 2,
                                     </div>
 
                                     <div class="my-2 py-1 text-center">

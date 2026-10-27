@@ -16,7 +16,7 @@ object NotificationHelper {
 
     const val CHANNEL_ID = "sinden_kedinasan_channel"
     const val CHANNEL_NAME = "Warta & Instruksi Kedinasan SINDEN"
-    const val CHANNEL_DESC = "Pemberitahuan resmi dan instruksi komando kedinasan Denintel Kodaeral V"
+    const val CHANNEL_DESC = "Pemberitahuan resmi dan instruksi komando kedinasan Denintel Koarmada 2"
 
     private const val PREFS_NAME = "sinden_notification_prefs"
     private const val PREF_LAST_NOTIFIED_ID = "last_notified_id"

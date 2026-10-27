@@ -216,7 +216,7 @@ const formatMonthName = (bulan, tahun) => {
                                 </span>
                             </div>
                             <p class="text-[11px] text-slate-400 pt-2 font-medium">
-                                Lokasi Dinas: Kantor Sintel / Kantor Tim Intel Kodaeral V (Jl. Stasiun Benteng Ujung Surabaya).
+                                Lokasi Dinas: Kantor Sintel / Kantor Tim Intel Koarmada 2 (Jl. Stasiun Benteng Ujung Surabaya).
                             </p>
                         </div>
                     </div>

@@ -18,7 +18,7 @@ const appLogo = computed(() => {
     return '/storage/uploads/default-logo.jpg'; 
 });
 
-const agencyName = computed(() => props.settings?.agency_name || 'Denintel Kodaeral V');
+const agencyName = computed(() => props.settings?.agency_name || 'Denintel Koarmada 2');
 </script>
 
 <template>

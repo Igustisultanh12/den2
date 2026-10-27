@@ -27,7 +27,7 @@ return new class extends Migration
             $table->foreignId('perwira_tertua_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('perwira_tertua_nama')->nullable(); // e.g. "Kapten Laut (P) Indra Gunawan T.Z"
             $table->string('perwira_tertua_pangkat_nrp')->nullable(); // e.g. "Kapten Laut (P) NRP 19739/P"
-            $table->string('perwira_tertua_jabatan')->nullable(); // e.g. "Dan Unit 1 Lid Den Intel Kodaeral V"
+            $table->string('perwira_tertua_jabatan')->nullable(); // e.g. "Dan Unit 1 Lid Den Intel Koarmada 2"
             $table->integer('total_personel_count')->default(26);
             $table->string('total_personel_terbilang')->default('Dua puluh enam');
 

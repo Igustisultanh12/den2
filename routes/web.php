@@ -20,15 +20,12 @@ use App\Http\Controllers\CommunityActivityController;
 use App\Http\Controllers\StampController;
 use App\Http\Controllers\BackupController; 
 use App\Http\Controllers\BackupShareController;
-use App\Http\Controllers\CashController;
 use App\Http\Controllers\KoperasiController;
 use App\Http\Controllers\PersonnelController;
 use App\Http\Controllers\PESSAdminController; // SULTAN CONFIG: Pangkalan Pemisah Logika Otoritas Kerja Admin PESS
 use App\Http\Controllers\API\PESSReceiverController; // SULTAN CONFIG: Controller Penerima File Lintas VPS
-use App\Http\Controllers\CommanderAccountController; // SINDEN CORRECTION: Kalibrasi typo dari Controkkers ke Controllers
-use App\Http\Controllers\IbuBetiAccountController;
+use App\Http\Controllers\CommanderAccountController;
 use App\Http\Controllers\MitraPaymentController;
-use App\Http\Controllers\TechnicalUnitCashController;
 use App\Http\Controllers\SkhppController;
 use App\Http\Controllers\DocVerificationController;
 use App\Http\Controllers\SpJagaController;
@@ -38,7 +35,6 @@ use App\Http\Controllers\ScSubmissionController;
 use App\Http\Controllers\SystemCheckController;
 use App\Http\Controllers\PrintServiceController;
 use App\Http\Controllers\Chat\LiveChatController;
-use App\Http\Controllers\WhatsAppController;
 use App\Models\User;
 use App\Models\LetterLog;
 use App\Models\Letter;
@@ -78,10 +74,10 @@ Route::get('/tracking-sc/{tracking_code}/preview-pdf', [PublicTrackingController
 // --- AKSES DASHBOARD UTAMA ---
 Route::get('/dashboard', function () {
     $user = auth()->user();
-    if ($user && $user->role !== 'admin') {
+    if ($user && !$user->isAdmin()) {
         $r = strtolower(preg_replace('/[\s_-]+/', '', $user->role ?? ''));
         $j = strtolower($user->jabatan ?? '');
-        if ($r === 'anggotasintel' || str_contains($j, 'anggota sintel')) {
+        if ($r === 'anggotasintel' || $r === 'personelsintel' || str_contains($j, 'anggota sintel') || str_contains($j, 'sintel')) {
             return redirect()->route('sc-submissions.index');
         }
     }
@@ -96,7 +92,7 @@ Route::get('/dashboard', function () {
         $log->nrp = 'ADMIN'; 
         return $log;
     });
-    $combinedActivities = $user->role === 'admin' ? $recentVisitors->concat($recentAudits)->sortByDesc('created_at')->take(5)->values() : null;
+    $combinedActivities = ($user && $user->isAdmin()) ? $recentVisitors->concat($recentAudits)->sortByDesc('created_at')->take(5)->values() : null;
 
     $today = now()->toDateString();
     $todayAttendance = Attendance::where('user_id', $user->id)
@@ -104,7 +100,7 @@ Route::get('/dashboard', function () {
         ->first();
 
     $todayAttendancesCount = Attendance::where('attendance_date', $today)->count();
-    $recentAttendances = in_array(strtolower($user->role), ['admin', 'komandan', 'pasops'])
+    $recentAttendances = in_array(strtolower($user->role), ['super_admin', 'superadmin', 'admin', 'komandan', 'pasops'])
         ? Attendance::with('user')->where('attendance_date', $today)->latest()->take(10)->get()
         : null;
 
@@ -117,7 +113,7 @@ Route::get('/dashboard', function () {
         ],
         'recent_logs' => LetterLog::latest()->take(5)->get(),
         'combined_activities' => $combinedActivities,
-        'pending_users' => $user->role === 'admin' ? User::where('is_active', false)->latest()->take(5)->get() : null,
+        'pending_users' => ($user && $user->isAdmin()) ? User::where('is_active', false)->latest()->take(5)->get() : null,
         'today_attendance' => $todayAttendance,
         'recent_attendances' => $recentAttendances,
     ]);
@@ -232,19 +228,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/live-chat/{uuid}/call/end', [LiveChatController::class, 'endCall'])->name('chat.call.end');
     Route::get('/live-chat/{uuid}/call/agora-token', [LiveChatController::class, 'getAgoraToken'])->name('chat.call.agora-token');
 
-    // --- FITUR WHATSAPP WEB MULTI-AKUN (MULTI-SESSION WA) ---
-    Route::get('/whatsapp-web', [WhatsAppController::class, 'index'])->name('whatsapp.index');
-    Route::post('/whatsapp-web/sessions', [WhatsAppController::class, 'createSession'])->name('whatsapp.sessions.create');
-    Route::get('/whatsapp-web/sessions/{session}/qr', [WhatsAppController::class, 'getQr'])->name('whatsapp.sessions.qr');
-    Route::get('/whatsapp-web/sessions/{session}/status', [WhatsAppController::class, 'getStatus'])->name('whatsapp.sessions.status');
-    Route::post('/whatsapp-web/sessions/{session}/logout', [WhatsAppController::class, 'logoutSession'])->name('whatsapp.sessions.logout');
-    Route::delete('/whatsapp-web/sessions/{session}', [WhatsAppController::class, 'deleteSession'])->name('whatsapp.sessions.delete');
-    Route::get('/whatsapp-web/sessions/{session}/chats', [WhatsAppController::class, 'getChats'])->name('whatsapp.sessions.chats');
-    Route::get('/whatsapp-web/sessions/{session}/calls', [WhatsAppController::class, 'getCalls'])->name('whatsapp.sessions.calls');
-    Route::get('/whatsapp-web/sessions/{session}/chats/{jid}/messages', [WhatsAppController::class, 'getMessages'])->name('whatsapp.sessions.messages');
-    Route::get('/whatsapp-web/sessions/{session}/media/{msgId}', [WhatsAppController::class, 'getMedia'])->name('whatsapp.sessions.media');
-    Route::post('/whatsapp-web/sessions/{session}/send', [WhatsAppController::class, 'sendMessage'])->name('whatsapp.sessions.send');
-
     // PRATINJAU DOKUMEN & MEDIA TEROTENTIKASI (STREAMING DEKRIPSI ON-THE-FLY)
     Route::get('/pc-backup/preview-file/{id}', [BackupController::class, 'previewFile'])->name('backup.preview-file');
     Route::get('/pc-backup/thumbnail/{id}', [BackupController::class, 'thumbnail'])->name('backup.thumbnail');
@@ -344,13 +327,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/simpan-pinjam/early-payoff/{loanId}', [KoperasiController::class, 'earlyPayoff'])->name('simpan-pinjam.early-payoff');
     Route::post('/simpan-pinjam/broadcast-reminders', [KoperasiController::class, 'broadcastReminders'])->name('simpan-pinjam.broadcast-reminders');
     
-    // Modul Keuangan / Cash Buku Kas Detasemen
-    Route::get('/cash', [CashController::class, 'index'])->name('cash.index');
-    Route::post('/cash', [CashController::class, 'store'])->name('cash.store');
-    Route::get('/cash/pdf', [CashController::class, 'exportPdf'])->name('cash.pdf');
-    Route::put('/cash/{id}', [CashController::class, 'update'])->name('cash.update');
-    Route::delete('/cash/{id}', [CashController::class, 'destroy'])->name('cash.destroy');
-    
     // Unduh Rekap Buku Log Surat Berupa Dokumen PDF
     Route::get('/letter-logs/download-pdf', [LetterLogController::class, 'downloadPdf'])->name('letter-logs.pdf');
     
@@ -372,15 +348,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/commander-account/pdf', [CommanderAccountController::class, 'exportPdf'])->name('commander.pdf');
 
     // =========================================================================
-    // MODUL STRATEGIS REKENING IBU BETI
-    // =========================================================================
-    Route::get('/rekening-ibu-beti', [IbuBetiAccountController::class, 'index'])->name('ibu-beti.index');
-    Route::post('/rekening-ibu-beti', [IbuBetiAccountController::class, 'store'])->name('ibu-beti.store');
-    Route::post('/rekening-ibu-beti/{id}', [IbuBetiAccountController::class, 'update'])->name('ibu-beti.update');
-    Route::delete('/rekening-ibu-beti/{id}', [IbuBetiAccountController::class, 'destroy'])->name('ibu-beti.destroy');
-    Route::get('/rekening-ibu-beti/pdf', [IbuBetiAccountController::class, 'exportPdf'])->name('ibu-beti.pdf');
-
-    // =========================================================================
     // MODUL MANAJEMEN PENCATATAN PEMBAYARAN MITRA (MATRIX BULANAN & CETAK PDF)
     // =========================================================================
     Route::get('/mitras', [MitraPaymentController::class, 'index'])->name('mitras.index');
@@ -392,15 +359,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/mitras/{id}/move', [MitraPaymentController::class, 'movePosition'])->name('mitras.move');
 
     // =========================================================================
-    // MODUL MANAJEMEN BUKU KAS DAN UNIT TEKNIS
-    // =========================================================================
-    Route::get('/technical-cash', [TechnicalUnitCashController::class, 'index'])->name('technical-cash.index');
-    Route::post('/technical-cash', [TechnicalUnitCashController::class, 'store'])->name('technical-cash.store');
-    Route::put('/technical-cash/{id}', [TechnicalUnitCashController::class, 'update'])->name('technical-cash.update');
-    Route::delete('/technical-cash/{id}', [TechnicalUnitCashController::class, 'destroy'])->name('technical-cash.destroy');
-
-    // =========================================================================
-    // FITUR KHUSUS ADMIN (OTORITAS TINGGI MONEV)
+    // FITUR KHUSUS ADMIN (OTORITAS TINGGI MONEV & MANAJEMEN PENGGUNA)
     // =========================================================================
     Route::middleware(['role:admin'])->group(function () {
         Route::post('/signature-requests/clear-all', [SignatureRequestController::class, 'clearAll'])->name('signature.clear-all');
@@ -417,36 +376,45 @@ Route::middleware('auth')->group(function () {
         Route::post('/users/{user}/change-password', [UserController::class, 'changePassword'])->name('users.change-password');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
         Route::post('/users/{id}/toggle-mitra-access', [MitraPaymentController::class, 'toggleUserAccess'])->name('users.toggle-mitra-access');
-        Route::post('/users/{id}/toggle-technical-cash-access', [TechnicalUnitCashController::class, 'toggleUserAccess'])->name('users.toggle-technical-cash-access');
         Route::post('/users/{user}/toggle-koperasi-access', [UserController::class, 'toggleKoperasiAccess'])->name('users.toggle-koperasi-access');
-        Route::post('/users/{user}/toggle-ibu-beti-access', [UserController::class, 'toggleIbuBetiAccess'])->name('users.toggle-ibu-beti-access');
         Route::post('/users/{user}/toggle-mfa', [UserController::class, 'toggleMfa'])->name('users.toggle-mfa');
 
-        // Kategori Arsip Surat Mako V
+        // Kategori Arsip Surat Mako Koarmada 2
         Route::resource('categories', CategoryController::class);
         Route::post('/categories/{category}/sub', [CategoryController::class, 'storeSub'])->name('categories.storeSub');
         Route::delete('/sub-categories/{subCategory}', [CategoryController::class, 'destroySub'])->name('sub-categories.destroy');
 
-        // Monitoring Sistem & Audit Logs Aktivitas Admin
-        Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
-        Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
-        Route::post('/settings/update-stamp', [SettingController::class, 'updateStamp'])->name('settings.update-stamp');
+        // Monitoring Log Pengunjung & Audit Aktivitas
         Route::get('/visitor-logs', [VisitorLogController::class, 'index'])->name('visitor-logs.index');
         Route::match(['delete', 'post'], '/visitor-logs/clear', [VisitorLogController::class, 'clearAll'])->name('visitor-logs.clear');
         Route::delete('/visitor-logs/{id}', [VisitorLogController::class, 'destroy'])->name('visitor-logs.destroy');
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
-        
-        // Cek Sistem & Monitoring Server Admin (Speedtest, Disk, CPU, RAM, VRAM)
-        Route::get('/admin/system-check', [SystemCheckController::class, 'index'])->name('system-check.index');
-        Route::get('/admin/system-check/metrics', [SystemCheckController::class, 'getMetrics'])->name('system-check.metrics');
-        Route::post('/admin/system-check/speedtest', [SystemCheckController::class, 'runSpeedtest'])->name('system-check.speedtest');
-        
+
         // Rencana Kegiatan Pengamanan Aktivitas Masyarakat
         Route::get('/community-activities', [CommunityActivityController::class, 'index'])->name('activities.index');
         Route::post('/community-activities', [CommunityActivityController::class, 'store'])->name('activities.store');
         Route::get('/community-activities/{id}', [CommunityActivityController::class, 'show'])->name('activities.show');
         Route::delete('/community-activities/{id}', [CommunityActivityController::class, 'destroy'])->name('activities.destroy');
         Route::put('/community-activities/{id}', [CommunityActivityController::class, 'update'])->name('activities.update');
+
+        // Fitur khusus Admin: Atur/Loncati nomor urut SKHPP & Ajukan TTE Ulang
+        Route::post('/skhpp/{id}/update-number', [SkhppController::class, 'updateNumber'])->name('skhpp.update-number');
+        Route::post('/skhpp/{id}/resubmit-tte', [SkhppController::class, 'reSubmitTte'])->name('skhpp.resubmit-tte');
+    });
+
+    // =========================================================================
+    // FITUR KHUSUS SUPER ADMIN (SISTEM, SETTING WA GATEWAY, API & PENGATURAN)
+    // =========================================================================
+    Route::middleware(['role:super_admin'])->group(function () {
+        // Pengaturan Sistem & Konfigurasi Aplikasi / API
+        Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
+        Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
+        Route::post('/settings/update-stamp', [SettingController::class, 'updateStamp'])->name('settings.update-stamp');
+
+        // Cek Sistem & Monitoring Server Admin (Speedtest, Disk, CPU, RAM, VRAM)
+        Route::get('/admin/system-check', [SystemCheckController::class, 'index'])->name('system-check.index');
+        Route::get('/admin/system-check/metrics', [SystemCheckController::class, 'getMetrics'])->name('system-check.metrics');
+        Route::post('/admin/system-check/speedtest', [SystemCheckController::class, 'runSpeedtest'])->name('system-check.speedtest');
 
         // Jalur MFA WhatsApp Gateway Engine Lokal (Port 3000)
         Route::get('/admin/setting/wa-status', function () {
@@ -461,10 +429,6 @@ Route::middleware('auth')->group(function () {
                 ], 500);
             }
         })->name('settings.wa-status');
-
-        // Fitur khusus Admin: Atur/Loncati nomor urut SKHPP & Ajukan TTE Ulang
-        Route::post('/skhpp/{id}/update-number', [SkhppController::class, 'updateNumber'])->name('skhpp.update-number');
-        Route::post('/skhpp/{id}/resubmit-tte', [SkhppController::class, 'reSubmitTte'])->name('skhpp.resubmit-tte');
     });
 
     // =====================================================================
@@ -540,4 +504,4 @@ Route::get('/admin/laravel-logs', function () {
     }
     $lines = array_slice(explode("\n", (string) file_get_contents($logFile)), -300);
     return response(implode("\n", $lines), 200, ['Content-Type' => 'text/plain; charset=utf-8']);
-})->middleware(['auth', 'role:admin'])->name('admin.laravel-logs');
+})->middleware(['auth', 'role:super_admin'])->name('admin.laravel-logs');

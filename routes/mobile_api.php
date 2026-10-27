@@ -188,7 +188,7 @@ Route::get('/api/mobile/config', function () {
     return response()->json([
         'status' => 'success',
         'app_name' => $settings['agency_name'] ?? 'SI SINDEN',
-        'agency_name' => $settings['agency_name'] ?? 'DETASEMEN INTELIJEN KODAERAL V',
+        'agency_name' => $settings['agency_name'] ?? 'DETASEMEN INTELIJEN KOARMADA 2',
         'agency_logo' => $logoUrl,
         'login_background' => $bgUrl,
         'api_base_url' => $settings['mobile_api_base_url'] ?? config('app.url', 'https://sisinden.my.id'),
@@ -270,7 +270,7 @@ Route::get('/api/mobile/verify-signature', function (Request $request) {
                 'number' => $sig->letter_number ?? '-',
                 'person_name' => $sig->person_name ?: ($applicant?->name ?? '-'),
                 'pangkat_nrp' => $sig->pangkat_nrp ?: trim(($applicant?->pangkat ?? '') . ' ' . ($applicant?->nrp ? 'NRP ' . $applicant->nrp : '')),
-                'signed_by' => 'KOMANDAN DETASEMEN INTELIJEN KODAERAL V',
+                'signed_by' => 'KOMANDAN DETASEMEN INTELIJEN KOARMADA 2',
                 'signed_at' => optional($sig->approved_at ? \Carbon\Carbon::parse($sig->approved_at) : null)->format('d/m/Y H:i:s'),
                 'verification_code' => $sig->verification_code,
                 'message' => $isValid ? 'DOKUMEN RESMI DINAS ASLI & TERVERIFIKASI' : 'DOKUMEN DITEMUKAN TETAPI BELUM DISAHKAN',
@@ -288,7 +288,7 @@ Route::get('/api/mobile/verify-signature', function (Request $request) {
                 'number' => $skhpp->nomor_skhpp ?? "SKHPP-{$skhpp->id}",
                 'person_name' => $skhpp->nama,
                 'pangkat_nrp' => $skhpp->pangkat_korps_nrp ?? '-',
-                'signed_by' => 'KOMANDAN DETASEMEN INTELIJEN KODAERAL V',
+                'signed_by' => 'KOMANDAN DETASEMEN INTELIJEN KOARMADA 2',
                 'signed_at' => $skhpp->approved_at ? \Carbon\Carbon::parse($skhpp->approved_at)->format('d/m/Y H:i:s') : null,
                 'verification_code' => $skhpp->verification_code,
                 'message' => $isValid ? 'DOKUMEN SKHPP ASLI & TERVERIFIKASI' : 'DOKUMEN SKHPP MASIH DALAM PROSES PENELITIAN',
@@ -315,7 +315,6 @@ Route::get('/api/mobile/dashboard', [MobileApiController::class, 'dashboard'])->
 
 Route::get('/api/mobile/duty-roster', [MobileApiController::class, 'dutyRoster'])->middleware('mobile.auth:duty_roster.view');
 Route::get('/api/mobile/pdf/sp-jaga/{id}', [MobileApiController::class, 'dutyRosterPdf'])->whereNumber('id')->middleware('mobile.auth:duty_roster.pdf');
-Route::get('/api/mobile/pdf/cash', [MobileApiController::class, 'cashPdf'])->middleware('mobile.auth:cash.pdf');
 Route::get('/api/mobile/pdf/letter-logs', [MobileApiController::class, 'letterLogsPdf'])->middleware('mobile.auth:letter_logs.pdf');
 Route::get('/api/mobile/pdf/skhpp/{id}', [MobileApiController::class, 'skhppPdf'])->whereNumber('id')->middleware('mobile.auth:skhpp.pdf');
 Route::get('/api/mobile/pdf/commander-account', [MobileApiController::class, 'commanderAccountPdf'])->middleware('mobile.auth:commander_account.pdf');
@@ -323,126 +322,6 @@ Route::get('/api/mobile/pdf/commander-account', [MobileApiController::class, 'co
 Route::get('/api/mobile/notifications', [MobileApiController::class, 'notifications'])->middleware('mobile.auth:notifications.view');
 Route::post('/api/mobile/notifications/read-all', [MobileApiController::class, 'markAllNotificationsRead'])->middleware('mobile.auth:notifications.view');
 Route::post('/api/mobile/notifications/{id}/read', [MobileApiController::class, 'markNotificationRead'])->whereNumber('id')->middleware('mobile.auth:notifications.view');
-
-// =====================================================================
-// 1. BUKU KAS UNIT (App\Models\Cash)
-// =====================================================================
-Route::get('/api/mobile/cash', function () {
-    try {
-        $allCashes = \App\Models\Cash::orderBy('date', 'asc')->orderBy('id', 'asc')->get();
-        $totalSaldo = (float) ($allCashes->last()?->balance ?? 0);
-        $totalDebit = (float) $allCashes->sum('debit');
-        $totalCredit = (float) $allCashes->sum('credit');
-
-        $cashes = $allCashes->map(function ($cash) {
-            $urls = [];
-            $rawPath = $cash->receipt_path;
-            if (!empty($rawPath)) {
-                $decoded = is_array($rawPath) ? $rawPath : json_decode($rawPath, true);
-                if (is_array($decoded)) {
-                    foreach ($decoded as $path) {
-                        if (!empty($path)) $urls[] = asset('storage/' . $path);
-                    }
-                } else {
-                    $urls[] = asset('storage/' . $rawPath);
-                }
-            }
-            return [
-                'id' => $cash->id,
-                'date' => substr((string) ($cash->getRawOriginal('date') ?? $cash->date), 0, 10),
-                'description' => $cash->description ?? '-',
-                'debit' => (float) ($cash->debit ?? 0),
-                'credit' => (float) ($cash->credit ?? 0),
-                'balance' => (float) ($cash->balance ?? 0),
-                'receipt_urls' => $urls,
-            ];
-        });
-
-        $reversed = $cashes->reverse()->values();
-
-        return response()->json([
-            'status' => 'success',
-            'balance' => $totalSaldo,
-            'totalSaldo' => $totalSaldo,
-            'total_balance' => $totalSaldo,
-            'total_income' => $totalDebit,
-            'total_expense' => $totalCredit,
-            'total_debit' => $totalDebit,
-            'total_credit' => $totalCredit,
-            'cashes' => $reversed,
-            'transactions' => $reversed,
-            'data' => $reversed,
-        ]);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal memuat buku kas.');
-    }
-})->middleware('mobile.auth:cash.view');
-
-$cashRules = [
-    'date' => 'required|date',
-    'description' => 'required|string|max:500',
-    'type' => 'nullable|in:masuk,keluar,debit,kredit,credit',
-    'amount' => 'nullable|numeric|min:0',
-    'debit' => 'nullable|numeric|min:0',
-    'credit' => 'nullable|numeric|min:0',
-];
-
-Route::post('/api/mobile/cash', function (Request $request) use ($cashRules) {
-    try {
-        $data = mobile_payload($request);
-        $v = Validator::make($data, $cashRules);
-        if ($v->fails()) return mobile_validation_error($v);
-        [$debit, $credit] = mobile_debit_credit($data, 'masuk');
-        if ($debit <= 0 && $credit <= 0) {
-            return response()->json(['status' => 'error', 'message' => 'Nominal transaksi harus lebih dari 0.'], 422);
-        }
-
-        $cash = \App\Models\Cash::create([
-            'date' => substr((string) $data['date'], 0, 10),
-            'description' => $data['description'],
-            'debit' => $debit,
-            'credit' => $credit,
-            'balance' => 0.0,
-        ]);
-        mobile_recalculate_balances(\App\Models\Cash::class);
-
-        return response()->json(['status' => 'success', 'message' => 'Transaksi kas tersimpan.', 'data' => $cash->fresh()]);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal menyimpan transaksi kas.');
-    }
-})->middleware('mobile.auth:cash.manage');
-
-Route::put('/api/mobile/cash/{id}', function (Request $request, $id) use ($cashRules) {
-    try {
-        $cash = \App\Models\Cash::findOrFail($id);
-        $data = mobile_payload($request);
-        $v = Validator::make($data, array_merge($cashRules, ['date' => 'nullable|date', 'description' => 'nullable|string|max:500']));
-        if ($v->fails()) return mobile_validation_error($v);
-        [$debit, $credit] = mobile_debit_credit($data, $cash->debit > 0 ? 'masuk' : 'keluar', (float) $cash->debit, (float) $cash->credit, true);
-
-        $cash->update([
-            'date' => isset($data['date']) ? substr((string) $data['date'], 0, 10) : $cash->date,
-            'description' => $data['description'] ?? $cash->description,
-            'debit' => $debit,
-            'credit' => $credit,
-        ]);
-        mobile_recalculate_balances(\App\Models\Cash::class);
-
-        return response()->json(['status' => 'success', 'message' => 'Transaksi kas diperbarui.', 'data' => $cash->fresh()]);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal memperbarui transaksi kas.');
-    }
-})->middleware('mobile.auth:cash.manage');
-
-Route::delete('/api/mobile/cash/{id}', function ($id) {
-    try {
-        \App\Models\Cash::findOrFail($id)->delete();
-        mobile_recalculate_balances(\App\Models\Cash::class);
-        return response()->json(['status' => 'success', 'message' => 'Data kas berhasil dihapus']);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal menghapus transaksi kas.');
-    }
-})->middleware('mobile.auth:cash.manage');
 
 // =====================================================================
 // 2. AGENDA SURAT (App\Models\LetterLog)
@@ -580,7 +459,7 @@ Route::get('/api/mobile/skhpp', function (Request $request) {
                 'nama' => $s->nama ?? '-',
                 'pangkat_korps_nrp' => $s->pangkat_korps_nrp ?? '-',
                 'jabatan' => $s->jabatan_pekerjaan ?? '-',
-                'kesatuan' => 'Denintel Kodaeral V',
+                'kesatuan' => 'Denintel Koarmada 2',
                 'peruntukan' => $s->peruntukan ?? '-',
                 'kategori' => $s->kategori_personel ?? 'militer',
                 'status' => strtoupper($s->status ?? 'PENDING'),
@@ -952,8 +831,6 @@ Route::get('/api/mobile/users', function () {
             'phone' => $u->phone,
             'is_active' => (bool) ($u->is_active ?? false),
             'can_access_mitra' => (bool) ($u->can_access_mitra ?? false),
-            'can_access_technical_cash' => (bool) ($u->can_access_technical_cash ?? false),
-            'can_access_ibu_beti' => (bool) ($u->can_access_ibu_beti ?? false),
         ]);
         return response()->json(['status' => 'success', 'data' => $users, 'users' => $users]);
     } catch (\Throwable $e) {
@@ -1139,97 +1016,7 @@ Route::get('/api/mobile/audit-logs', function () {
 })->middleware('mobile.auth:audit_logs.view');
 
 // =====================================================================
-// 12. KAS DAN UNIT TEKNIS (App\Models\TechnicalUnitCash)
-// =====================================================================
-Route::get('/api/mobile/technical-cash', function () {
-    try {
-        $all = \App\Models\TechnicalUnitCash::orderBy('date', 'asc')->orderBy('id', 'asc')->get();
-        $balance = (float) ($all->last()?->balance ?? 0);
-        $totalDebit = (float) $all->sum('debit');
-        $totalCredit = (float) $all->sum('credit');
-
-        $reversed = $all->map(fn ($cash) => [
-            'id' => $cash->id,
-            'date' => substr((string) ($cash->getRawOriginal('date') ?? $cash->date), 0, 10),
-            'description' => $cash->description ?? '-',
-            'debit' => (float) ($cash->debit ?? 0),
-            'credit' => (float) ($cash->credit ?? 0),
-            'balance' => (float) ($cash->balance ?? 0),
-        ])->reverse()->values();
-
-        return response()->json([
-            'status' => 'success',
-            'balance' => $balance,
-            'totalSaldo' => $balance,
-            'total_balance' => $balance,
-            'total_income' => $totalDebit,
-            'total_expense' => $totalCredit,
-            'total_debit' => $totalDebit,
-            'total_credit' => $totalCredit,
-            'cashes' => $reversed,
-            'transactions' => $reversed,
-            'data' => $reversed,
-        ]);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal memuat kas unit teknis.');
-    }
-})->middleware('mobile.auth:technical_cash.view');
-
-Route::post('/api/mobile/technical-cash', function (Request $request) use ($cashRules) {
-    try {
-        $data = mobile_payload($request);
-        $v = Validator::make($data, $cashRules);
-        if ($v->fails()) return mobile_validation_error($v);
-        [$debit, $credit] = mobile_debit_credit($data, 'keluar');
-        if ($debit <= 0 && $credit <= 0) {
-            return response()->json(['status' => 'error', 'message' => 'Nominal transaksi harus lebih dari 0.'], 422);
-        }
-        $cash = \App\Models\TechnicalUnitCash::create([
-            'date' => substr((string) $data['date'], 0, 10),
-            'description' => $data['description'],
-            'debit' => $debit,
-            'credit' => $credit,
-            'balance' => 0.0,
-        ]);
-        mobile_recalculate_balances(\App\Models\TechnicalUnitCash::class);
-        return response()->json(['status' => 'success', 'message' => 'Transaksi tersimpan.', 'data' => $cash->fresh()]);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal menyimpan transaksi kas unit teknis.');
-    }
-})->middleware('mobile.auth:technical_cash.manage');
-
-Route::put('/api/mobile/technical-cash/{id}', function (Request $request, $id) use ($cashRules) {
-    try {
-        $cash = \App\Models\TechnicalUnitCash::findOrFail($id);
-        $data = mobile_payload($request);
-        $v = Validator::make($data, array_merge($cashRules, ['date' => 'nullable|date', 'description' => 'nullable|string|max:500']));
-        if ($v->fails()) return mobile_validation_error($v);
-        [$debit, $credit] = mobile_debit_credit($data, $cash->debit > 0 ? 'masuk' : 'keluar', (float) $cash->debit, (float) $cash->credit, true);
-        $cash->update([
-            'date' => isset($data['date']) ? substr((string) $data['date'], 0, 10) : $cash->date,
-            'description' => $data['description'] ?? $cash->description,
-            'debit' => $debit,
-            'credit' => $credit,
-        ]);
-        mobile_recalculate_balances(\App\Models\TechnicalUnitCash::class);
-        return response()->json(['status' => 'success', 'message' => 'Transaksi diperbarui.', 'data' => $cash->fresh()]);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal memperbarui transaksi kas unit teknis.');
-    }
-})->middleware('mobile.auth:technical_cash.manage');
-
-Route::delete('/api/mobile/technical-cash/{id}', function ($id) {
-    try {
-        \App\Models\TechnicalUnitCash::findOrFail($id)->delete();
-        mobile_recalculate_balances(\App\Models\TechnicalUnitCash::class);
-        return response()->json(['status' => 'success', 'message' => 'Kas Dan Unit Teknis berhasil dihapus']);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal menghapus transaksi kas unit teknis.');
-    }
-})->middleware('mobile.auth:technical_cash.manage');
-
-// =====================================================================
-// 13. BACKUP (ringkasan Admin) & PENGAJUAN AKSES
+// 12. BACKUP (ringkasan Admin) & PENGAJUAN AKSES
 // =====================================================================
 Route::get('/api/mobile/backup', function () {
     try {

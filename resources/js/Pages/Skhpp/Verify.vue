@@ -66,13 +66,13 @@ const formatDateIndo = (dateStr) => {
               {{ appName }} DETASEMEN INTELIJEN
             </h2>
             <p class="text-xs leading-relaxed max-w-md mx-auto text-slate-300 font-medium">
-              Portal Otentikasi & Verifikasi Keabsahan Dokumen Resmi Surat Keterangan Hasil Penelitian Personel (SKHPP) Komando Daerah TNI Angkatan Laut V.
+              Portal Otentikasi & Verifikasi Keabsahan Dokumen Resmi Surat Keterangan Hasil Penelitian Personel (SKHPP) KOMANDO ARMADA II.
             </p>
           </div>
         </div>
 
         <p class="text-xs text-slate-400 text-center font-medium">
-          © {{ new Date().getFullYear() }} {{ appName }}. Detasemen Intelijen Komando Daerah TNI Angkatan Laut V. All Rights Reserved.
+          © {{ new Date().getFullYear() }} {{ appName }}. Detasemen Intelijen KOMANDO ARMADA II. All Rights Reserved.
         </p>
       </div>
 
@@ -99,7 +99,7 @@ const formatDateIndo = (dateStr) => {
               </div>
               <h3 class="text-base font-extrabold tracking-tight uppercase text-emerald-300">DOKUMEN RESMI TERVERIFIKASI & SAH</h3>
               <p class="text-xs leading-relaxed opacity-90">
-                Surat Keterangan Hasil Penelitian Personel Ini Sah Ditandatangani Komandan Detasemen Intelijen Kodaeral V secara Digital.
+                Surat Keterangan Hasil Penelitian Personel Ini Sah Ditandatangani Komandan Detasemen Intelijen Koarmada 2 secara Digital.
               </p>
             </div>
 
@@ -120,7 +120,7 @@ const formatDateIndo = (dateStr) => {
                 <!-- 1: Judul Dokumen -->
                 <div class="p-3 rounded-xl border border-white/10 bg-white/5 space-y-0.5">
                   <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Judul Dokumen Resmi</span>
-                  <p class="text-xs font-bold text-white uppercase leading-snug">{{ skhpp.document_title || 'SKHPP DENINTEL KODAERAL V' }}</p>
+                  <p class="text-xs font-bold text-white uppercase leading-snug">{{ skhpp.document_title || 'SKHPP DENINTEL Koarmada 2' }}</p>
                   <p v-if="skhpp.kategori_personel === 'perusahaan'" class="text-[9px] font-bold text-blue-400 uppercase">MITRA KERJA TNI AL</p>
                 </div>
 
@@ -170,7 +170,7 @@ const formatDateIndo = (dateStr) => {
                   <div>
                     <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Pejabat Penandatangan (TTE)</span>
                     <p class="text-xs font-bold text-white">{{ skhpp.signer_name || 'Hari Bagio Wijayanto, M.Tr.Opsla.' }}</p>
-                    <p class="text-[10px] text-slate-300">{{ skhpp.signer_title || 'Komandan Detasemen Intelijen Kodaeral V - Kolonel Laut (E) NRP 16085/P' }}</p>
+                    <p class="text-[10px] text-slate-300">{{ skhpp.signer_title || 'Komandan Detasemen Intelijen Koarmada 2 - Kolonel Laut (E) NRP 16085/P' }}</p>
                   </div>
                   <div class="text-emerald-400 shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 stroke-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -207,7 +207,7 @@ const formatDateIndo = (dateStr) => {
               </div>
               <h3 class="text-lg font-extrabold tracking-tight uppercase text-red-300">DOKUMEN TIDAK TERDAFTAR</h3>
               <p class="text-xs leading-relaxed">
-                Kode verifikasi tidak ditemukan pada basis data resmi SINDEN Detasemen Intelijen Kodaeral V.
+                Kode verifikasi tidak ditemukan pada basis data resmi SINDEN Detasemen Intelijen Koarmada 2.
               </p>
             </div>
           </div>

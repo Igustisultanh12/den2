@@ -86,7 +86,7 @@ class DocVerificationController extends Controller
             $danunitPangkat = $danunitUser?->pangkat ?? 'Kapten Laut (P)';
             $danunitNama = $danunitUser?->name ?? 'Indra Gunawan T.Z';
             $danunitNrp = $danunitUser?->nrp ? 'NRP ' . $danunitUser->nrp : 'NRP 19739/P';
-            $danunitJabatan = 'Dan Unit 1 Lid / Denintel Kodaeral V';
+            $danunitJabatan = 'Dan Unit 1 Lid / Denintel Koarmada 2';
 
             // Ambil Data Pejabat Penandatangan Pasops / Pasiops
             $pasopsUser = User::where('role', 'pasops')->first()
@@ -112,14 +112,14 @@ class DocVerificationController extends Controller
                 'document_title' => 'SURAT PERINTAH DINAS JAGA SIAGA SINTEL',
                 'letter_number' => $spJaga->nomor_sprin,
                 'subject' => "Dinas Jaga Siaga Sintel Bulan {$namaBulanTahun}",
-                'peruntukan' => "Pelaksanaan Tugas Jaga Siaga Sintel Denintel Kodaeral V Periode Bulan {$namaBulanTahun}",
+                'peruntukan' => "Pelaksanaan Tugas Jaga Siaga Sintel Denintel Koarmada 2 Periode Bulan {$namaBulanTahun}",
                 'nama' => "$danunitNama dkk (" . ($spJaga->total_personel_count ?: '27') . " Personel)",
                 'pangkat_korps_nrp' => "$danunitPangkat / $danunitNrp",
                 'jabatan_pekerjaan' => $danunitJabatan,
                 'tanggal_dokumen' => $spJaga->approved_at ?: $spJaga->tanggal_surat,
                 'status' => ($spJaga->status === 'published') ? 'approved' : 'pending',
                 'is_valid' => ($spJaga->status === 'published'),
-                'signer_name' => "a.n. KOMANDAN DETASEMEN INTELIJEN KODAERAL V",
+                'signer_name' => "a.n. KOMANDAN DETASEMEN INTELIJEN KOARMADA 2",
                 'signer_title' => "Pasiops - {$pRankNrp} {$pName}",
             ];
 
@@ -160,14 +160,14 @@ class DocVerificationController extends Controller
             $cNrp = ($komandan?->nrp && $komandan->nrp !== '00000000000000') ? $komandan->nrp : '16085/P';
 
             $signerName = strtoupper($cName);
-            $signerTitle = "Komandan Detasemen Intelijen Kodaeral V - {$cRank} NRP {$cNrp}";
+            $signerTitle = "Komandan Detasemen Intelijen Koarmada 2 - {$cRank} NRP {$cNrp}";
         } else {
             $aUser = $approverUser ?: ($sigReq?->user ?: auth()->user());
             $aName = $aUser?->name ?? 'Administrator SINDEN';
             $aRank = $aUser?->pangkat ?? 'Letnan Dua Laut (KC)';
             $aNrp = ($aUser?->nrp && $aUser->nrp !== '00000000000000') ? $aUser->nrp : '12000018012200216';
 
-            $signerName = "a.n. KOMANDAN DETASEMEN INTELIJEN KODAERAL V";
+            $signerName = "a.n. KOMANDAN DETASEMEN INTELIJEN KOARMADA 2";
             $signerTitle = "{$aRank} {$aName} NRP {$aNrp}";
         }
 
@@ -186,7 +186,7 @@ class DocVerificationController extends Controller
                 $applicantUser = $sigReq->user ?: ($sigReq->user_id ? User::find($sigReq->user_id) : null);
             }
 
-            $applicantName = $sigReq->person_name ?: ($applicantUser?->name ?? 'Personel Denintel Kodaeral V');
+            $applicantName = $sigReq->person_name ?: ($applicantUser?->name ?? 'Personel Denintel Koarmada 2');
             $applicantRank = $applicantUser?->pangkat ?: 'Prajurit TNI AL';
             $applicantNrp = ($applicantUser?->nrp && $applicantUser->nrp !== '00000000000000') ? $applicantUser->nrp : ($applicantUser?->username ?? '-');
             
@@ -204,7 +204,7 @@ class DocVerificationController extends Controller
             } else {
                 $applicantPosition = str_contains(strtolower($userJabatanName), 'denintel') 
                                    ? $userJabatanName 
-                                   : ($userJabatanName . ' / Denintel Kodaeral V');
+                                   : ($userJabatanName . ' / Denintel Koarmada 2');
             }
 
             $signedDate = $sigReq->approved_at ?: $sigReq->updated_at;

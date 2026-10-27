@@ -74,7 +74,7 @@ class PdfPreviewScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8),
                       ),
                       const Text(
-                        'DETASEMEN INTELIJEN KODAERAL V',
+                        'DETASEMEN INTELIJEN Koarmada 2',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.0, color: AppTheme.primaryNavy),
                       ),
@@ -146,7 +146,7 @@ class PdfPreviewScreen extends StatelessWidget {
                 // Isi Naskah Dinas
                 Text(
                   contentText ??
-                      '1. Dasar:\n    a. Program Kerja dan Anggaran Detasemen Intelijen Kodaeral V TA 2026.\n    b. Petunjuk Perintah Komando Atas terkait Administrasi Kedinasan Terpadu.\n\n2. Sehubungan dengan dasar tersebut di atas, disampaikan kepada alamat tujuan naskah dinas resmi ini untuk diketahui, dipedomani, dan dilaksanakan sebagaimana mestinya.\n\n3. Demikian naskah dinas ini dibuat untuk dapat dipergunakan sebagaimana mestinya.',
+                      '1. Dasar:\n    a. Program Kerja dan Anggaran Detasemen Intelijen Koarmada 2 TA 2026.\n    b. Petunjuk Perintah Komando Atas terkait Administrasi Kedinasan Terpadu.\n\n2. Sehubungan dengan dasar tersebut di atas, disampaikan kepada alamat tujuan naskah dinas resmi ini untuk diketahui, dipedomani, dan dilaksanakan sebagaimana mestinya.\n\n3. Demikian naskah dinas ini dibuat untuk dapat dipergunakan sebagaimana mestinya.',
                   style: const TextStyle(fontSize: 11, height: 1.6, color: Color(0xFF0F172A)),
                 ),
                 const SizedBox(height: 32),

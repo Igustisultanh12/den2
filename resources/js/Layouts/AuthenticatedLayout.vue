@@ -12,13 +12,20 @@ const page = usePage();
  * Data Pengaturan & Identitas Personel
  */
 const settings = computed(() => page.props.settings || {});
-const agencyName = computed(() => settings.value.agency_name || 'DENINTEL KODAERAL V');
+const agencyName = computed(() => settings.value.agency_name || 'DENINTEL KOARMADA 2');
 const appLogo = computed(() => {
     const logo = settings.value.agency_logo || settings.value.logo;
     if (!logo) return null;
     return (logo.startsWith('http') || logo.startsWith('/storage')) ? logo : '/storage/' + logo;
 });
-const isAdmin = computed(() => page.props.auth.user.role === 'admin');
+const isSuperAdmin = computed(() => {
+    const r = (page.props.auth.user?.role || '').toLowerCase().replace(/[\s_-]+/g, '');
+    return r === 'superadmin' || Boolean(page.props.auth.user?.is_super_admin);
+});
+const isAdmin = computed(() => {
+    const r = (page.props.auth.user?.role || '').toLowerCase().replace(/[\s_-]+/g, '');
+    return isSuperAdmin.value || r === 'admin' || Boolean(page.props.auth.user?.is_admin);
+});
 const user = computed(() => page.props.auth.user);
 
 const commandPaletteRef = ref(null);
@@ -112,39 +119,23 @@ const markAllRead = async () => {
 /**
  * OTORITAS KAS & REKENING KOMANDAN
  */
-const canAccessCash = computed(() => {
-    return isAdmin.value || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom' || user.value.name === 'Suma Nurhasanah';
-});
-
 const canAccessCommanderAccount = computed(() => {
     return isAdmin.value || user.value.name === 'Suma Nurhasanah' || user.value.role === 'komandan' || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom';
-});
-
-const canAccessIbuBeti = computed(() => {
-    return isAdmin.value || Boolean(user.value.can_access_ibu_beti) || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom';
 });
 
 const canAccessMitra = computed(() => {
     return isAdmin.value || Boolean(user.value.can_access_mitra) || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom';
 });
 
-const isDanUnitTeknis = computed(() => {
-    return user.value.role === 'danunitteknis' || user.value.role === 'DAN UNIT TEKNIS' || user.value.role === 'dan unit teknis';
-});
-
 const canManageKoperasi = computed(() => {
     return isAdmin.value || Boolean(user.value.can_manage_koperasi) || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom';
-});
-
-const canAccessTechnicalCash = computed(() => {
-    return isAdmin.value || isDanUnitTeknis.value || Boolean(user.value.can_access_technical_cash) || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom';
 });
 
 const isAnggotaSintel = computed(() => {
     if (isAdmin.value) return false;
     const r = (user.value?.role || '').toLowerCase().replace(/[\s_-]+/g, '');
     const j = (user.value?.jabatan || '').toLowerCase();
-    return r === 'anggotasintel' || j.includes('anggota sintel');
+    return r === 'anggotasintel' || r === 'personelsintel' || j.includes('sintel');
 });
 
 const isMobileMenuOpen = ref(false);
@@ -221,19 +212,6 @@ onUnmounted(() => {
                                 <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
                                 <span class="flex-1">Komunikasi & VC</span>
                                 <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-lg uppercase tracking-wider">Vicon</span>
-                            </Link>
-
-                            <Link 
-                                :href="route('whatsapp.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('whatsapp.*') ? 'bg-emerald-500/10 text-emerald-600 font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
-                                class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 10-7.8-4.5L3 21l4.7-1.2A8.96 8.96 0 0012 21z"></path>
-                                </svg>
-                                <span class="flex-1">WhatsApp Web</span>
-                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-lg uppercase tracking-wider">Multi</span>
                             </Link>
                         </div>
 
@@ -355,16 +333,6 @@ onUnmounted(() => {
 
                             
                             <Link 
-                                v-if="canAccessCash"
-                                :href="route('cash.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('cash.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                <span>Buku Kas Unit</span>
-                            </Link>
-
-                            <Link 
                                 v-if="canAccessCommanderAccount"
                                 :href="route('commander.index')" 
                                 @click="isMobileMenuOpen = false"
@@ -375,17 +343,7 @@ onUnmounted(() => {
                             </Link>
 
                             <Link 
-                                v-if="canAccessIbuBeti"
-                                :href="route('ibu-beti.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('ibu-beti.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-pink-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                                <span>Rekening Ibu Beti</span>
-                            </Link>
-
-                            <Link 
-                                v-if="canAccessMitra && (!isDanUnitTeknis || isAdmin)"
+                                v-if="canAccessMitra"
                                 :href="route('mitras.index')" 
                                 @click="isMobileMenuOpen = false"
                                 :class="route().current('mitras.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
@@ -395,17 +353,7 @@ onUnmounted(() => {
                             </Link>
 
                             <Link 
-                                v-if="canAccessTechnicalCash"
-                                :href="route('technical-cash.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('technical-cash.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-cyan-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                <span>Buku Kas Dan Unit Teknis</span>
-                            </Link>
-
-                            <Link 
-                                v-if="!isDanUnitTeknis || isAdmin"
+                                v-if="isAdmin"
                                 :href="route('backup.index')" 
                                 @click="isMobileMenuOpen = false"
                                 :class="route().current('backup.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
@@ -462,7 +410,7 @@ onUnmounted(() => {
                             </Link>
 
                             <Link 
-                                v-if="isAdmin"
+                                v-if="isSuperAdmin"
                                 :href="route('system-check.index')" 
                                 @click="isMobileMenuOpen = false"
                                 :class="route().current('system-check.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
@@ -472,7 +420,7 @@ onUnmounted(() => {
                             </Link>
 
                             <Link 
-                                v-if="isAdmin"
+                                v-if="isSuperAdmin"
                                 :href="route('settings.index')" 
                                 @click="isMobileMenuOpen = false"
                                 :class="route().current('settings.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
@@ -544,18 +492,6 @@ onUnmounted(() => {
                             <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
                             <span class="flex-1">Komunikasi & VC</span>
                             <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-lg uppercase tracking-wider">Vicon</span>
-                        </Link>
-
-                        <Link 
-                            :href="route('whatsapp.index')" 
-                            :class="route().current('whatsapp.*') ? 'bg-emerald-500/10 text-emerald-600 font-bold shadow-sm shadow-emerald-500/[0.05]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
-                            class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 10-7.8-4.5L3 21l4.7-1.2A8.96 8.96 0 0012 21z"></path>
-                            </svg>
-                            <span class="flex-1">WhatsApp Web</span>
-                            <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-black rounded-lg uppercase tracking-wider">Multi</span>
                         </Link>
                     </div>
 
@@ -668,16 +604,7 @@ onUnmounted(() => {
                         </Link>
 
                         <Link 
-                            v-if="canAccessCash && (!isDanUnitTeknis || isAdmin)"
-                            :href="route('cash.index')" 
-                            :class="route().current('cash.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <span>Buku Kas Unit</span>
-                        </Link>
-
-                        <Link 
-                            v-if="canAccessCommanderAccount && (!isDanUnitTeknis || isAdmin)"
+                            v-if="canAccessCommanderAccount"
                             :href="route('commander.index')" 
                             :class="route().current('commander.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
                         >
@@ -686,16 +613,7 @@ onUnmounted(() => {
                         </Link>
 
                         <Link 
-                            v-if="canAccessIbuBeti && (!isDanUnitTeknis || isAdmin)"
-                            :href="route('ibu-beti.index')" 
-                            :class="route().current('ibu-beti.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-pink-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                            <span>Rekening Ibu Beti</span>
-                        </Link>
-
-                        <Link 
-                            v-if="canAccessMitra && (!isDanUnitTeknis || isAdmin)"
+                            v-if="canAccessMitra"
                             :href="route('mitras.index')" 
                             :class="route().current('mitras.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
                         >
@@ -704,16 +622,7 @@ onUnmounted(() => {
                         </Link>
 
                         <Link 
-                            v-if="canAccessTechnicalCash"
-                            :href="route('technical-cash.index')" 
-                            :class="route().current('technical-cash.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-cyan-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                            <span>Buku Kas Dan Unit Teknis</span>
-                        </Link>
-
-                        <Link 
-                            v-if="!isDanUnitTeknis || isAdmin"
+                            v-if="isAdmin"
                             :href="route('backup.index')" 
                             :class="route().current('backup.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
                         >
@@ -765,7 +674,7 @@ onUnmounted(() => {
                         </Link>
 
                         <Link 
-                            v-if="isAdmin"
+                            v-if="isSuperAdmin"
                             :href="route('system-check.index')" 
                             :class="route().current('system-check.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
                         >
@@ -774,7 +683,7 @@ onUnmounted(() => {
                         </Link>
 
                         <Link 
-                            v-if="isAdmin"
+                            v-if="isSuperAdmin"
                             :href="route('settings.index')" 
                             :class="route().current('settings.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
                         >

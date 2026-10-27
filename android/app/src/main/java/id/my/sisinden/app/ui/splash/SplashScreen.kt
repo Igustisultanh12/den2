@@ -70,7 +70,7 @@ fun SplashScreen() {
             Spacer(Modifier.height(20.dp))
             Text("SISINDEN", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
             Spacer(Modifier.height(4.dp))
-            Text("Denintel Kodaeral V", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+            Text("Denintel Koarmada 2", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
         }
         Column(
             Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 48.dp),

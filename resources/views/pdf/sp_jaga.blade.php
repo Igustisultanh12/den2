@@ -127,7 +127,7 @@
         
         <!-- Kop Surat Kiri -->
         <div class="kop-surat">
-            <div class="line1">KOMANDO DAERAH TNI ANGKATAN LAUT V</div>
+            <div class="line1">KOMANDO ARMADA II</div>
             <div class="line2">DETASEMEN INTELIJEN</div>
             <div class="divider"></div>
         </div>
@@ -160,14 +160,14 @@
                 <td style="width: 140px; vertical-align: top; padding-bottom: 8px;">Menimbang</td>
                 <td style="width: 25px; vertical-align: top; text-align: center; padding-bottom: 8px;">:</td>
                 <td style="vertical-align: top; text-align: justify; padding-bottom: 8px; padding-left: 15px;">
-                    Bahwa dalam rangka melaksanakan tugas jaga Siaga Sintel Kepada Perwira Sintel/Den Intel/Pam Denma Kodaeral V, maka perlu dikeluarkan surat perintah.
+                    Bahwa dalam rangka melaksanakan tugas jaga Siaga Sintel Kepada Perwira Sintel/Den Intel/Pam Denma Koarmada 2, maka perlu dikeluarkan surat perintah.
                 </td>
             </tr>
             <tr>
                 <td style="vertical-align: top; padding-bottom: 8px;">Dasar</td>
                 <td style="vertical-align: top; text-align: center; padding-bottom: 8px;">:</td>
                 <td style="vertical-align: top; text-align: justify; padding-bottom: 8px; padding-left: 15px;">
-                    Prosedur Tetap Dankodaeral V Nomor Protap/01/II/2015 tanggal 18 Maret 2015 tentang Pengamanan Basis TNI AL dan Obyek Vital di Ujung Surabaya.
+                    Prosedur Tetap Pangkoarmada 2 Nomor Protap/01/II/2015 tanggal 18 Maret 2015 tentang Pengamanan Basis TNI AL dan Obyek Vital di Ujung Surabaya.
                 </td>
             </tr>
         </table>
@@ -183,7 +183,7 @@
                 <td style="width: 140px; vertical-align: top; padding-bottom: 10px;">Kepada</td>
                 <td style="width: 25px; vertical-align: top; text-align: center; padding-bottom: 10px;">:</td>
                 <td style="vertical-align: top; text-align: justify; padding-bottom: 10px; padding-left: 15px;">
-                    {{ $penerimaDiktumKepada ?? (($spJaga->perwira_tertua_pangkat_nrp ?: 'Kapten Laut (P)') . ' ' . ($spJaga->perwira_tertua_nama ?: 'Indra Gunawan')) }}, {{ $perwiraTertuaJabatan ?? ($spJaga->perwira_tertua_jabatan ?: 'Dan Unit 1 Lid Den Intel Kodaeral V') }}, beserta {{ $totalPengikut ?? ($spJaga->total_personel_count > 1 ? $spJaga->total_personel_count - 1 : 26) }} ({{ $totalPengikutTerbilang ?? ($spJaga->total_personel_terbilang ?: 'Dua puluh enam') }}) orang sesuai lampiran.
+                    {{ $penerimaDiktumKepada ?? (($spJaga->perwira_tertua_pangkat_nrp ?: 'Kapten Laut (P)') . ' ' . ($spJaga->perwira_tertua_nama ?: 'Indra Gunawan')) }}, {{ $perwiraTertuaJabatan ?? ($spJaga->perwira_tertua_jabatan ?: 'Dan Unit 1 Lid Den Intel Koarmada 2') }}, beserta {{ $totalPengikut ?? ($spJaga->total_personel_count > 1 ? $spJaga->total_personel_count - 1 : 26) }} ({{ $totalPengikutTerbilang ?? ($spJaga->total_personel_terbilang ?: 'Dua puluh enam') }}) orang sesuai lampiran.
                 </td>
             </tr>
             <tr>
@@ -194,7 +194,7 @@
                         <tr>
                             <td style="width: 25px; vertical-align: top; padding-bottom: 6px;">1.</td>
                             <td style="vertical-align: top; text-align: justify; padding-bottom: 6px; padding-left: 8px;">
-                                Seterimanya surat perintah ini disamping tugas dan tanggung jawab yang ada, ditunjuk menjabat sebagai Perwira Siaga dan Anggota Siaga Sintel Kodaeral V sesuai dengan Jadwal terlampir.
+                                Seterimanya surat perintah ini disamping tugas dan tanggung jawab yang ada, ditunjuk menjabat sebagai Perwira Siaga dan Anggota Siaga Sintel Koarmada 2 sesuai dengan Jadwal terlampir.
                             </td>
                         </tr>
                         <tr>
@@ -206,7 +206,7 @@
                         <tr>
                             <td style="vertical-align: top; padding-bottom: 6px;">3.</td>
                             <td style="vertical-align: top; text-align: justify; padding-bottom: 6px; padding-left: 8px;">
-                                Melaksanakan perintah ini dengan penuh rasa tanggung jawab, serta melaporkan hasil pelaksanaannya kepada Asintel Dankodaeral V dan Danden Intel Kodaeral V.
+                                Melaksanakan perintah ini dengan penuh rasa tanggung jawab, serta melaporkan hasil pelaksanaannya kepada Asintel Pangkoarmada 2 dan Dandenintel Koarmada 2.
                             </td>
                         </tr>
                     </table>
@@ -225,8 +225,8 @@
                         <div style="margin-bottom: 4px;">Tembusan:</div>
                         <div style="border-bottom: 1.5px solid #000; padding-bottom: 4px;">
                             <ol style="margin: 0; padding-left: 18px;">
-                                <li>Asintel Dankodaeral V</li>
-                                <li>Dandenma Kodaeral V</li>
+                                <li>Asintel Pangkoarmada 2</li>
+                                <li>Dandenma Koarmada 2</li>
                             </ol>
                         </div>
                     </div>
@@ -248,7 +248,7 @@
                         <div style="border-bottom: 1px solid #000; margin-bottom: 4px;"></div>
 
                         <div style="text-align: center;">
-                            <div style="font-size: 11.5pt; white-space: nowrap;">a.n. Komandan Detasemen Intelijen Kodaeral V,</div>
+                            <div style="font-size: 11.5pt; white-space: nowrap;">a.n. Komandan Detasemen Intelijen Koarmada 2,</div>
                             <div style="margin-bottom: 4px; font-size: 11.5pt;">Pasiops,</div>
 
                             <!-- Area TTE QR Code vs TTD Basah -->
@@ -287,7 +287,7 @@
             <tr>
                 <td style="width: 45%; vertical-align: top;">
                     <div class="kop-surat" style="width: 310px;">
-                        <div class="line1">KOMANDO DAERAH TNI ANGKATAN LAUT V</div>
+                        <div class="line1">KOMANDO ARMADA II</div>
                         <div class="line2">DETASEMEN INTELIJEN</div>
                         <div class="divider"></div>
                     </div>
@@ -298,7 +298,7 @@
                             <tr>
                                 <td style="vertical-align: top; width: 68px;">Lampiran</td>
                                 <td style="vertical-align: top; width: 10px;">:</td>
-                                <td style="padding-left: 8px; white-space: nowrap;">Sprin Danden Intel Kodaeral V</td>
+                                <td style="padding-left: 8px; white-space: nowrap;">Sprin Dandenintel Koarmada 2</td>
                             </tr>
                             <tr>
                                 <td style="vertical-align: top;">Nomor</td>
@@ -320,7 +320,7 @@
         <!-- Judul Lampiran 1 (Font 12pt Bold) -->
         <div style="text-align: center; margin-bottom: 12px;">
             <div style="font-size: 12pt; font-weight: bold; text-transform: uppercase;">
-                DAFTAR NAMA PERWIRA JAGA SINTEL KODAERAL V
+                DAFTAR NAMA PERWIRA JAGA SINTEL KOARMADA 2
             </div>
             <div style="font-size: 12pt; font-weight: bold; text-transform: uppercase;">
                 JL. STASIUN BENTENG UJUNG SURABAYA BULAN {{ $namaBulanTahun }}
@@ -400,7 +400,7 @@
                 <td style="width: 42%;"></td>
                 <td style="width: 58%;">
                     <div class="ttd-box">
-                        <div style="font-size: 11.5pt; white-space: nowrap;">a.n. Komandan Detasemen Intelijen Kodaeral V,</div>
+                        <div style="font-size: 11.5pt; white-space: nowrap;">a.n. Komandan Detasemen Intelijen Koarmada 2,</div>
                         <div style="margin-bottom: 4px; font-size: 11.5pt;">Pasiops,</div>
 
                         @if($spJaga->ttd_type === 'tte' && $spJaga->status === 'published' && !empty($qr_base64))
@@ -431,7 +431,7 @@
         
         <!-- Kop Kiri -->
         <div class="kop-surat" style="width: 320px; margin-bottom: 8px;">
-            <div class="line1">KOMANDO DAERAH TNI ANGKATAN LAUT V</div>
+            <div class="line1">KOMANDO ARMADA II</div>
             <div class="line2">DETASEMEN INTELIJEN</div>
             <div class="divider"></div>
         </div>
@@ -439,7 +439,7 @@
         <!-- Judul Lampiran 2 (Font 12pt Bold) -->
         <div style="text-align: center; margin-bottom: 10px;">
             <div style="font-size: 12pt; font-weight: bold; text-transform: uppercase;">
-                DAFTAR NAMA ANGGOTA JAGA SINTEL KODAERAL V
+                DAFTAR NAMA ANGGOTA JAGA SINTEL KOARMADA 2
             </div>
             <div style="font-size: 12pt; font-weight: bold; text-transform: uppercase;">
                 JL. STASIUN BENTENG UJUNG SURABAYA BULAN {{ $namaBulanTahun }}
@@ -549,7 +549,7 @@
                         </table>
                         <div style="border-bottom: 1px solid #000; margin-bottom: 4px;"></div>
 
-                        <div style="font-size: 11.5pt; white-space: nowrap;">a.n. Komandan Detasemen Intelijen Kodaeral V,</div>
+                        <div style="font-size: 11.5pt; white-space: nowrap;">a.n. Komandan Detasemen Intelijen Koarmada 2,</div>
                         <div style="margin-bottom: 4px; font-size: 11.5pt;">Pasiops,</div>
 
                         @if($spJaga->ttd_type === 'tte' && $spJaga->status === 'published' && !empty($qr_base64))

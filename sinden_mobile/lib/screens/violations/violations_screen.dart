@@ -113,7 +113,7 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
     final nrpController = TextEditingController();
     final pangkatController = TextEditingController(text: 'Prajurit');
     final kasusController = TextEditingController();
-    final unitController = TextEditingController(text: 'Denintel Kodaeral V');
+    final unitController = TextEditingController(text: 'Denintel Koarmada 2');
     String status = 'PROSES';
 
     showDialog(

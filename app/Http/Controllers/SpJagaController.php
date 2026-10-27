@@ -239,7 +239,7 @@ class SpJagaController extends Controller
         $perwiraTertuaUserId = $request->perwira_tertua_user_id ?: ($firstPerwira['user_id'] ?? null);
         $perwiraTertuaNama = $request->perwira_tertua_nama ?: ($firstPerwira['nama'] ?? 'Kapten Laut (P) Indra Gunawan T.Z');
         $perwiraTertuaPangkatNrp = $request->perwira_tertua_pangkat_nrp ?: (($firstPerwira['pangkat_korps'] ?? 'Kapten Laut (P)') . ' NRP ' . ($firstPerwira['nrp'] ?? '19739/P'));
-        $perwiraTertuaJabatan = $request->perwira_tertua_jabatan ?: 'Dan Unit 1 Lid Den Intel Kodaeral V';
+        $perwiraTertuaJabatan = $request->perwira_tertua_jabatan ?: 'Dan Unit 1 Lid Den Intel Koarmada 2';
 
         $uniqueCode = 'TTE-SPJAGA-' . $tahunInput . str_pad($bulanInput, 2, '0', STR_PAD_LEFT) . '-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 6));
 
@@ -394,7 +394,7 @@ class SpJagaController extends Controller
         $perwiraTertuaUserId = $request->perwira_tertua_user_id ?: ($firstPerwira['user_id'] ?? null);
         $perwiraTertuaNama = $request->perwira_tertua_nama ?: ($firstPerwira['nama'] ?? 'Kapten Laut (P) Indra Gunawan T.Z');
         $perwiraTertuaPangkatNrp = $request->perwira_tertua_pangkat_nrp ?: (($firstPerwira['pangkat_korps'] ?? 'Kapten Laut (P)') . ' NRP ' . ($firstPerwira['nrp'] ?? '19739/P'));
-        $perwiraTertuaJabatan = $request->perwira_tertua_jabatan ?: 'Dan Unit 1 Lid Den Intel Kodaeral V';
+        $perwiraTertuaJabatan = $request->perwira_tertua_jabatan ?: 'Dan Unit 1 Lid Den Intel Koarmada 2';
 
         $this->ensureNomorUrutColumnType();
 
@@ -554,7 +554,7 @@ class SpJagaController extends Controller
         // Ambil Data Pejabat Perwira Tertua (Pater / Penerima Perintah)
         $perwiraTertuaNama = $spJaga->perwira_tertua_nama ?: 'Indra Gunawan';
         $perwiraTertuaPangkatNrp = $spJaga->perwira_tertua_pangkat_nrp ?: 'Kapten Laut (P) NRP 19739/P';
-        $perwiraTertuaJabatan = $spJaga->perwira_tertua_jabatan ?: 'Dan Unit 1 Lid Den Intel Kodaeral V';
+        $perwiraTertuaJabatan = $spJaga->perwira_tertua_jabatan ?: 'Dan Unit 1 Lid Den Intel Koarmada 2';
 
         // Hitung personel pengikut (total dikurangi 1 perwira tertua)
         $totalPengikut = ($spJaga->total_personel_count > 1) ? ($spJaga->total_personel_count - 1) : 26;
@@ -667,14 +667,14 @@ class SpJagaController extends Controller
                 }
                 $tanggalText = implode(', ', $dates) . ' ' . $namaBulanTahun;
 
-                $pesan = "*DETASEMEN INTELIJEN KODAERAL V*\n" .
+                $pesan = "*DETASEMEN INTELIJEN KOARMADA 2*\n" .
                          "*PEMBERITAHUAN JADWAL JAGA SIAGA SINTEL*\n\n" .
                          "Yth. {$perwira->pangkat_korps} {$perwira->nama} (NRP: {$perwira->nrp})\n\n" .
                          "Diberitahukan bahwa Surat Perintah Jaga Siaga Sintel Bulan {$namaBulanTahun} ({$spJaga->nomor_sprin}) telah resmi diterbitkan.\n\n" .
                          "*Rincian Jadwal Jaga Anda:*\n" .
                          "- *Peran:* Perwira Siaga Sintel\n" .
                          "- *Tanggal Jaga:* {$tanggalText}\n" .
-                         "- *Lokasi:* Kantor Sintel / Tim Intel Kodaeral V\n\n" .
+                         "- *Lokasi:* Kantor Sintel / Tim Intel Koarmada 2\n\n" .
                          "Untuk rincian jadwal lengkap dan mengunduh berkas PDF resmi, silakan login ke Portal SINDEN:\n" .
                          route('sp-jaga.index') . "\n\n" .
                          "Demikian untuk dipedomani dan dilaksanakan dengan penuh rasa tanggung jawab.";
@@ -694,7 +694,7 @@ class SpJagaController extends Controller
                     $notifiedPhones[] = $phone;
                     $roleLabel = ($item['role_jaga'] ?? 'ANGGOTA') === 'BAGA' ? 'Bintara Jaga (BAGA)' : 'Anggota Siaga Sintel';
 
-                    $pesan = "*DETASEMEN INTELIJEN KODAERAL V*\n" .
+                    $pesan = "*DETASEMEN INTELIJEN KOARMADA 2*\n" .
                              "*PEMBERITAHUAN JADWAL JAGA SIAGA SINTEL*\n\n" .
                              "Yth. " . ($item['pangkat_korps'] ?? '') . " " . ($item['nama'] ?? '') . " (NRP/NIP: " . ($item['nrp_nip'] ?? '-') . ")\n\n" .
                              "Diberitahukan bahwa Surat Perintah Jaga Siaga Sintel Bulan {$namaBulanTahun} ({$spJaga->nomor_sprin}) telah resmi diterbitkan.\n\n" .
@@ -702,7 +702,7 @@ class SpJagaController extends Controller
                              "- *Peran:* {$roleLabel}\n" .
                              "- *Divisi:* Kelompok Divisi {$divisi->divisi_no}\n" .
                              "- *Tanggal Jaga:* {$divisi->tanggal_list_text}\n" .
-                             "- *Lokasi:* Kantor Sintel / Tim Intel Kodaeral V\n\n" .
+                             "- *Lokasi:* Kantor Sintel / Tim Intel Koarmada 2\n\n" .
                              "Untuk rincian jadwal lengkap dan mengunduh berkas PDF resmi, silakan login ke Portal SINDEN:\n" .
                              route('sp-jaga.index') . "\n\n" .
                              "Demikian untuk dipedomani dan dilaksanakan dengan penuh rasa tanggung jawab.";

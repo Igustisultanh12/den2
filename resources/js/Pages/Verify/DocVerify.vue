@@ -100,7 +100,7 @@ const formatDateIndo = (dateStr) => {
               </div>
               <h3 class="text-base font-extrabold tracking-tight uppercase text-emerald-300">TTE BERKAS DINAS TERVERIFIKASI & SAH</h3>
               <p class="text-xs leading-relaxed opacity-90">
-                Dokumen Naskah Dinas Ini Sah Ditandatangani oleh Komandan Detasemen Intelijen Kodaeral V secara Digital (TTE).
+                Dokumen Naskah Dinas Ini Sah Ditandatangani oleh Komandan Detasemen Intelijen Koarmada 2 secara Digital (TTE).
               </p>
             </div>
 
@@ -224,7 +224,7 @@ const formatDateIndo = (dateStr) => {
               </div>
               <h3 class="text-lg font-extrabold tracking-tight uppercase text-red-300">TTE BERKAS TIDAK TERDAFTAR</h3>
               <p class="text-xs leading-relaxed">
-                Kode verifikasi berkas dinas ({{ verify_code }}) tidak ditemukan pada basis data resmi SINDEN Detasemen Intelijen Kodaeral V atau berkas belum disahkan secara resmi oleh Komandan.
+                Kode verifikasi berkas dinas ({{ verify_code }}) tidak ditemukan pada basis data resmi SINDEN Detasemen Intelijen Koarmada 2 atau berkas belum disahkan secara resmi oleh Komandan.
               </p>
             </div>
           </div>

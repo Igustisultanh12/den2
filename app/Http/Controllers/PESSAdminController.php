@@ -319,7 +319,7 @@ class PESSAdminController extends Controller
         ]);
 
         // TEMBAK NOTIFIKASI KEMENANGAN AKHIR VIA WHATSAPP PEMOHON
-        $pesanSukses = " *SECURITY CLEARANCE (SC) RESMI TERBIT - SINKODV*\nHalo *{$applicant->nama_lengkap}*,\nKami informasikan bahwa berkas pengajuan Security Clearance Anda telah melalui verifikasi ketat petugas SINKODV dan telah *RESMI DITERBITKAN* oleh Asintel.\n\nSurat SC fisik dapat diambil Sintel Kodaeral V atau diunduh langsung lewat aplikasi PESS Anda. Selamat!";
+        $pesanSukses = " *SECURITY CLEARANCE (SC) RESMI TERBIT - SINKODV*\nHalo *{$applicant->nama_lengkap}*,\nKami informasikan bahwa berkas pengajuan Security Clearance Anda telah melalui verifikasi ketat petugas SINKODV dan telah *RESMI DITERBITKAN* oleh Asintel.\n\nSurat SC fisik dapat diambil Sintel Koarmada 2 atau diunduh langsung lewat aplikasi PESS Anda. Selamat!";
         WhatsappService::sendMessage($applicant->no_wa, $pesanSukses);
 
         return redirect()->back()->with('message', 'Surat Security Clearance (SC) berhasil diterbitkan dan disahkan oleh Asintel.');

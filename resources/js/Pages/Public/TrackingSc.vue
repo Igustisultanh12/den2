@@ -161,7 +161,7 @@ const formatDate = (dateStr) => {
                         </button>
                     </form>
                     <p class="text-[10px] text-slate-400 font-medium mt-3">
-                        *Pemeriksaan terintegrasi langsung dengan database Sintel Mako Kodaeral V tanpa memerlukan login.
+                        *Pemeriksaan terintegrasi langsung dengan database Sintel Mako Koarmada 2 tanpa memerlukan login.
                     </p>
                 </div>
 
@@ -280,12 +280,12 @@ const formatDate = (dateStr) => {
                                 </div>
                             </div>
                             <div class="text-[11px] font-bold text-emerald-300 bg-emerald-900/60 px-3 py-1.5 rounded-xl border border-emerald-700/40 shrink-0">
-                                Terdaftar Sah di Denintel Kodaeral V
+                                Terdaftar Sah di Denintel Koarmada 2
                             </div>
                         </div>
                     </div>
 
-                    <!-- BANNER KHUSUS TAHAP 10 (SIAP DIAMBIL DI SINTEL MAKO KODAERAL V) -->
+                    <!-- BANNER KHUSUS TAHAP 10 (SIAP DIAMBIL DI SINTEL MAKO Koarmada 2) -->
                     <div v-if="activeSubmission.current_stage === 10 || activeSubmission.status === 'selesai'" class="bg-gradient-to-r from-emerald-950/80 via-slate-900/90 to-teal-950/80 backdrop-blur-md border border-emerald-500/50 rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 text-white">
                         <div class="flex items-start gap-4">
                             <div class="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-2xl shrink-0 shadow-lg shadow-emerald-600/30">
@@ -298,10 +298,10 @@ const formatDate = (dateStr) => {
                                     TAHAP AKHIR TERPENUHI - SELESAI
                                 </span>
                                 <h4 class="text-lg sm:text-xl font-black text-white">
-                                    Dokumen SC Telah Terbit & Siap Diambil di Sintel Mako Kodaeral V
+                                    Dokumen SC Telah Terbit & Siap Diambil di Sintel Mako Koarmada 2
                                 </h4>
                                 <p class="text-xs text-slate-300 leading-relaxed font-medium max-w-2xl">
-                                    Surat Security Clearance (SC) atas nama personel bersangkutan telah resmi ditandatangani dan selesai diproses. Berkas fisik sah asli siap diambil oleh pemohon di <b class="text-white">Sintel Mako Kodaeral V</b> dengan menunjukkan identitas kedinasan.
+                                    Surat Security Clearance (SC) atas nama personel bersangkutan telah resmi ditandatangani dan selesai diproses. Berkas fisik sah asli siap diambil oleh pemohon di <b class="text-white">Sintel Mako Koarmada 2</b> dengan menunjukkan identitas kedinasan.
                                 </p>
                                 <div class="pt-2">
                                     <a 

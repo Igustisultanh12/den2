@@ -274,7 +274,7 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-1.5">
                             <label class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider ms-1">Nama Instansi / Aplikasi</label>
-                            <input v-model="form.agency_name" type="text" class="w-full rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-blue-500 focus:border-blue-600 uppercase text-xs font-bold px-4 py-3 transition" placeholder="CONTOH: DENINTEL KODAERAL V">
+                            <input v-model="form.agency_name" type="text" class="w-full rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-blue-500 focus:border-blue-600 uppercase text-xs font-bold px-4 py-3 transition" placeholder="CONTOH: DENINTEL Koarmada 2">
                         </div>
 
                         <div class="space-y-1.5">

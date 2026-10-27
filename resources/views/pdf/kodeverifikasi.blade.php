@@ -111,7 +111,7 @@
         <div class="signature-block">
             <div>Dikeluarkan di: Surabaya</div>
             <div>Pada tanggal: {{ $generatedAt ?? date('d F Y') }}</div>
-            <div style="margin-top: 6px;">a.n. Komandan Detasemen Intelijen Kodaeral V</div>
+            <div style="margin-top: 6px;">a.n. Komandan Detasemen Intelijen Koarmada 2</div>
             <div style="font-weight: bold; margin-bottom: 6px;">{{ $signerJabatan ?? 'Administrator SINDEN' }},</div>
 
             @if(isset($qrCodeBase64) && $qrCodeBase64)

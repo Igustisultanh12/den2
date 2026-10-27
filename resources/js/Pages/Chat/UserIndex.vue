@@ -11,7 +11,7 @@
           <div class="space-y-1.5 sm:space-y-2">
             <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span class="px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-extrabold uppercase tracking-widest bg-blue-500/20 border border-blue-400/30 text-blue-300">
-                SISTEM INFORMASI DENINTEL KODAERAL V
+                SISTEM INFORMASI DENINTEL Koarmada 2
               </span>
 
               <!-- Status Indikator Sesi / Respon -->
@@ -42,7 +42,7 @@
               Pusat Komunikasi Dinas
             </h1>
             <p class="text-[11px] sm:text-xs text-slate-300 max-w-2xl leading-relaxed">
-              Saluran komunikasi dinas langsung dengan Pengelola SINDEN Denintel Kodaeral V. Seluruh berkas yang dilampirkan akan terhapus saat Anda mengakhiri sesi percakapan.
+              Saluran komunikasi dinas langsung dengan Pengelola SINDEN Denintel Koarmada 2. Seluruh berkas yang dilampirkan akan terhapus saat Anda mengakhiri sesi percakapan.
             </p>
           </div>
 

@@ -10,8 +10,6 @@ import '../letter_logs/letter_logs_screen.dart';
 import '../letters/letters_draft_screen.dart';
 import '../categories/categories_screen.dart';
 import '../skhpp/skhpp_list_screen.dart';
-import '../cash/cash_screen.dart';
-import '../technical_cash/technical_cash_screen.dart';
 import '../commander/commander_account_screen.dart';
 import '../mitra/mitra_screen.dart';
 import '../violations/violations_screen.dart';
@@ -71,7 +69,7 @@ class DashboardScreen extends StatelessWidget {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppTheme.primaryNavy),
             ),
             Text(
-              user?.jabatan ?? 'Detasemen Intelijen Kodaeral V',
+              user?.jabatan ?? 'Detasemen Intelijen Koarmada 2',
               style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.secondaryGold),
             ),
           ],
@@ -157,7 +155,7 @@ class DashboardScreen extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            user?.nrp != null ? 'NRP: ${user!.nrp}' : 'Denintel Kodaeral V',
+                            user?.nrp != null ? 'NRP: ${user!.nrp}' : 'Denintel Koarmada 2',
                             style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
                           ),
                         ],
@@ -295,14 +293,6 @@ class DashboardScreen extends StatelessWidget {
               children: [
                 _buildMenuItem(
                   context: context,
-                  title: 'Buku Kas Unit',
-                  icon: Icons.account_balance_wallet_outlined,
-                  color: const Color(0xFF059669),
-                  hasAccess: user?.canAccessCash ?? false,
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CashScreen())),
-                ),
-                _buildMenuItem(
-                  context: context,
                   title: 'Rekening Dan',
                   icon: Icons.credit_card_outlined,
                   color: const Color(0xFF047857),
@@ -316,14 +306,6 @@ class DashboardScreen extends StatelessWidget {
                   color: const Color(0xFF2563EB),
                   hasAccess: user?.canAccessMitra ?? false,
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MitraScreen())),
-                ),
-                _buildMenuItem(
-                  context: context,
-                  title: 'Kas Dan Unit',
-                  icon: Icons.settings_suggest_outlined,
-                  color: const Color(0xFF0891B2),
-                  hasAccess: user?.canAccessTechnicalCash ?? false,
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TechnicalCashScreen())),
                 ),
                 _buildMenuItem(
                   context: context,

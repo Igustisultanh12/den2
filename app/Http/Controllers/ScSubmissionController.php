@@ -421,7 +421,7 @@ class ScSubmissionController extends Controller
                     $trackingUrl = route('tracking-sc.index');
 
                     $waMessage = "*PEMBERITAHUAN PENGAJUAN SECURITY CLEARANCE (SC)*\n" .
-                                 "*DENINTEL KODAERAL V*\n\n" .
+                                 "*DENINTEL KOARMADA 2*\n\n" .
                                  "Yth. *{$pangkatNama}*\n" .
                                  "{$identitasLabel}: {$submission->identifier_number}\n\n" .
                                  "Pengajuan berkas Security Clearance (SC) Anda telah berhasil didaftarkan ke dalam sistem SINDEN dengan rincian:\n\n" .
@@ -548,7 +548,7 @@ class ScSubmissionController extends Controller
                 $trackingUrl = route('tracking-sc.index');
 
                 $waMessage = "*UPDATE TAHAPAN SECURITY CLEARANCE (SC)*\n" .
-                             "*DENINTEL KODAERAL V*\n\n" .
+                             "*DENINTEL KOARMADA 2*\n\n" .
                              "Halo *{$pangkatNama}*,\n\n" .
                              "Status telah di update, silahkan check di link menggunakan NRP,NIP,NIK atau NIM anda.\n\n" .
                              "- *Tahap Baru:* Tahap {$newStage}: {$stageInfo['title']}\n" .
@@ -676,7 +676,7 @@ class ScSubmissionController extends Controller
                     'pangkat_korps' => $skhpp->pangkat_korps_nrp,
                     'identifier_type' => $identifierType,
                     'identifier_number' => $identifierNum,
-                    'kesatuan' => $skhpp->alamat ?: 'Kodaeral V',
+                    'kesatuan' => $skhpp->alamat ?: 'Koarmada 2',
                     'jabatan' => $skhpp->jabatan_pekerjaan,
                     'keperluan' => $skhpp->peruntukan,
                     'nomor_skhpp' => $skhpp->nomor_skhpp,
@@ -713,7 +713,7 @@ class ScSubmissionController extends Controller
 
     /**
      * Cetak Laporan PDF Buku Agenda Pengambilan SC
-     * Format sesuai buku agenda surat dinas Denintel Kodaeral V
+     * Format sesuai buku agenda surat dinas Denintel Koarmada 2
      */
     public function exportPdf(Request $request)
     {
@@ -975,7 +975,7 @@ class ScSubmissionController extends Controller
         $trackingUrl = route('sc-submissions.index');
 
         $message = "*PEMBERITAHUAN BERKAS SECURITY CLEARANCE (SC)*\n" .
-                   "*DETASEMEN INTELIJEN KODAERAL V*\n\n" .
+                   "*DETASEMEN INTELIJEN KOARMADA 2*\n\n" .
                    "{$recipientLine}\n\n" .
                    "Disampaikan informasi bahwa saat ini terdapat berkas pengajuan Security Clearance (SC) yang perlu ditindaklanjuti dan diperbarui oleh Staf Intelijen:\n\n" .
                    "- Berkas Dinas: {$dinasCount} berkas\n" .

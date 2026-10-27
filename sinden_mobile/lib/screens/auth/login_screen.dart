@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (config != null && config is Map<String, dynamic>) {
         if (mounted) {
           setState(() {
-            _agencyName = config['agency_name'] ?? 'DETASEMEN INTELIJEN KODAERAL V';
+            _agencyName = config['agency_name'] ?? 'DETASEMEN INTELIJEN Koarmada 2';
             _serverBgUrl = config['login_background'];
           });
         }
@@ -152,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // App Title & Subtitle
                     Text(
-                      _agencyName ?? 'DENINTEL KODAERAL V',
+                      _agencyName ?? 'DENINTEL Koarmada 2',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 16,

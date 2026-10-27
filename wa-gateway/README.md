@@ -1,6 +1,6 @@
 # SINDEN Multi-Session WhatsApp Gateway
 
-Gateway WhatsApp Multi-Device berbasis Node.js & Baileys untuk sistem SINDEN Denintel Kodaeral V.
+Gateway WhatsApp Multi-Device berbasis Node.js & Baileys untuk sistem SINDEN Denintel Koarmada 2.
 
 ## Fitur Utama
 1. **Multi-Akun / Multi-Sesi**: Dapat menjalankan banyak nomor WA sekaligus (Dinas, Komandan, Piket, dll.).

@@ -40,7 +40,7 @@ class SkhppModel {
       nama: json['nama'] ?? '',
       pangkatKorpsNrp: json['pangkat_korps_nrp'],
       jabatan: json['jabatan'] ?? json['jabatan_pekerjaan'],
-      kesatuan: json['kesatuan'] ?? 'Denintel Kodaeral V',
+      kesatuan: json['kesatuan'] ?? 'Denintel Koarmada 2',
       peruntukan: json['peruntukan'],
       kategori: json['kategori'] ?? json['kategori_personel'] ?? 'militer',
       status: json['status'] ?? 'pending',

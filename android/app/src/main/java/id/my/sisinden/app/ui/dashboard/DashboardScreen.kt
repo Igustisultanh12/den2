@@ -441,12 +441,10 @@ private fun SummarySection(
         s.letterLogsThisMonth?.let { add(Tile("Agenda surat bulan ini", Fmt.number(it), Icons.Outlined.Email, Tone.INFO, Routes.LETTERS, s.letterLogsTotal?.let { t -> "Total ${Fmt.number(t)}" })) }
         s.skhppPending?.let { add(Tile("SKHPP menunggu", Fmt.number(it), Icons.Outlined.VerifiedUser, Tone.WARNING, Routes.SKHPP)) }
         s.signaturePending?.let { add(Tile("Dokumen menunggu TTE", Fmt.number(it), Icons.Outlined.Create, Tone.WARNING, Routes.SIGNATURE)) }
-        s.cashBalance?.let { add(Tile("Saldo kas pangkalan", Fmt.rupiah(it, hideBalance), Icons.Outlined.AccountBalanceWallet, Tone.SUCCESS, Routes.CASH)) }
-        s.technicalCashBalance?.let { add(Tile("Saldo kas unit teknis", Fmt.rupiah(it, hideBalance), Icons.Outlined.Build, Tone.SUCCESS, Routes.TECHNICAL_CASH)) }
         s.attendance?.let { add(Tile("Personel aktif", Fmt.number(it.totalActivePersonnel), Icons.Outlined.Groups, Tone.NEUTRAL, Routes.ATTENDANCE)) }
     }
     if (tiles.isEmpty()) return
-    val hasMoney = s.cashBalance != null || s.technicalCashBalance != null
+    val hasMoney = false
 
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         Row(Modifier.fillMaxWidth().padding(end = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {

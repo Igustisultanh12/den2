@@ -7,7 +7,7 @@
 
         @php
             $settings = \App\Models\Setting::pluck('value', 'key')->toArray();
-            $agencyName = $settings['agency_name'] ?? 'DENINTEL KODAERAL V';
+            $agencyName = $settings['agency_name'] ?? 'DENINTEL KOARMADA 2';
             $faviconPath = $settings['favicon'] ?? ($settings['agency_logo'] ?? null);
             $faviconUrl = $faviconPath ? asset('storage/' . $faviconPath) : asset('favicon.ico');
         @endphp

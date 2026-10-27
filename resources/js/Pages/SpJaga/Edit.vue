@@ -85,7 +85,7 @@ const form = useForm({
     perwira_tertua_user_id: props.spJaga.perwira_tertua_user_id || '',
     perwira_tertua_nama: props.spJaga.perwira_tertua_nama || props.spJaga.perwiras?.[0]?.nama || 'Indra Gunawan',
     perwira_tertua_pangkat_nrp: props.spJaga.perwira_tertua_pangkat_nrp || (props.spJaga.perwiras?.[0] ? `${props.spJaga.perwiras[0].pangkat_korps} NRP ${props.spJaga.perwiras[0].nrp}` : 'Kapten Laut (P) NRP 19739/P'),
-    perwira_tertua_jabatan: props.spJaga.perwira_tertua_jabatan || 'Dan Unit 1 Lid Den Intel Kodaeral V',
+    perwira_tertua_jabatan: props.spJaga.perwira_tertua_jabatan || 'Dan Unit 1 Lid Den Intel Koarmada 2',
     
     perwiras: props.spJaga.perwiras?.length > 0 ? props.spJaga.perwiras.map(p => ({
         user_id: p.user_id || '',
@@ -118,7 +118,7 @@ const setAsPerwiraTertua = (idx) => {
     const nrp = p.nrp ? `NRP ${p.nrp.replace(/^NRP\s*/i, '').trim()}` : '';
     form.perwira_tertua_pangkat_nrp = [pangkat, nrp].filter(Boolean).join(' ');
     if (!form.perwira_tertua_jabatan) {
-        form.perwira_tertua_jabatan = 'Dan Unit 1 Lid Den Intel Kodaeral V';
+        form.perwira_tertua_jabatan = 'Dan Unit 1 Lid Den Intel Koarmada 2';
     }
 };
 
@@ -145,7 +145,7 @@ const onSelectPerwiraTertuaFromDropdown = (val) => {
         const nrp = perwiraRow.nrp ? `NRP ${perwiraRow.nrp.replace(/^NRP\s*/i, '').trim()}` : '';
         form.perwira_tertua_pangkat_nrp = [pangkat, nrp].filter(Boolean).join(' ');
         if (!form.perwira_tertua_jabatan) {
-            form.perwira_tertua_jabatan = 'Dan Unit 1 Lid Den Intel Kodaeral V';
+            form.perwira_tertua_jabatan = 'Dan Unit 1 Lid Den Intel Koarmada 2';
         }
         return;
     }
@@ -158,7 +158,7 @@ const onSelectPerwiraTertuaFromDropdown = (val) => {
         const nrp = person.nrp ? `NRP ${person.nrp.replace(/^NRP\s*/i, '').trim()}` : '';
         form.perwira_tertua_pangkat_nrp = [pangkat, nrp].filter(Boolean).join(' ');
         if (!form.perwira_tertua_jabatan) {
-            form.perwira_tertua_jabatan = 'Dan Unit 1 Lid Den Intel Kodaeral V';
+            form.perwira_tertua_jabatan = 'Dan Unit 1 Lid Den Intel Koarmada 2';
         }
     }
 };
@@ -224,7 +224,7 @@ const removeAnggotaFromDivisi = (divIdx, itemIdx) => {
 
 
 // Definisi Pola Rotasi Matriks Perwira Jaga (Mega-siklus 49 hari / 8 siklus kolom)
-// Berdasarkan perbandingan resmi jadwal jaga Sintel Kodaeral V
+// Berdasarkan perbandingan resmi jadwal jaga Sintel Koarmada 2
 const cycleDefs = [
     { skip: null, rows: [0, 1, 2, 3, 4, 5, 6] },
     { skip: 0,    rows: [1, 2, 3, 4, 5, 6] },
@@ -571,7 +571,7 @@ const submit = () => {
                                     <input 
                                         type="text" 
                                         v-model="form.perwira_tertua_jabatan" 
-                                        placeholder="Contoh: Dan Unit 1 Lid Den Intel Kodaeral V"
+                                        placeholder="Contoh: Dan Unit 1 Lid Den Intel Koarmada 2"
                                         class="w-full p-2.5 text-xs border border-slate-300 rounded-xl bg-white text-slate-900 focus:ring-2 focus:ring-amber-500" 
                                     />
                                 </div>
@@ -581,7 +581,7 @@ const submit = () => {
                             <div class="p-2.5 rounded-xl bg-amber-100/60 border border-amber-300/50 text-[11px] text-amber-950 flex items-start gap-2">
                                 <span class="font-black text-amber-700 uppercase tracking-wider shrink-0">Preview Teks Kepada:</span>
                                 <span class="italic font-serif">
-                                    "{{ form.perwira_tertua_pangkat_nrp || 'Kapten Laut (P) NRP 19739/P' }} {{ form.perwira_tertua_nama || 'Indra Gunawan' }}, {{ form.perwira_tertua_jabatan || 'Dan Unit 1 Lid Den Intel Kodaeral V' }}, beserta ... orang sesuai lampiran."
+                                    "{{ form.perwira_tertua_pangkat_nrp || 'Kapten Laut (P) NRP 19739/P' }} {{ form.perwira_tertua_nama || 'Indra Gunawan' }}, {{ form.perwira_tertua_jabatan || 'Dan Unit 1 Lid Den Intel Koarmada 2' }}, beserta ... orang sesuai lampiran."
                                 </span>
                             </div>
                         </div>

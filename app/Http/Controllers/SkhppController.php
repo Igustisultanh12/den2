@@ -408,7 +408,7 @@ class SkhppController extends Controller
                 'priority' => $priority,
                 'category_id' => $skhppCategory->id,
                 'subject' => "SKHPP - {$skhpp->nama} (" . strtoupper($skhpp->kategori_personel) . ") - " . $skhpp->peruntukan,
-                'recipient' => 'Yth. Asintel Dankodaeral V',
+                'recipient' => 'Yth. Asintel Pangkoarmada 2',
                 'date' => now()->toDateString(),
                 'is_archived' => false,
             ]);
@@ -445,7 +445,7 @@ class SkhppController extends Controller
                     'pangkat_korps' => $skhpp->pangkat_korps_nrp,
                     'identifier_type' => $identifierType,
                     'identifier_number' => $identifierNum,
-                    'kesatuan' => $skhpp->alamat ?: 'Kodaeral V',
+                    'kesatuan' => $skhpp->alamat ?: 'Koarmada 2',
                     'jabatan' => $skhpp->jabatan_pekerjaan,
                     'keperluan' => $skhpp->peruntukan,
                     'nomor_skhpp' => $formattedNo,
@@ -636,13 +636,13 @@ class SkhppController extends Controller
 
         if ($isKomandanLangsung) {
             $skhpp->signer_name = 'HARI BAGIO WIJAYANTO, M.TR.OPSLA.';
-            $skhpp->signer_title = 'Komandan Detasemen Intelijen Kodaeral V - Kolonel Laut (E) NRP 16085/P';
+            $skhpp->signer_title = 'Komandan Detasemen Intelijen Koarmada 2 - Kolonel Laut (E) NRP 16085/P';
         } else {
             $aName = $approverUser?->name ?? 'Administrator SINDEN';
             $aRank = $approverUser?->pangkat ?? 'Letnan Dua Laut (KC)';
             $aNrp = ($approverUser?->nrp && $approverUser->nrp !== '00000000000000') ? $approverUser->nrp : '12000018012200216';
 
-            $skhpp->signer_name = 'a.n. KOMANDAN DETASEMEN INTELIJEN KODAERAL V';
+            $skhpp->signer_name = 'a.n. KOMANDAN DETASEMEN INTELIJEN KOARMADA 2';
             $skhpp->signer_title = "{$aRank} {$aName} NRP {$aNrp}";
         }
 

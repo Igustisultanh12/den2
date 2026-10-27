@@ -222,7 +222,7 @@ const generatedPreviewMessage = computed(() => {
     const recipient = formattedRecipient.value;
     const trackingUrl = typeof window !== 'undefined' ? (window.location.origin + '/sc-submissions') : 'https://sisinden.my.id/sc-submissions';
     
-    let msg = `*PEMBERITAHUAN BERKAS SECURITY CLEARANCE (SC)*\n*DETASEMEN INTELIJEN KODAERAL V*\n\n${recipient}\n\nDisampaikan informasi bahwa saat ini terdapat berkas pengajuan Security Clearance (SC) yang perlu ditindaklanjuti dan diperbarui oleh Staf Intelijen:\n\n- Berkas Dinas: ${stats.dinas} berkas\n- Berkas Perusahaan: ${stats.perusahaan} berkas\n- Total Berkas: ${stats.total} berkas\n\n`;
+    let msg = `*PEMBERITAHUAN BERKAS SECURITY CLEARANCE (SC)*\n*DETASEMEN INTELIJEN Koarmada 2*\n\n${recipient}\n\nDisampaikan informasi bahwa saat ini terdapat berkas pengajuan Security Clearance (SC) yang perlu ditindaklanjuti dan diperbarui oleh Staf Intelijen:\n\n- Berkas Dinas: ${stats.dinas} berkas\n- Berkas Perusahaan: ${stats.perusahaan} berkas\n- Total Berkas: ${stats.total} berkas\n\n`;
     
     if (notifyCatatanTambahan.value && notifyCatatanTambahan.value.trim()) {
         msg += `Catatan: ${notifyCatatanTambahan.value.trim()}\n\n`;
@@ -661,7 +661,7 @@ const formatDateTime = (dateStr) => {
                             Manajemen Pengajuan Security Clearance (SC)
                         </h1>
                         <p class="text-xs text-slate-500 font-medium leading-relaxed max-w-3xl">
-                            Pengelolaan alur berkas SC terpadu mulai dari Pengisian RH, Verifikasi Denintel, Integrasi SKHPP TTE/Basah, Proses Sintel, Petinjau Softfile (2x24 Jam), hingga Penerbitan Dokumen di Mako Kodaeral V.
+                            Pengelolaan alur berkas SC terpadu mulai dari Pengisian RH, Verifikasi Denintel, Integrasi SKHPP TTE/Basah, Proses Sintel, Petinjau Softfile (2x24 Jam), hingga Penerbitan Dokumen di Mako Koarmada 2.
                         </p>
                     </div>
 
@@ -735,7 +735,7 @@ const formatDateTime = (dateStr) => {
                     </div>
 
                     <div class="text-[11px] text-slate-400 font-semibold tracking-wide hidden sm:block">
-                        Detasemen Intelijen Kodaeral V
+                        Detasemen Intelijen Koarmada 2
                     </div>
                 </div>
             </div>
@@ -1318,7 +1318,7 @@ const formatDateTime = (dateStr) => {
                                 <input 
                                     type="text" 
                                     v-model="createForm.kesatuan" 
-                                    placeholder="Contoh: Denintel Kodaeral V, KRI ..., dsb."
+                                    placeholder="Contoh: Denintel Koarmada 2, KRI ..., dsb."
                                     class="w-full text-xs font-bold p-3 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500"
                                 />
                             </div>

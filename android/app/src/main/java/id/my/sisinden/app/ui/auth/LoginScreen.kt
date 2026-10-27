@@ -111,7 +111,7 @@ fun LoginScreen(
                 Spacer(Modifier.width(Spacing.md))
                 Column {
                     Text("SISINDEN", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Denintel Kodaeral V", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
+                    Text("Denintel Koarmada 2", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
                 }
             }
             Spacer(Modifier.height(28.dp))

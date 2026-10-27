@@ -4,7 +4,6 @@ import '../providers/notification_provider.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'letter_logs/letter_logs_screen.dart';
 import 'skhpp/skhpp_list_screen.dart';
-import 'cash/cash_screen.dart';
 import 'settings/settings_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -21,7 +20,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     DashboardScreen(),
     LetterLogsScreen(),
     SkhppListScreen(),
-    CashScreen(),
     SettingsScreen(),
   ];
 
@@ -74,11 +72,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             icon: Icon(Icons.verified_user_outlined),
             selectedIcon: Icon(Icons.verified_user),
             label: 'SKHPP',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Buku Kas',
           ),
           NavigationDestination(
             icon: Badge(

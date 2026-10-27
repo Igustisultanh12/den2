@@ -57,7 +57,10 @@ class UserModel {
     this.canAccessSettings = false,
   });
 
-  bool get isAdmin => role == 'admin';
+  bool get isSuperAdmin => role == 'super_admin';
+  bool get isAdmin => role == 'admin' || role == 'super_admin';
+  bool get isPersonel => role == 'personel' || role == 'user';
+  bool get isPersonelSintel => role == 'personel_sintel' || role == 'anggotasintel';
   bool get isKomandan => role == 'komandan' || role == 'dan_unit_teknis' || (jabatan != null && jabatan!.toLowerCase().contains('komandan'));
 
   String get fullIdentity {
@@ -70,8 +73,9 @@ class UserModel {
   }
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    final r = json['role'] ?? 'user';
-    final isAdm = r == 'admin';
+    final r = json['role'] ?? 'personel';
+    final isSuper = r == 'super_admin';
+    final isAdm = r == 'admin' || isSuper;
 
     return UserModel(
       id: json['id'] ?? 0,
@@ -92,14 +96,14 @@ class UserModel {
       canAccessSkhpp: isAdm || (json['can_access_skhpp'] ?? true),
       canAccessCategories: isAdm || (json['can_access_categories'] ?? true),
       canAccessSignature: isAdm || (json['can_access_signature'] ?? true),
-      canAccessCash: isAdm || (json['can_access_cash'] ?? false),
+      canAccessCash: false,
       canAccessCommander: isAdm || (json['can_access_commander'] ?? false),
       canAccessMitra: isAdm || (json['can_access_mitra'] ?? false),
-      canAccessTechnicalCash: isAdm || (json['can_access_technical_cash'] ?? false),
+      canAccessTechnicalCash: false,
       canAccessViolations: isAdm || (json['can_access_violations'] ?? true),
       canAccessActivities: isAdm || (json['can_access_activities'] ?? true),
       canAccessUsers: isAdm || (json['can_access_users'] ?? false),
-      canAccessSettings: isAdm || (json['can_access_settings'] ?? false),
+      canAccessSettings: isSuper || (json['can_access_settings'] ?? false),
     );
   }
 

@@ -141,7 +141,7 @@ const submit = () => {
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1"> Isi Surat Pengantar / Permohonan Security Clearance *
                         </label>
                         <textarea v-model="form.surat_pengantar" rows="3" required
-                            placeholder="Contoh: Surat Karumkital Dr. Oepomo Kodaeral V No. R/19/III/2026 tanggal 30 Maret 2026, tentang permohonan Security Clearance."class="w-full text-xs font-medium px-4 py-3 rounded-2xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"></textarea>
+                            placeholder="Contoh: Surat Karumkital Dr. Oepomo Koarmada 2 No. R/19/III/2026 tanggal 30 Maret 2026, tentang permohonan Security Clearance."class="w-full text-xs font-medium px-4 py-3 rounded-2xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"></textarea>
                         <p class="text-[10px] text-slate-400 mt-1">Teks ini akan otomatis dimasukkan pada rincian Point 1c SKHPP.</p>
                     </div>
                 </div>
@@ -170,7 +170,7 @@ const submit = () => {
 
                         <div>
                             <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Jabatan / Pekerjaan *</label>
-                            <input type="text" v-model="form.jabatan_pekerjaan" required placeholder="Contoh: Ka/PS BP Tg. Sadari Diskes Kodaeral V atau Pimpinan CV Afnalia Jaya"class="w-full text-xs font-semibold px-4 py-2.5 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500" />
+                            <input type="text" v-model="form.jabatan_pekerjaan" required placeholder="Contoh: Ka/PS BP Tg. Sadari Diskes Koarmada 2 atau Pimpinan CV Afnalia Jaya"class="w-full text-xs font-semibold px-4 py-2.5 rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500" />
                         </div>
 
                         <div>

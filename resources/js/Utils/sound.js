@@ -1,5 +1,5 @@
 /**
- * Utilitas Suara Notifikasi & Panggilan Dinas SINDEN Denintel Kodaeral V
+ * Utilitas Suara Notifikasi & Panggilan Dinas SINDEN Denintel Koarmada 2
  * Memanfaatkan Web Audio API murni tanpa ketergantungan berkas audio eksternal.
  * Menghasilkan nada lonceng pesan, nada dering panggilan masuk, nada tunggu panggil keluar, dan nada diskoneksi.
  */

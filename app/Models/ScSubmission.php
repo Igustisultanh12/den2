@@ -79,7 +79,7 @@ class ScSubmission extends Model
         7 => [
             'id' => 7,
             'title' => 'Verifikasi Dokumen Sintel',
-            'desc' => 'Penelitian dan validasi kepatutan data intelijen di tingkat Staf Intelijen Kodaeral V.',
+            'desc' => 'Penelitian dan validasi kepatutan data intelijen di tingkat Staf Intelijen Koarmada 2.',
             'category' => 'Sintel',
         ],
         8 => [
@@ -96,8 +96,8 @@ class ScSubmission extends Model
         ],
         10 => [
             'id' => 10,
-            'title' => 'SC Terbit dan Bisa Diambil di Sintel Mako Kodaeral V',
-            'desc' => 'Naskah Security Clearance telah selesai terbit dan siap diambil oleh personel pemohon di Sintel Mako Kodaeral V.',
+            'title' => 'SC Terbit dan Bisa Diambil di Sintel Mako Koarmada 2',
+            'desc' => 'Naskah Security Clearance telah selesai terbit dan siap diambil oleh personel pemohon di Sintel Mako Koarmada 2.',
             'category' => 'Selesai',
         ],
     ];

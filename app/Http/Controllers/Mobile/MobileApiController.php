@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Mobile;
 
-use App\Http\Controllers\CashController;
 use App\Http\Controllers\CommanderAccountController;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\LetterLogController;
@@ -83,14 +82,6 @@ class MobileApiController extends Controller
                 \Illuminate\Support\Facades\DB::raw('LOWER(status)'),
                 ['approved', 'signed', 'selesai', 'rejected', 'ditolak']
             )->count();
-        }
-        if ($perm['cash.view']) {
-            $last = \App\Models\Cash::orderBy('date', 'desc')->orderBy('id', 'desc')->first();
-            $summary['cash_balance'] = (float) ($last?->balance ?? 0);
-        }
-        if ($perm['technical_cash.view']) {
-            $last = \App\Models\TechnicalUnitCash::orderBy('date', 'desc')->orderBy('id', 'desc')->first();
-            $summary['technical_cash_balance'] = (float) ($last?->balance ?? 0);
         }
 
         // Daftar jaga: SP periode berjalan + periode berikutnya (untuk jadwal mendatang).
@@ -182,11 +173,6 @@ class MobileApiController extends Controller
             return response()->json(['status' => 'error', 'code' => 'forbidden', 'message' => 'SP Jaga belum diterbitkan.'], 403);
         }
         return $this->pdfResponse(fn () => app(SpJagaController::class)->downloadPdf($id));
-    }
-
-    public function cashPdf()
-    {
-        return $this->pdfResponse(fn () => app(CashController::class)->exportPdf());
     }
 
     public function letterLogsPdf(Request $request)

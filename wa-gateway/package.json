@@ -1,7 +1,7 @@
 {
   "name": "sinden-wa-gateway",
   "version": "1.0.0",
-  "description": "Multi-Session WhatsApp Gateway for SINDEN Denintel Kodaeral V",
+  "description": "Multi-Session WhatsApp Gateway for SINDEN Denintel Koarmada 2",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

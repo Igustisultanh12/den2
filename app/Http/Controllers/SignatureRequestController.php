@@ -79,7 +79,7 @@ class SignatureRequestController extends Controller
                 'document_title' => $request->document_title ?: 'DOKUMEN RESMI DINAS',
                 'person_name' => $request->person_name ?: auth()->user()->name,
                 'pangkat_nrp' => $request->pangkat_nrp ?: ((auth()->user()->pangkat ?: 'TNI AL') . (auth()->user()->nrp ? (' / NRP ' . auth()->user()->nrp) : '')),
-                'jabatan' => $request->jabatan ?: 'Personel Denintel Kodaeral V',
+                'jabatan' => $request->jabatan ?: 'Personel Denintel Koarmada 2',
                 'peruntukan' => $request->peruntukan ?: $request->subject,
                 'letter_number' => $request->letter_number,
                 'file_path' => $path,

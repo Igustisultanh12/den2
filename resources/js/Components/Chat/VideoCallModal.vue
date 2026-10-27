@@ -35,7 +35,7 @@
         <p class="text-xs text-slate-400">
           <span v-if="partnerUser?.nrp">NRP: {{ partnerUser.nrp }} &bull; </span>
           <span v-if="partnerUser?.jabatan">{{ partnerUser.jabatan }}</span>
-          <span v-else>Dinas Denintel Kodaeral V</span>
+          <span v-else>Dinas Denintel Koarmada 2</span>
         </p>
       </div>
 

@@ -1,6 +1,6 @@
 class AppConstants {
   static const String appName = 'SI SINDEN';
-  static const String appFullName = 'Sistem Informasi Detasemen Intelijen Kodaeral V';
+  static const String appFullName = 'Sistem Informasi Detasemen Intelijen Koarmada 2';
   static const String defaultBaseUrl = 'https://sisinden.my.id';
   
   // Storage Keys

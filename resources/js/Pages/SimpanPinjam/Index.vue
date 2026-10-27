@@ -108,7 +108,7 @@ const loanRepaymentProgress = computed(() => {
                         Simpan Pinjam Personel
                     </h1>
                     <p class="text-xs text-slate-500 font-medium mt-1">
-                        Layanan keuangan dan kesejahteraan prajurit Detasemen Intelijen Kodaeral V.
+                        Layanan keuangan dan kesejahteraan prajurit Detasemen Intelijen Koarmada 2.
                     </p>
                 </div>
 

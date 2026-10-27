@@ -69,7 +69,7 @@ fun ViolationFormScreen(repository: SindenRepository, onBack: () -> Unit, onSubm
     var nrp by rememberSaveable { mutableStateOf("") }
     var pangkat by rememberSaveable { mutableStateOf("") }
     var jabatan by rememberSaveable { mutableStateOf("") }
-    var satuan by rememberSaveable { mutableStateOf("Denintel Kodaeral V") }
+    var satuan by rememberSaveable { mutableStateOf("Denintel Koarmada 2") }
     var kasus by rememberSaveable { mutableStateOf("") }
     var tmt by rememberSaveable { mutableStateOf("") }
     var perkembangan by rememberSaveable { mutableStateOf("") }

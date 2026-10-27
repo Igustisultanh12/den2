@@ -29,11 +29,9 @@ class User extends Authenticatable
         'role',
         'is_active',
         'can_access_mitra',
-        'can_access_technical_cash',
         'can_manage_koperasi',
-        'can_access_ibu_beti',
         'activation_token',
-        'must_change_password', // TAMBAHKAN INI: Agar sistem tahu user perlu ganti password
+        'must_change_password', // Agar sistem tahu user perlu ganti password
         'reset_token',
         'token_expires_at',
         'birth_date',
@@ -66,13 +64,36 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'can_access_mitra' => 'boolean',
-            'can_access_technical_cash' => 'boolean',
             'can_manage_koperasi' => 'boolean',
-            'can_access_ibu_beti' => 'boolean',
             'mfa_enabled' => 'boolean',
-            'must_change_password' => 'boolean', // Tambahkan cast agar logika Vue Bapak akurat
+            'must_change_password' => 'boolean',
             'token_expires_at' => 'datetime',
         ];
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        $r = strtolower(str_replace([' ', '-'], '_', (string) ($this->role ?? '')));
+        return in_array($r, ['super_admin', 'superadmin'], true);
+    }
+
+    public function isAdmin(): bool
+    {
+        $r = strtolower(str_replace([' ', '-'], '_', (string) ($this->role ?? '')));
+        return in_array($r, ['super_admin', 'superadmin', 'admin'], true);
+    }
+
+    public function isPersonel(): bool
+    {
+        $r = strtolower(str_replace([' ', '-'], '_', (string) ($this->role ?? '')));
+        return in_array($r, ['personel', 'user'], true);
+    }
+
+    public function isPersonelSintel(): bool
+    {
+        $r = strtolower(str_replace([' ', '-'], '_', (string) ($this->role ?? '')));
+        $jabatan = strtolower((string) ($this->jabatan ?? ''));
+        return in_array($r, ['personel_sintel', 'anggotasintel'], true) || str_contains($jabatan, 'sintel');
     }
 
     /**

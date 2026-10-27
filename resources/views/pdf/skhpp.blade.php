@@ -47,7 +47,7 @@
         
         <!-- Kop Surat (Rata Tengah dalam Kop Block, Tanpa Wrap pada V) -->
         <div style="margin-bottom: 20px; width: 380px; text-align: center;">
-            <div style="font-weight: normal; text-transform: uppercase; font-size: 12pt; white-space: nowrap;">KOMANDO DAERAH TNI ANGKATAN LAUT V</div>
+            <div style="font-weight: normal; text-transform: uppercase; font-size: 12pt; white-space: nowrap;">KOMANDO ARMADA II</div>
             <div style="font-weight: normal; text-transform: uppercase; font-size: 12pt; white-space: nowrap;">DETASEMEN INTELIJEN</div>
             <div style="border-bottom: 2px solid #000; width: 100%; margin-top: 2px;"></div>
         </div>
@@ -249,7 +249,7 @@
                             </tr>
                         </table>
                         
-                        <div style="font-weight: normal; line-height: 1.2; text-align: center; white-space: nowrap; margin-top: 4px;"> Komandan Detasemen Intelijen Kodaeral V,
+                        <div style="font-weight: normal; line-height: 1.2; text-align: center; white-space: nowrap; margin-top: 4px;"> Komandan Detasemen Intelijen Koarmada 2,
                         </div>
 
                         <!-- TTD QR Code Rata Tengah -->
@@ -269,7 +269,7 @@
         <!-- Footer Kepada (Tanpa Bold & Tanpa Turun Baris / Wrap pada "V") -->
         <div style="margin-top: 25px; font-weight: normal;">
             <div>Kepada :</div>
-            <div style="font-weight: normal; border-bottom: 1px solid #000; display: inline-block; padding-bottom: 2px; white-space: nowrap;">Yth. Asintel Dankodaeral V</div>
+            <div style="font-weight: normal; border-bottom: 1px solid #000; display: inline-block; padding-bottom: 2px; white-space: nowrap;">Yth. Asintel Pangkoarmada 2</div>
         </div>
     </div>
 
@@ -284,13 +284,13 @@
             <tr>
                 <td style="width: 55%; vertical-align: top;">
                     <div style="width: 380px; text-align: center;">
-                        <div style="font-weight: normal; text-transform: uppercase; font-size: 12pt; white-space: nowrap;">KOMANDO DAERAH TNI ANGKATAN LAUT V</div>
+                        <div style="font-weight: normal; text-transform: uppercase; font-size: 12pt; white-space: nowrap;">KOMANDO ARMADA II</div>
                         <div style="font-weight: normal; text-transform: uppercase; font-size: 12pt; white-space: nowrap;">DETASEMEN INTELIJEN</div>
                         <div style="border-bottom: 2px solid #000; width: 100%; margin-top: 2px;"></div>
                     </div>
                 </td>
                 <td style="width: 45%; vertical-align: top; text-align: right; font-size: 11pt; line-height: 1.3; font-weight: normal;">
-                    <div>Lampiran SKHPP Den Intel Kodaeral V</div>
+                    <div>Lampiran SKHPP Den Intel Koarmada 2</div>
                     <div style="border-bottom: 1px solid #000; display: inline-block; padding-bottom: 2px;">
                         @if($skhpp->nomor_skhpp)
                             Nomor {{ $skhpp->nomor_skhpp }}<br>
@@ -335,7 +335,7 @@
                 <td style="width: 50%;"></td>
                 <td style="width: 50%; text-align: center;">
                     <div style="text-align: center; width: 280px; margin: 0 auto; font-weight: normal;">
-                        <div style="line-height: 1.2; white-space: nowrap;"> Komandan Detasemen Intelijen Kodaeral V,
+                        <div style="line-height: 1.2; white-space: nowrap;"> Komandan Detasemen Intelijen Koarmada 2,
                         </div>
                         <div style="height: 95px; margin-top: 5px; margin-bottom: 5px; text-align: center;">
                             @if($qr_base64 && $skhpp->status === 'approved')

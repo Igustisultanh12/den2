@@ -117,7 +117,7 @@ class UserController extends Controller
             'nrp' => 'required|string|unique:users,nrp',
             'phone' => 'required|string|unique:users,phone',
             'email' => 'required|email|unique:users,email',
-            'role' => 'required|string|in:admin,komandan,wadan,pasops,danunit1,danunit2,danunitteknis,kaurmintel,paurset,staf,personel,anggotasintel'
+            'role' => 'required|string|in:super_admin,admin,personel,personel_sintel,komandan,wadan,pasops,danunit1,danunit2,danunitteknis,kaurmintel,paurset,staf,anggotasintel'
         ]);
 
         try {
@@ -133,7 +133,10 @@ class UserController extends Controller
                      (($hour >= 15 && $hour < 18) ? "Selamat Sore" : "Selamat Malam"));
 
             $roleMapping = [
-                'admin'          => 'ADMINISTRATOR SISTEM',
+                'super_admin'    => 'SUPER ADMIN',
+                'admin'          => 'ADMINISTRATOR',
+                'personel'       => 'PERSONEL SATUAN',
+                'personel_sintel'=> 'PERSONEL SINTEL',
                 'komandan'       => 'KOMANDAN (APPROVER)',
                 'wadan'          => 'WAKIL KOMANDAN',
                 'pasops'         => 'PASOPS',
@@ -143,8 +146,7 @@ class UserController extends Controller
                 'kaurmintel'     => 'KAUR MINTEL',
                 'paurset'        => 'PAUR SET',
                 'staf'           => 'STAF ADMINISTRASI',
-                'personel'       => 'PERSONEL SATUAN',
-                'anggotasintel'  => 'ANGGOTA SINTEL',
+                'anggotasintel'  => 'PERSONEL SINTEL',
             ];
             $roleLabel = $roleMapping[$request->role] ?? 'PERSONEL';
 
@@ -290,7 +292,10 @@ class UserController extends Controller
             DB::beginTransaction();
 
             $roleMapping = [
-                'admin'          => 'ADMINISTRATOR SISTEM',
+                'super_admin'    => 'SUPER ADMIN',
+                'admin'          => 'ADMINISTRATOR',
+                'personel'       => 'PERSONEL SATUAN',
+                'personel_sintel'=> 'PERSONEL SINTEL',
                 'komandan'       => 'KOMANDAN (APPROVER)',
                 'wadan'          => 'WAKIL KOMANDAN',
                 'pasops'         => 'PASOPS',
@@ -300,15 +305,14 @@ class UserController extends Controller
                 'kaurmintel'     => 'KAUR MINTEL',
                 'paurset'        => 'PAUR SET',
                 'staf'           => 'STAF ADMINISTRASI',
-                'personel'       => 'PERSONEL SATUAN',
-                'anggotasintel'  => 'ANGGOTA SINTEL',
+                'anggotasintel'  => 'PERSONEL SINTEL',
             ];
 
             foreach ($request->users as $item) {
                 $activationToken = 'SINDEN-' . strtoupper(Str::random(6));
                 $rawNrp = preg_replace('/[^A-Za-z0-9]/', '', $item['nrp']);
                 $email = !empty($item['email']) ? $item['email'] : (strtolower($rawNrp) . '@sinden.my.id');
-                $role = !empty($item['role']) ? $item['role'] : 'anggotasintel';
+                $role = !empty($item['role']) ? $item['role'] : 'personel';
                 $phone = !empty($item['phone']) ? $item['phone'] : null;
 
                 $user = User::create([
@@ -570,7 +574,7 @@ class UserController extends Controller
             'nrp'      => 'required|string|unique:users,nrp,' . $user->id,
             'phone'    => 'nullable|string',
             'email'    => 'required|email|unique:users,email,' . $user->id,
-            'role'     => 'nullable|string|in:admin,komandan,wadan,pasops,danunit1,danunit2,danunitteknis,kaurmintel,paurset,staf,personel,anggotasintel',
+            'role'     => 'nullable|string|in:super_admin,admin,personel,personel_sintel,komandan,wadan,pasops,danunit1,danunit2,danunitteknis,kaurmintel,paurset,staf,anggotasintel',
             'password' => 'nullable|string|min:6',
         ]);
 
@@ -686,24 +690,7 @@ class UserController extends Controller
         return back()->with('message', 'Hak akses Pengurus Simpan Pinjam berhasil diperbarui.');
     }
 
-    /**
-     * TOGGLE HAK AKSES REKENING IBU BETI
-     */
-    public function toggleIbuBetiAccess(User $user)
-    {
-        $user->update(['can_access_ibu_beti' => !$user->can_access_ibu_beti]);
 
-        AuditLog::create([
-            'user_id'          => auth()->id(),
-            'admin_name'       => auth()->user()->name,
-            'action'           => 'UPDATE HAK AKSES REKENING IBU BETI',
-            'target_personnel' => $user->name,
-            'description'      => "Mengubah hak akses Rekening Ibu Beti untuk {$user->name} menjadi " . ($user->can_access_ibu_beti ? 'Diizinkan' : 'Dilarang'),
-            'ip_address'       => request()->ip(),
-        ]);
-
-        return back()->with('message', 'Hak akses Rekening Ibu Beti berhasil diperbarui.');
-    }
 
     /**
      * TOGGLE HAK AKSES M2F OTP WHATSAPP

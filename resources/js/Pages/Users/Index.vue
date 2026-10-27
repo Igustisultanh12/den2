@@ -17,7 +17,12 @@ const user = computed(() => usePage().props.auth.user);
 
 // Mapping Role Satuan untuk tampilan yang lebih rapi di PDF
 const roleLabels = {
-    admin: 'ADMINISTRATOR SISTEM',
+    super_admin: 'SUPER ADMIN',
+    superadmin: 'SUPER ADMIN',
+    admin: 'ADMIN',
+    personel: 'PERSONEL',
+    personel_sintel: 'PERSONEL SINTEL',
+    anggotasintel: 'PERSONEL SINTEL',
     komandan: 'KOMANDAN (APPROVER)',
     wadan: 'WAKIL KOMANDAN',
     pasops: 'PASOPS',
@@ -27,8 +32,6 @@ const roleLabels = {
     kaurmintel: 'KAUR MINTEL',
     paurset: 'PAUR SET',
     staf: 'STAF ADMINISTRASI',
-    personel: 'PERSONEL SATUAN',
-    anggotasintel: 'ANGGOTA SINTEL'
 };
 
 // State Management
@@ -566,86 +569,6 @@ const toggleKoperasiAccess = (user) => {
     });
 };
 
-const toggleTechnicalCashAccess = (user) => {
-    if (!user) return;
-    const prev = Boolean(user.can_access_technical_cash);
-    user.can_access_technical_cash = !prev;
-    if (detailUser.value && detailUser.value.id === user.id) {
-        detailUser.value.can_access_technical_cash = user.can_access_technical_cash;
-    }
-    if (props.users?.data) {
-        const found = props.users.data.find(u => u.id === user.id);
-        if (found) found.can_access_technical_cash = user.can_access_technical_cash;
-    }
-
-    router.post(route('users.toggle-technical-cash-access', user.id), {}, {
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => {
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 2000,
-                timerProgressBar: true
-            });
-            Toast.fire({
-                icon: 'success',
-                title: `Akses Kas Teknis: ${user.can_access_technical_cash ? 'DIBERIKAN (AKTIF)' : 'DINONAKTIFKAN'}`
-            });
-        },
-        onError: () => {
-            user.can_access_technical_cash = prev;
-            if (detailUser.value && detailUser.value.id === user.id) detailUser.value.can_access_technical_cash = prev;
-            if (props.users?.data) {
-                const found = props.users.data.find(u => u.id === user.id);
-                if (found) found.can_access_technical_cash = prev;
-            }
-            Swal.fire('GAGAL', 'Gagal memperbarui hak akses Buku Kas Unit Teknis.', 'error');
-        }
-    });
-};
-
-const toggleIbuBetiAccess = (user) => {
-    if (!user) return;
-    const prev = Boolean(user.can_access_ibu_beti);
-    user.can_access_ibu_beti = !prev;
-    if (detailUser.value && detailUser.value.id === user.id) {
-        detailUser.value.can_access_ibu_beti = user.can_access_ibu_beti;
-    }
-    if (props.users?.data) {
-        const found = props.users.data.find(u => u.id === user.id);
-        if (found) found.can_access_ibu_beti = user.can_access_ibu_beti;
-    }
-
-    router.post(route('users.toggle-ibu-beti-access', user.id), {}, {
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => {
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 2000,
-                timerProgressBar: true
-            });
-            Toast.fire({
-                icon: 'success',
-                title: `Akses Rekening Ibu Beti: ${user.can_access_ibu_beti ? 'DIBERIKAN (AKTIF)' : 'DINONAKTIFKAN'}`
-            });
-        },
-        onError: () => {
-            user.can_access_ibu_beti = prev;
-            if (detailUser.value && detailUser.value.id === user.id) detailUser.value.can_access_ibu_beti = prev;
-            if (props.users?.data) {
-                const found = props.users.data.find(u => u.id === user.id);
-                if (found) found.can_access_ibu_beti = prev;
-            }
-            Swal.fire('GAGAL', 'Gagal memperbarui hak akses Rekening Ibu Beti.', 'error');
-        }
-    });
-};
-
 const toggleMfaAccess = (user) => {
     if (!user) return;
     const prev = Boolean(user.mfa_enabled);
@@ -799,14 +722,8 @@ onUnmounted(() => {
                                     <button @click="toggleMitraAccess(user)" 
                                         :class="user.can_access_mitra ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-700 hover:text-white'"class="px-2.5 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all shadow-xs"title="Toggle Hak Akses Modul Mitra"> Mitra: {{ user.can_access_mitra ? 'AKTIF' : 'OFF' }}
                                     </button>
-                                    <button @click="toggleTechnicalCashAccess(user)" 
-                                        :class="user.can_access_technical_cash ? 'bg-cyan-100 text-cyan-800 hover:bg-cyan-600 hover:text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-700 hover:text-white'"class="px-2.5 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all shadow-xs"title="Toggle Hak Akses Buku Kas Dan Unit Teknis"> Kas Teknis: {{ user.can_access_technical_cash ? 'AKTIF' : 'OFF' }}
-                                    </button>
                                     <button @click="toggleKoperasiAccess(user)" 
                                         :class="user.can_manage_koperasi ? 'bg-violet-100 text-violet-800 hover:bg-violet-600 hover:text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-700 hover:text-white'" class="px-2.5 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all shadow-xs" title="Toggle Hak Akses Pengurus Simpan Pinjam (Koperasi)"> Koperasi: {{ user.can_manage_koperasi ? 'PENGURUS' : 'OFF' }}
-                                    </button>
-                                    <button @click="toggleIbuBetiAccess(user)" 
-                                        :class="user.can_access_ibu_beti ? 'bg-pink-100 text-pink-700 hover:bg-pink-600 hover:text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-700 hover:text-white'" class="px-2.5 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all shadow-xs" title="Toggle Hak Akses Rekening Ibu Beti"> Ibu Beti: {{ user.can_access_ibu_beti ? 'AKTIF' : 'OFF' }}
                                     </button>
                                     <button @click="toggleMfaAccess(user)" 
                                         :class="user.mfa_enabled ? 'bg-amber-100 text-amber-800 hover:bg-amber-600 hover:text-white border border-amber-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-700 hover:text-white border border-slate-200'" 
@@ -945,16 +862,16 @@ onUnmounted(() => {
                         <div class="col-span-2">
                             <label class="text-[9px] font-black text-gray-400 uppercase ml-2">Otoritas Akses (Role)</label>
                             <select v-model="addForm.role" class="w-full bg-indigo-50 border-none rounded-2xl p-4 text-[11px] font-black uppercase focus:ring-2 focus:ring-indigo-600">
-                                <option value="anggotasintel">ANGGOTA SINTEL</option>
-                                <option value="personel">PERSONEL SATUAN</option>
-                                <option value="staf">STAF ADMINISTRASI</option>
+                                <option value="super_admin">SUPER ADMIN</option>
+                                <option value="admin">ADMIN</option>
+                                <option value="personel">PERSONEL</option>
+                                <option value="personel_sintel">PERSONEL SINTEL</option>
                                 <option value="komandan">KOMANDAN (APPROVER)</option>
-                                <option value="admin">ADMINISTRATOR SISTEM</option>
                                 <option value="wadan">WAKIL KOMANDAN</option>
                                 <option value="pasops">PASOPS</option>
+                                <option value="staf">STAF ADMINISTRASI</option>
                                 <option value="danunit1">DAN UNIT I / LID</option>
                                 <option value="danunit2">DAN UNIT II / PAMGAL</option>
-                                <option value="danunitteknis">DAN UNIT TEKNIS</option>
                                 <option value="kaurmintel">KAUR MINTEL</option>
                                 <option value="paurset">PAUR SET</option>
                             </select>
@@ -1175,43 +1092,7 @@ onUnmounted(() => {
                                 </div>
                             </div>
 
-                            <!-- 2. BUKU KAS UNIT TEKNIS - INTERACTIVE TOGGLE CARD -->
-                            <div 
-                                @click="toggleTechnicalCashAccess(detailUser)"
-                                :class="detailUser.can_access_technical_cash ? 'border-cyan-500 bg-cyan-50/50 shadow-sm ring-2 ring-cyan-500/20' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'"
-                                class="p-4 border rounded-2xl cursor-pointer transition-all duration-200 flex flex-col justify-between group select-none relative"
-                                role="button"
-                                title="Klik untuk mengaktifkan / menonaktifkan Kas Unit Teknis"
-                            >
-                                <div>
-                                    <div class="flex items-start justify-between gap-2 mb-2">
-                                        <div class="flex items-center gap-2.5">
-                                            <div :class="detailUser.can_access_technical_cash ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-600/30' : 'bg-slate-100 text-slate-500'" class="w-8 h-8 rounded-xl flex items-center justify-center font-bold shrink-0 transition-colors">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                                            </div>
-                                            <div>
-                                                <span class="font-black text-slate-900 uppercase block text-[11px] tracking-tight">Buku Kas Unit Teknis</span>
-                                                <span class="text-[9px] text-slate-400 font-bold uppercase">Keuangan Satuan</span>
-                                            </div>
-                                        </div>
-                                        <!-- TOGGLE SWITCH VISUAL -->
-                                        <div class="flex items-center gap-1.5 shrink-0 pt-0.5">
-                                            <div :class="detailUser.can_access_technical_cash ? 'bg-cyan-600' : 'bg-slate-300'" class="w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative">
-                                                <div :class="detailUser.can_access_technical_cash ? 'translate-x-5' : 'translate-x-0'" class="w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p class="text-[10.5px] text-slate-500 leading-snug">Izin pencatatan & pembukuan arus kas debet/kredit keuangan operasional unit teknis.</p>
-                                </div>
-                                <div class="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between">
-                                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Status Otoritas:</span>
-                                    <span :class="detailUser.can_access_technical_cash ? 'bg-cyan-600 text-white font-black shadow-xs shadow-cyan-600/30' : 'bg-slate-100 text-slate-500 font-bold'" class="px-2.5 py-1 text-[9px] rounded-lg uppercase tracking-wider transition">
-                                        {{ detailUser.can_access_technical_cash ? 'DIBERIKAN (AKTIF)' : 'NONAKTIF (OFF)' }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- 3. MODUL KEUANGAN MITRA - INTERACTIVE TOGGLE CARD -->
+                            <!-- 2. MODUL KEUANGAN MITRA - INTERACTIVE TOGGLE CARD -->
                             <div 
                                 @click="toggleMitraAccess(detailUser)"
                                 :class="detailUser.can_access_mitra ? 'border-emerald-500 bg-emerald-50/50 shadow-sm ring-2 ring-emerald-500/20' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'"
@@ -1247,43 +1128,7 @@ onUnmounted(() => {
                                 </div>
                             </div>
 
-                            <!-- 4. MODUL REKENING IBU BETI - INTERACTIVE TOGGLE CARD -->
-                            <div 
-                                @click="toggleIbuBetiAccess(detailUser)"
-                                :class="detailUser.can_access_ibu_beti ? 'border-pink-500 bg-pink-50/50 shadow-sm ring-2 ring-pink-500/20' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'"
-                                class="p-4 border rounded-2xl cursor-pointer transition-all duration-200 flex flex-col justify-between group select-none relative"
-                                role="button"
-                                title="Klik untuk mengaktifkan / menonaktifkan Rekening Ibu Beti"
-                            >
-                                <div>
-                                    <div class="flex items-start justify-between gap-2 mb-2">
-                                        <div class="flex items-center gap-2.5">
-                                            <div :class="detailUser.can_access_ibu_beti ? 'bg-pink-600 text-white shadow-sm shadow-pink-600/30' : 'bg-slate-100 text-slate-500'" class="w-8 h-8 rounded-xl flex items-center justify-center font-bold shrink-0 transition-colors">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                                            </div>
-                                            <div>
-                                                <span class="font-black text-slate-900 uppercase block text-[11px] tracking-tight">Rekening Ibu Beti</span>
-                                                <span class="text-[9px] text-slate-400 font-bold uppercase">Keuangan Khusus</span>
-                                            </div>
-                                        </div>
-                                        <!-- TOGGLE SWITCH VISUAL -->
-                                        <div class="flex items-center gap-1.5 shrink-0 pt-0.5">
-                                            <div :class="detailUser.can_access_ibu_beti ? 'bg-pink-600' : 'bg-slate-300'" class="w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative">
-                                                <div :class="detailUser.can_access_ibu_beti ? 'translate-x-5' : 'translate-x-0'" class="w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p class="text-[10.5px] text-slate-500 leading-snug">Otoritas akses, pencatatan mutasi kas debet/kredit, & cetak laporan Rekening Ibu Beti.</p>
-                                </div>
-                                <div class="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between">
-                                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Status Otoritas:</span>
-                                    <span :class="detailUser.can_access_ibu_beti ? 'bg-pink-600 text-white font-black shadow-xs shadow-pink-600/30' : 'bg-slate-100 text-slate-500 font-bold'" class="px-2.5 py-1 text-[9px] rounded-lg uppercase tracking-wider transition">
-                                        {{ detailUser.can_access_ibu_beti ? 'DIBERIKAN (AKTIF)' : 'NONAKTIF (OFF)' }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- 5. M2F OTP WHATSAPP (LOGIN 2 LANGKAH) - INTERACTIVE TOGGLE CARD -->
+                            <!-- 3. M2F OTP WHATSAPP (LOGIN 2 LANGKAH) - INTERACTIVE TOGGLE CARD -->
                             <div 
                                 @click="toggleMfaAccess(detailUser)"
                                 :class="detailUser.mfa_enabled ? 'border-amber-500 bg-amber-50/50 shadow-sm ring-2 ring-amber-500/20' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'"
@@ -1450,18 +1295,18 @@ onUnmounted(() => {
                                 </td>
                                 <td class="p-2">
                                     <select v-model="row.role" class="w-full text-xs rounded-xl border-slate-200 font-bold focus:ring-indigo-500 bg-white">
-                                        <option value="anggotasintel">ANGGOTA SINTEL</option>
-                                <option value="personel">PERSONEL SATUAN</option>
+                                        <option value="super_admin">SUPER ADMIN</option>
+                                        <option value="admin">ADMIN</option>
+                                        <option value="personel">PERSONEL</option>
+                                        <option value="personel_sintel">PERSONEL SINTEL</option>
+                                        <option value="komandan">KOMANDAN (APPROVER)</option>
+                                        <option value="wadan">WAKIL KOMANDAN</option>
+                                        <option value="pasops">PASOPS</option>
                                         <option value="staf">STAF ADMINISTRASI</option>
                                         <option value="danunit1">DAN UNIT I / LID</option>
                                         <option value="danunit2">DAN UNIT II / PAMGAL</option>
-                                        <option value="danunitteknis">DAN UNIT TEKNIS</option>
                                         <option value="kaurmintel">KAUR MINTEL</option>
                                         <option value="paurset">PAUR SET</option>
-                                        <option value="pasops">PASOPS</option>
-                                        <option value="wadan">WAKIL KOMANDAN</option>
-                                        <option value="komandan">KOMANDAN (APPROVER)</option>
-                                        <option value="admin">ADMINISTRATOR SISTEM</option>
                                     </select>
                                 </td>
                                 <td class="p-2">
