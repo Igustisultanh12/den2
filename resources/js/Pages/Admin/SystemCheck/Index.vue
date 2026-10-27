@@ -101,7 +101,7 @@ const runSpeedtest = async () => {
             position: 'top-end',
             icon: 'success',
             title: 'Speedtest Selesai!',
-            text: `Download: ${response.data.download_mbps} Mbps | Upload: ${response.data.upload_mbps} Mbps`,
+            text: `Download: ${response.data.download_mbps} Mbps | Upload: ${response.data.upload_mbps ?? '-'} Mbps`,
             showConfirmButton: false,
             timer: 4000,
         });
@@ -426,14 +426,15 @@ onUnmounted(() => {
                     <!-- Upload -->
                     <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Upload (Unggah)</p>
-                        <p class="text-2xl sm:text-3xl font-black text-indigo-600 mt-1">{{ speedtestResult.upload_mbps }} <span class="text-xs text-slate-500 font-bold">Mbps</span></p>
+                        <p class="text-2xl sm:text-3xl font-black text-indigo-600 mt-1">{{ speedtestResult.upload_mbps ?? '-' }} <span class="text-xs text-slate-500 font-bold">Mbps</span></p>
+                        <p v-if="speedtestResult.upload_mbps == null" class="text-[10px] text-slate-400 mt-0.5">Tidak terukur tanpa Ookla CLI</p>
                     </div>
 
                     <!-- Ping & Jitter -->
                     <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Latency / Ping</p>
                         <p class="text-2xl sm:text-3xl font-black text-slate-900 mt-1">{{ speedtestResult.ping }} <span class="text-xs text-slate-500 font-bold">ms</span></p>
-                        <p class="text-[10px] text-slate-400 mt-0.5">Jitter: {{ speedtestResult.jitter }} ms</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Jitter: {{ speedtestResult.jitter ?? '-' }} ms</p>
                     </div>
 
                     <!-- Provider & Server Info -->
@@ -503,12 +504,12 @@ onUnmounted(() => {
                                 </td>
 
                                 <!-- Filesystem Device -->
-                                <td class="p-3.5 text-slate-500 font-mono text-[11px]">
+                                <td class="p-3.5 text-slate-500 font-mono text-[11px] break-all min-w-[160px]">
                                     {{ part.filesystem }}
                                 </td>
 
                                 <!-- Kapasitas -->
-                                <td class="p-3.5 text-center font-mono font-bold text-slate-700">
+                                <td class="p-3.5 text-center font-mono font-bold text-slate-700 whitespace-nowrap">
                                     {{ part.used_human }} / {{ part.total_human }}
                                     <span class="text-[10px] text-slate-400 font-normal block">Sisa: {{ part.free_human }}</span>
                                 </td>
@@ -539,11 +540,16 @@ onUnmounted(() => {
                                 </td>
 
                                 <!-- Status Kesehatan -->
-                                <td class="p-3.5 text-right">
-                                    <span 
+                                <td class="p-3.5 text-right whitespace-nowrap">
+                                    <span
                                         :class="part.health_status === 'critical' ? 'bg-rose-100 text-rose-800 border-rose-300' : (part.health_status === 'warning' ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300')"
-                                        class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border">
-                                        {{ part.health_status === 'critical' ? 'Hampir Penuh' : (part.health_status === 'warning' ? 'Waspada' : 'Sehat (Optimal)') }}
+                                        :title="part.health_status === 'critical' ? 'Ruang hampir habis' : (part.health_status === 'warning' ? 'Pemakaian tinggi' : 'Kondisi optimal')"
+                                        class="inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border">
+                                        <span
+                                            class="w-1.5 h-1.5 rounded-full shrink-0"
+                                            :class="part.health_status === 'critical' ? 'bg-rose-500' : (part.health_status === 'warning' ? 'bg-amber-500' : 'bg-emerald-500')"
+                                        ></span>
+                                        {{ part.health_status === 'critical' ? 'Hampir Penuh' : (part.health_status === 'warning' ? 'Waspada' : 'Sehat') }}
                                     </span>
                                 </td>
                             </tr>

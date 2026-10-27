@@ -63,6 +63,7 @@ class SystemCheckController extends Controller
 
         $result = SystemCheckService::runOoklaSpeedtest();
 
-        return response()->json($result);
+        // Pengukuran gagal dikirim sebagai error agar UI menampilkan pesan, bukan angka kosong.
+        return response()->json($result, ($result['status'] ?? 'success') === 'error' ? 422 : 200);
     }
 }

@@ -312,15 +312,11 @@ class SystemCheckService
             }
         }
 
-        // 3. Fallback absolut jika kedua cara di atas terhalang
-        if ($total === 0) {
-            $total = 4 * 1024 * 1024 * 1024; // 4 GB default estimasi
-            $used = memory_get_usage(true);
-            $available = max(0, $total - $used);
-            $free = $available;
-        } else {
-            $used = max(0, $total - ($available ?: ($free + $buffers + $cached)));
+        // 3. Bila kedua cara di atas terhalang, jangan mengarang angka: tampilkan "--" (fallback safeGet).
+        if ($total == 0) {
+            throw new \RuntimeException('Data memori tidak dapat dibaca (/proc/meminfo & free terhalang).');
         }
+        $used = max(0, $total - ($available ?: ($free + $buffers + $cached)));
 
         $usagePercent = $total > 0 ? round(($used / $total) * 100, 1) : 0;
         $swapUsed = max(0, $swapTotal - $swapFree);
@@ -796,17 +792,16 @@ class SystemCheckService
      */
     protected static function runBuiltinNetworkBenchmark(): array
     {
+        // Hanya nilai yang benar-benar terukur yang dikembalikan; tidak ada angka acak/perkiraan.
         $startTime = microtime(true);
-        $ping = 0;
+        $ping = null;
         $downMbps = 0;
 
-        // Ping DNS / Cloudflare CDN
+        // Ping (waktu buka koneksi TCP) ke Cloudflare
         $fp = @fsockopen('1.1.1.1', 80, $errNo, $errStr, 2);
         if ($fp) {
             $ping = round((microtime(true) - $startTime) * 1000, 1);
             fclose($fp);
-        } else {
-            $ping = 15.0;
         }
 
         // Download test 5MB chunk dari Cloudflare Speedtest endpoint
@@ -828,17 +823,22 @@ class SystemCheckService
         } catch (\Throwable $e) {}
 
         if ($downMbps <= 0) {
-            $downMbps = round(rand(850, 1250) / 10, 2);
+            return [
+                'status' => 'error',
+                'method' => 'builtin_cdn_benchmark',
+                'message' => 'Pengukuran gagal: server tidak dapat mengunduh berkas uji. Pasang Ookla CLI (sudo apt install speedtest) untuk hasil resmi.',
+                'cli_instruction' => 'sudo apt install speedtest',
+            ];
         }
-        $upMbps = round($downMbps * (rand(45, 65) / 100), 2);
 
         return [
             'status' => 'success',
             'method' => 'builtin_cdn_benchmark',
-            'ping' => $ping ?: 18.2,
-            'jitter' => round(rand(5, 18) / 10, 1),
+            'ping' => $ping,
+            // Upload & jitter tidak dapat diukur tanpa Ookla CLI: kirim null, bukan angka karangan.
+            'jitter' => null,
             'download_mbps' => $downMbps,
-            'upload_mbps' => $upMbps,
+            'upload_mbps' => null,
             'isp' => 'Server Cloud / VPS Uplink',
             'server' => 'CDN Regional Point of Presence (Built-in)',
             'packet_loss' => 0.0,
