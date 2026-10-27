@@ -19,7 +19,12 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
-        $user = User::factory()->create();
+        // Akun baru default nonaktif & wajib ganti password; uji jalur login akun aktif biasa.
+        $user = User::factory()->create([
+            'is_active' => true,
+            'must_change_password' => false,
+            'mfa_enabled' => false,
+        ]);
 
         $response = $this->post('/login', [
             'email' => $user->email,

@@ -28,3 +28,9 @@ Thumbs.db
 *.keystore
 key.properties
 android/keystore.properties
+
+# Output build Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties

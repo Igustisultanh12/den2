@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             if (!Schema::hasColumn('users', 'can_manage_koperasi')) {
-                $table->boolean('can_manage_koperasi')->default(false)->after('can_access_technical_cash');
+                // Migrasi can_access_technical_cash sudah dihapus bersama modul kas; pada instalasi
+                // baru kolom itu tidak ada sehingga ->after() ke kolom tersebut gagal di MySQL/MariaDB.
+                $after = Schema::hasColumn('users', 'can_access_technical_cash') ? 'can_access_technical_cash' : 'can_access_mitra';
+                $table->boolean('can_manage_koperasi')->default(false)->after($after);
             }
         });
     }

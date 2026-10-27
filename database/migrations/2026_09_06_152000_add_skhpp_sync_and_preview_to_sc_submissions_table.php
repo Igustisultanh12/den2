@@ -39,16 +39,17 @@ return new class extends Migration
     {
         if (Schema::hasTable('sc_submissions')) {
             Schema::table('sc_submissions', function (Blueprint $table) {
-                if (Schema::hasColumn('sc_submissions', 'skhpp_id')) {
-                    $table->dropForeign(['skhpp_id']);
-                    $table->dropColumn('skhpp_id');
-                }
-                $table->dropColumn([
+                // up() tidak pernah membuat foreign key untuk skhpp_id, jadi cukup drop kolomnya.
+                $columns = array_values(array_filter([
+                    'skhpp_id',
                     'file_skhpp',
                     'file_sc_preview',
                     'sc_preview_uploaded_at',
                     'sc_preview_expired_at',
-                ]);
+                ], fn ($column) => Schema::hasColumn('sc_submissions', $column)));
+                if ($columns !== []) {
+                    $table->dropColumn($columns);
+                }
             });
         }
     }

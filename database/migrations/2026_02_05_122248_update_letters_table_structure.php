@@ -32,8 +32,13 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('letters', function (Blueprint $col) {
-            $col->dropColumn(['type', 'security_level', 'issuer', 'date']);
-        });
+        // type/security_level/issuer/date milik create_letters_table; di sini hanya
+        // sub_category_id (beserta FK-nya) yang perlu dibalik.
+        if (Schema::hasColumn('letters', 'sub_category_id')) {
+            Schema::table('letters', function (Blueprint $col) {
+                $col->dropForeign(['sub_category_id']);
+                $col->dropColumn('sub_category_id');
+            });
+        }
     }
 };

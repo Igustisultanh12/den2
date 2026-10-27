@@ -54,7 +54,7 @@ return new class extends Migration
                 $table->unsignedBigInteger('created_by')->nullable();
                 $table->timestamps();
             });
-        } else {
+        } elseif (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
             try {
                 DB::statement("ALTER TABLE `sc_submissions` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'proses'");
             } catch (\Throwable $e) {}

@@ -13,9 +13,8 @@ use Tests\TestCase;
 /**
  * Pengujian keamanan & kontrak API mobile.
  *
- * Catatan: migrasi bawaan repo belum dapat dijalankan di SQLite (ada tabel
- * yang dibuat dua kali, lihat docs/SISINDEN_ANDROID_AUDIT.md), sehingga test
- * ini membangun skema minimal yang dibutuhkan secara eksplisit.
+ * Catatan: test ini sengaja membangun skema minimal yang dibutuhkan secara
+ * eksplisit agar kontrak API teruji terpisah dari riwayat migrasi.
  */
 class MobileApiSecurityTest extends TestCase
 {
@@ -59,16 +58,6 @@ class MobileApiSecurityTest extends TestCase
             $t->text('abilities')->nullable();
             $t->timestamp('last_used_at')->nullable();
             $t->timestamp('expires_at')->nullable();
-            $t->timestamps();
-        });
-        Schema::create('cashes', function (Blueprint $t) {
-            $t->id();
-            $t->date('date');
-            $t->string('description');
-            $t->decimal('debit', 15, 2)->default(0);
-            $t->decimal('credit', 15, 2)->default(0);
-            $t->decimal('balance', 15, 2)->default(0);
-            $t->text('receipt_path')->nullable();
             $t->timestamps();
         });
         Schema::create('attendances', function (Blueprint $t) {
@@ -183,11 +172,11 @@ class MobileApiSecurityTest extends TestCase
 
     public function test_data_endpoints_reject_requests_without_token(): void
     {
-        foreach (['/api/mobile/cash', '/api/mobile/users', '/api/mobile/me', '/api/mobile/attendances', '/api/mobile/duty-roster'] as $uri) {
+        foreach (['/api/mobile/mitra', '/api/mobile/users', '/api/mobile/me', '/api/mobile/attendances', '/api/mobile/duty-roster'] as $uri) {
             $this->getJson($uri)->assertStatus(401)->assertJson(['code' => 'unauthenticated']);
         }
         $this->postJson('/api/mobile/users', ['name' => 'x', 'role' => 'admin'])->assertStatus(401);
-        $this->deleteJson('/api/mobile/cash/1')->assertStatus(401);
+        $this->deleteJson('/api/mobile/users/1')->assertStatus(401);
     }
 
     public function test_forged_identity_headers_are_ignored(): void
@@ -209,12 +198,11 @@ class MobileApiSecurityTest extends TestCase
 
         $res = $this->postJson('/api/mobile/login', ['username' => '12345', 'password' => 'rahasia123'])
             ->assertOk()
-            ->assertJsonPath('status', 'success')
-            ->assertJsonPath('user.can_access_cash', false);
+            ->assertJsonPath('status', 'success');
 
         $perms = $res->json('user.permissions');
         $this->assertContains('duty_roster.view', $perms);
-        $this->assertNotContains('cash.view', $perms);
+        $this->assertNotContains('mitra.view', $perms);
         $this->assertNotContains('users.manage', $perms);
 
         $this->withToken($res->json('token'))->getJson('/api/mobile/me')
@@ -244,8 +232,8 @@ class MobileApiSecurityTest extends TestCase
         $personel = $this->makeUser(['role' => 'personel']);
         $token = $this->tokenFor($personel);
 
-        $this->withToken($token)->getJson('/api/mobile/cash')
-            ->assertStatus(403)->assertJsonPath('required_permission', 'cash.view');
+        $this->withToken($token)->getJson('/api/mobile/audit-logs')
+            ->assertStatus(403)->assertJsonPath('required_permission', 'audit_logs.view');
         $this->withToken($token)->getJson('/api/mobile/users')->assertStatus(403);
         $this->withToken($token)->postJson('/api/mobile/users', [
             'name' => 'Penyusup', 'email' => 'x@x.test', 'nrp' => '1', 'role' => 'admin', 'password' => 'rahasia123',
@@ -253,20 +241,19 @@ class MobileApiSecurityTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'x@x.test']);
     }
 
-    public function test_admin_can_access_cash_and_validation_applies(): void
+    public function test_removed_cash_module_endpoints_are_gone(): void
     {
+        // Modul Buku Kas & Kas Unit Teknis dihapus (commit 7e849d0); endpoint tidak boleh tersisa.
         $admin = $this->makeUser(['role' => 'admin']);
         $token = $this->tokenFor($admin);
 
-        $this->withToken($token)->getJson('/api/mobile/cash')->assertOk()->assertJsonPath('status', 'success');
-        $this->withToken($token)->postJson('/api/mobile/cash', ['description' => 'x'])->assertStatus(422);
-        $this->withToken($token)->postJson('/api/mobile/cash', [
-            'date' => '2026-10-01', 'description' => 'Saldo awal', 'type' => 'masuk', 'amount' => 1,
-        ])->assertOk();
-        $this->withToken($token)->postJson('/api/mobile/cash', [
-            'date' => '2026-10-02', 'description' => 'Belanja ATK', 'type' => 'keluar', 'amount' => 0.5,
-        ])->assertOk();
-        $this->withToken($token)->getJson('/api/mobile/cash')->assertJsonPath('balance', 0.5);
+        foreach (['/api/mobile/cash', '/api/mobile/technical-cash', '/api/mobile/pdf/cash'] as $uri) {
+            $this->withToken($token)->getJson($uri)->assertNotFound();
+        }
+
+        $perms = $this->withToken($token)->getJson('/api/mobile/me')->json('user.permissions');
+        $this->assertNotContains('cash.view', $perms);
+        $this->assertNotContains('technical_cash.view', $perms);
     }
 
     public function test_permission_change_by_admin_applies_on_next_request(): void
@@ -274,10 +261,10 @@ class MobileApiSecurityTest extends TestCase
         $u = $this->makeUser(['role' => 'personel']);
         $token = $this->tokenFor($u);
         $this->withToken($token)->getJson('/api/mobile/me')->assertOk();
-        $this->assertNotContains('technical_cash.view', $this->withToken($token)->getJson('/api/mobile/me')->json('user.permissions'));
+        $this->assertNotContains('mitra.view', $this->withToken($token)->getJson('/api/mobile/me')->json('user.permissions'));
 
-        $u->forceFill(['can_access_technical_cash' => true])->save();
-        $this->assertContains('technical_cash.view', $this->withToken($token)->getJson('/api/mobile/me')->json('user.permissions'));
+        $u->forceFill(['can_access_mitra' => true])->save();
+        $this->assertContains('mitra.view', $this->withToken($token)->getJson('/api/mobile/me')->json('user.permissions'));
     }
 
     public function test_anggota_sintel_gets_restricted_menu(): void
@@ -391,10 +378,6 @@ class MobileApiSecurityTest extends TestCase
 
     public function test_dashboard_only_contains_permitted_modules(): void
     {
-        Schema::create('technical_unit_cashes', function (Blueprint $t) {
-            $t->id(); $t->date('date'); $t->string('description'); $t->decimal('debit', 15, 2)->default(0);
-            $t->decimal('credit', 15, 2)->default(0); $t->decimal('balance', 15, 2)->default(0); $t->timestamps();
-        });
         Schema::create('letter_logs', function (Blueprint $t) {
             $t->id(); $t->foreignId('category_id')->nullable(); $t->string('sequence')->nullable(); $t->string('full_number')->nullable();
             $t->string('subject')->nullable(); $t->string('recipient')->nullable(); $t->date('date')->nullable(); $t->timestamps();
@@ -408,28 +391,16 @@ class MobileApiSecurityTest extends TestCase
         $personel = $this->makeUser(['role' => 'personel']);
         $summary = $this->withToken($this->tokenFor($personel))->getJson('/api/mobile/dashboard')
             ->assertOk()->json('summary');
+        $this->assertArrayNotHasKey('signature_pending', $summary);
         $this->assertArrayNotHasKey('cash_balance', $summary);
         $this->assertArrayHasKey('attendance', $summary);
+        $this->assertArrayHasKey('letter_logs_total', $summary);
 
         $admin = $this->makeUser(['role' => 'admin']);
-        DB::table('cashes')->insert(['date' => '2026-10-01', 'description' => 'x', 'debit' => 5000, 'credit' => 0, 'balance' => 5000, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('signature_requests')->insert(['status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
         $adminSummary = $this->withToken($this->tokenFor($admin))->getJson('/api/mobile/dashboard')
             ->assertOk()->json('summary');
-        $this->assertEquals(5000, $adminSummary['cash_balance']);
-    }
-
-    public function test_cash_pdf_is_real_pdf_and_permission_guarded(): void
-    {
-        $personel = $this->makeUser(['role' => 'personel']);
-        $this->withToken($this->tokenFor($personel))->getJson('/api/mobile/pdf/cash')->assertStatus(403);
-
-        $admin = $this->makeUser(['role' => 'admin']);
-        DB::table('cashes')->insert(['date' => '2026-10-01', 'description' => 'Saldo awal', 'debit' => 1, 'credit' => 0, 'balance' => 1, 'created_at' => now(), 'updated_at' => now()]);
-        $this->app['auth']->forgetGuards();
-        $res = $this->withToken($this->tokenFor($admin))->get('/api/mobile/pdf/cash');
-        $res->assertOk();
-        $this->assertStringContainsString('application/pdf', (string) $res->headers->get('Content-Type'));
-        $this->assertStringStartsWith('%PDF', $res->getContent());
+        $this->assertEquals(1, $adminSummary['signature_pending']);
     }
 
     public function test_unpublished_sp_jaga_pdf_is_forbidden_for_regular_personnel(): void

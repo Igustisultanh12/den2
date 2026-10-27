@@ -23,9 +23,13 @@ class RegistrationTest extends TestCase
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'nrp' => 'abc123',
+            'pangkat' => 'Serka',
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        // Registrasi tidak langsung login: akun menunggu konfirmasi Admin.
+        $this->assertGuest();
+        $response->assertRedirect(route('login', absolute: false));
+        $this->assertDatabaseHas('users', ['email' => 'test@example.com', 'is_active' => false]);
     }
 }

@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -12,7 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE skhpps MODIFY COLUMN kategori_personel VARCHAR(50) NOT NULL DEFAULT 'militer'");
+        // Schema builder agar portabel (MySQL/MariaDB/SQLite/PostgreSQL), bukan ALTER ... MODIFY mentah.
+        if (Schema::hasTable('skhpps') && Schema::hasColumn('skhpps', 'kategori_personel')) {
+            Schema::table('skhpps', function (Blueprint $table) {
+                $table->string('kategori_personel', 50)->default('militer')->change();
+            });
+        }
     }
 
     /**

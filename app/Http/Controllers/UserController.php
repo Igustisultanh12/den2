@@ -633,25 +633,6 @@ class UserController extends Controller
     }
 
     /**
-     * TOGGLE HAK AKSES BUKU KAS TEKNIS
-     */
-    public function toggleTechnicalCashAccess(User $user)
-    {
-        $user->update(['can_access_technical_cash' => !$user->can_access_technical_cash]);
-
-        AuditLog::create([
-            'user_id'          => auth()->id(),
-            'admin_name'       => auth()->user()->name,
-            'action'           => 'UPDATE HAK AKSES KAS TEKNIS',
-            'target_personnel' => $user->name,
-            'description'      => "Mengubah hak akses kas teknis untuk {$user->name} menjadi " . ($user->can_access_technical_cash ? 'Diizinkan' : 'Dilarang'),
-            'ip_address'       => request()->ip(),
-        ]);
-
-        return back()->with('message', 'Hak akses kas teknis berhasil diperbarui.');
-    }
-
-    /**
      * HAPUS PERSONEL
      */
     public function destroy(User $user)

@@ -27,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('access_requests');
+        Schema::dropIfExists('access_requests_for_backup');
     }
 };

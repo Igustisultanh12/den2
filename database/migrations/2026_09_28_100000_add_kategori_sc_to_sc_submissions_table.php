@@ -28,6 +28,10 @@ return new class extends Migration
         if (Schema::hasTable('sc_submissions')) {
             Schema::table('sc_submissions', function (Blueprint $table) {
                 if (Schema::hasColumn('sc_submissions', 'kategori_sc')) {
+                    // Index harus di-drop dulu; SQLite menolak drop kolom yang masih ber-index.
+                    if (Schema::hasIndex('sc_submissions', 'sc_submissions_kategori_sc_index')) {
+                        $table->dropIndex('sc_submissions_kategori_sc_index');
+                    }
                     $table->dropColumn('kategori_sc');
                 }
             });

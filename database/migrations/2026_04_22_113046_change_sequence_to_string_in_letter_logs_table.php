@@ -7,21 +7,23 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     public function up(): void
-{
-    Schema::create('personnels', function (Blueprint $table) {
-        $table->id();
-        $table->string('name'); 
-        $table->string('phone'); 
-        $table->date('birth_date'); 
-        $table->timestamps();
-    });
-}
+    {
+        // Versi lama file ini keliru membuat tabel `personnels` (sudah ditangani oleh
+        // 2026_05_07_090911_create_personnels_table). Tujuan sebenarnya: sequence → string.
+        if (Schema::hasTable('letter_logs') && Schema::hasColumn('letter_logs', 'sequence')) {
+            Schema::table('letter_logs', function (Blueprint $table) {
+                $table->string('sequence', 50)->change();
+            });
+        }
+    }
 
     public function down(): void
     {
-        Schema::table('letter_logs', function (Blueprint $table) {
-            // Mengembalikan ke Integer jika diperlukan (rollback)
-            $table->integer('sequence')->change();
-        });
+        if (Schema::hasTable('letter_logs') && Schema::hasColumn('letter_logs', 'sequence')) {
+            Schema::table('letter_logs', function (Blueprint $table) {
+                // Mengembalikan ke Integer jika diperlukan (rollback)
+                $table->integer('sequence')->change();
+            });
+        }
     }
 };

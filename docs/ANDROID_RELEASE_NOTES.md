@@ -1,3 +1,30 @@
+# SISINDEN Android v1.1.1 (versionCode 8)
+
+Rilis pemeliharaan untuk Denintel Koarmada 2.
+
+> ⚠️ **Wajib sebelum dipakai:** perbarui server SISINDEN ke `main` terbaru lalu jalankan `php artisan migrate --force`. Migrasi baru memperbaiki kolom `letter_logs.sequence` (string) dan kolom lama `visitor_logs` yang membuat login gagal pada instalasi baru.
+
+## Yang baru
+
+- **Logo baru** — ikon aplikasi Square Kufic Hanoman dan identitas SISINDEN v1.1.1.
+- **Android App Bundle (.aab)** untuk Play Store disertakan di samping APK.
+- **Modul Buku Kas & Kas Unit Teknis dihapus** dari server; menu terkait otomatis tidak tampil di aplikasi.
+
+## Perbaikan server (diperlukan aplikasi)
+
+- Seluruh migrasi database kini berjalan bersih dari nol maupun rollback, di MySQL/MariaDB dan SQLite.
+- Login web pada instalasi baru tidak lagi error 500 (`visitor_logs.device_type`).
+- Pencarian global tidak lagi error karena tautan ke modul kas yang sudah dihapus.
+
+## Status pengujian
+
+- Backend: 43 feature test lulus (termasuk kontrak & keamanan API mobile).
+- Android: unit test, build debug/release APK dan AAB dijalankan oleh GitHub Actions.
+
+Checksum SHA-256 tersedia di berkas `SHA256SUMS.txt` pada rilis ini.
+
+---
+
 # SISINDEN Android v1.1.0 (versionCode 7)
 
 Rilis desain ulang total aplikasi Android SISINDEN, dengan hak akses mengikuti pengaturan Admin, **Daftar Jaga** di beranda, dan pratinjau/unduh PDF resmi.

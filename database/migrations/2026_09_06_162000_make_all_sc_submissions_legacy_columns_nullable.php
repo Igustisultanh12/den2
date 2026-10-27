@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable('sc_submissions')) {
+        // SHOW COLUMNS / MODIFY COLUMN hanya ada di MySQL/MariaDB; driver lain sudah nullable lewat 163000.
+        if (Schema::hasTable('sc_submissions') && in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
             try {
                 $columns = DB::select("SHOW COLUMNS FROM sc_submissions");
                 foreach ($columns as $col) {

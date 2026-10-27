@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -13,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasTable('sp_jagas') && Schema::hasColumn('sp_jagas', 'nomor_urut')) {
-            DB::statement("ALTER TABLE sp_jagas MODIFY COLUMN nomor_urut VARCHAR(50) NULL DEFAULT NULL");
+            Schema::table('sp_jagas', function (Blueprint $table) {
+                $table->string('nomor_urut', 50)->nullable()->default(null)->change();
+            });
         }
     }
 
@@ -23,7 +24,9 @@ return new class extends Migration
     public function down(): void
     {
         if (Schema::hasTable('sp_jagas') && Schema::hasColumn('sp_jagas', 'nomor_urut')) {
-            DB::statement("ALTER TABLE sp_jagas MODIFY COLUMN nomor_urut INT NULL DEFAULT NULL");
+            Schema::table('sp_jagas', function (Blueprint $table) {
+                $table->integer('nomor_urut')->nullable()->default(null)->change();
+            });
         }
     }
 };

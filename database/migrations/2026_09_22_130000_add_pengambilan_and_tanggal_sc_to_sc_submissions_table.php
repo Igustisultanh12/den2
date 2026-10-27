@@ -41,6 +41,13 @@ return new class extends Migration
                 if (Schema::hasColumn('sc_submissions', 'taken_at')) $columns[] = 'taken_at';
                 if (Schema::hasColumn('sc_submissions', 'tanggal_sc')) $columns[] = 'tanggal_sc';
                 if (Schema::hasColumn('sc_submissions', 'taken_by')) $columns[] = 'taken_by';
+                // Index harus di-drop dulu; SQLite menolak drop kolom yang masih ber-index.
+                foreach (['is_taken', 'taken_at', 'tanggal_sc'] as $indexed) {
+                    $index = "sc_submissions_{$indexed}_index";
+                    if (in_array($indexed, $columns, true) && Schema::hasIndex('sc_submissions', $index)) {
+                        $table->dropIndex($index);
+                    }
+                }
                 if (!empty($columns)) {
                     $table->dropColumn($columns);
                 }

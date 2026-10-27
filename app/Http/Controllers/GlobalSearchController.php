@@ -161,7 +161,6 @@ class GlobalSearchController extends Controller
             ['title' => 'Simpan Pinjam (Koperasi)', 'description' => 'Pengajuan pinjaman, simpanan anggota dan kartu virtual', 'url' => route('simpan-pinjam.index')],
             ['title' => 'Kelola Koperasi (Pengurus)', 'description' => 'Pusat verifikasi pinjaman, kas operasional, dan cicilan', 'url' => route('simpan-pinjam.kelola')],
             ['title' => 'Otoritas Akses Personel', 'description' => 'Manajemen hak akses, verifikasi akun, dan matriks fitur', 'url' => route('users.index')],
-            ['title' => 'Buku Kas Unit Teknis', 'description' => 'Pencatatan debet/kredit kas keuangan unit teknis satuan', 'url' => route('technical-cash.index')],
             ['title' => 'Modul Keuangan Mitra', 'description' => 'Monitoring dan verifikasi arus pembayaran mitra kerja', 'url' => route('mitras.index')],
             ['title' => 'Pangkalan Cadangan PC Backup', 'description' => 'Penyimpanan arsip digital dan backup data kedinasan', 'url' => route('backup.index')],
         ];

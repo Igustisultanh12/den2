@@ -19,6 +19,7 @@ return new class extends Migration
     {
         if (Schema::hasColumn('signature_requests', 'verification_code')) {
             Schema::table('signature_requests', function (Blueprint $table) {
+                $table->dropUnique(['verification_code']);
                 $table->dropColumn('verification_code');
             });
         }
