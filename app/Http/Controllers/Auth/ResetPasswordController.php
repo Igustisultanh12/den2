@@ -44,7 +44,7 @@ class ResetPasswordController extends Controller
         $inputToken = trim((string)$request->token);
         $dbToken = $user->reset_token ? trim((string)$user->reset_token) : null;
 
-        if (is_null($dbToken) || $dbToken !== $inputToken) {
+        if (is_null($dbToken) || !hash_equals($dbToken, $inputToken)) {
             return back()->withErrors([
                 'token' => 'Otoritas Gagal: Token salah atau sudah tidak berlaku.'
             ]);

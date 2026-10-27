@@ -20,15 +20,17 @@ class PESSReceiverController extends Controller
         // =====================================================================
         // SULTAN CONFIG: PENGISIAN TOKEN AMAN DARI FILE .env SINDEN
         // =====================================================================
-        $incomingToken = $request->bearerToken();
-        
-        // Membaca 'PESS_API_TOKEN' dari .env Sinden. Jika kosong, fallback ke default string di bawah
-        if ($incomingToken !== env('PESS_API_TOKEN', 'Malang101202...!!!???Benteng')) {
+        // Token dibaca lewat config (aman saat `config:cache`) tanpa nilai bawaan:
+        // bila PESS_API_TOKEN belum diisi di .env, semua kiriman ditolak.
+        $expectedToken = (string) config('services.pess.token');
+        $incomingToken = (string) $request->bearerToken();
+        if ($expectedToken === '' || !hash_equals($expectedToken, $incomingToken)) {
             return response()->json(['message' => 'Akses ilegal terdeteksi oleh Radar Sinden'], 401);
         }
 
         $request->validate([
-            'nomor_identitas'        => 'required',
+            // Dipakai sebagai nama folder/berkas: batasi karakter agar tidak ada path traversal.
+            'nomor_identitas'        => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9\-]+$/'],
             'nama_lengkap'           => 'required',
             'submission_category_id' => 'required',
             'answers_json'           => 'required',
@@ -97,7 +99,13 @@ class PESSReceiverController extends Controller
                 // Bersihkan prefiks 'files_' untuk mengembalikan nama key asli (Contoh: files_pas_foto_pemohon -> pas_foto_pemohon)
                 $cleanKey = str_replace('files_', '', $key);
                 
-                $storedPath = $file->store("submissions/{$applicant->nomor_identitas}/attachments", 'public');
+                $cleanKey = preg_replace('/[^A-Za-z0-9_\-]/', '_', $cleanKey);
+
+                // Nama acak + ekstensi dari isi berkas (whitelist); gambar di-encode ulang.
+                $storedPath = \App\Support\SafeImage::storeUpload($file, "submissions/{$applicant->nomor_identitas}/attachments", ['pdf', 'jpg', 'png', 'webp']);
+                if ($storedPath === null) {
+                    return response()->json(['message' => "Lampiran {$cleanKey} ditolak: hanya PDF/JPG/PNG yang diizinkan."], 422);
+                }
                 $attachmentPaths[$cleanKey] = $storedPath;
             }
 

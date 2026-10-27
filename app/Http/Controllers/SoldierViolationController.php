@@ -72,9 +72,7 @@ class SoldierViolationController extends Controller
 
             if ($request->hasFile('lampiran')) {
                 foreach ($request->file('lampiran') as $file) {
-                    $originalName = $file->getClientOriginalName();
-                    $storedPath = $file->storeAs('pelanggaran/lampiran', time() . '_' . $originalName, 'public');
-                    $uploadedLampiranPaths[] = $storedPath;
+                    $uploadedLampiranPaths[] = $this->storeSafely($file, 'pelanggaran/lampiran');
                 }
             }
 
@@ -102,8 +100,7 @@ class SoldierViolationController extends Controller
             if ($request->hasFile('putusan')) {
                 $uploadedPutusanPaths = [];
                 foreach ($request->file('putusan') as $file) {
-                    $originalName = $file->getClientOriginalName();
-                    $uploadedPutusanPaths[] = $file->storeAs('pelanggaran/putusan', time() . '_' . $originalName, 'public');
+                    $uploadedPutusanPaths[] = $this->storeSafely($file, 'pelanggaran/putusan');
                 }
                 $dataToSave['dokumen_putusan'] = json_encode($uploadedPutusanPaths);
             }
@@ -147,8 +144,7 @@ class SoldierViolationController extends Controller
             $newJalurPaths = [];
             if ($request->hasFile('lampiran')) {
                 foreach ($request->file('lampiran') as $file) {
-                    $originalName = $file->getClientOriginalName();
-                    $newJalurPaths[] = $file->storeAs('pelanggaran/lampiran', time() . '_' . $originalName, 'public');
+                    $newJalurPaths[] = $this->storeSafely($file, 'pelanggaran/lampiran');
                 }
                 Log::info('Multi-Lampiran Baru Berhasil Diparsing: ', $newJalurPaths);
             }
@@ -181,8 +177,7 @@ class SoldierViolationController extends Controller
 
                 $newPutusanPaths = [];
                 foreach ($request->file('putusan') as $file) {
-                    $originalName = $file->getClientOriginalName();
-                    $newPutusanPaths[] = $file->storeAs('pelanggaran/putusan', time() . '_' . $originalName, 'public');
+                    $newPutusanPaths[] = $this->storeSafely($file, 'pelanggaran/putusan');
                 }
                 $dataUpdate['dokumen_putusan'] = json_encode($newPutusanPaths);
             }
@@ -200,16 +195,29 @@ class SoldierViolationController extends Controller
     }
 
     /**
+     * Simpan lampiran dengan nama acak & ekstensi dari ISI berkas (bukan nama klien),
+     * sehingga "dokumen.php" yang menyamar sebagai PDF/JPG tidak pernah tersimpan.
+     */
+    private function storeSafely(\Illuminate\Http\UploadedFile $file, string $directory): string
+    {
+        $path = \App\Support\SafeImage::storeUpload($file, $directory, ['pdf', 'jpg', 'png', 'doc', 'docx', 'zip']);
+        if ($path === null) {
+            throw new \RuntimeException("Berkas {$file->getClientOriginalName()} ditolak: isi berkas tidak sesuai format yang diizinkan (PDF, JPG, PNG, DOC, DOCX, ZIP).");
+        }
+        return $path;
+    }
+
+    /**
      * INTERSEPTOR RADAR: PRATINJAU LANGSUNG FILE .DOCX TANPA DOWNLOAD
      */
     public function previewDocx(Request $request)
     {
-        $request->validate(['file_path' => 'required|string']);
-        
-        $relativeFilePath = $request->file_path;
-        $fullPathFisik = storage_path('app/public/' . $relativeFilePath);
+        $request->validate(['file_path' => 'required|string|max:500']);
 
-        if (!file_exists($fullPathFisik)) {
+        // Cegah path traversal: berkas harus benar-benar berada di folder pelanggaran.
+        $baseDir = realpath(storage_path('app/public/pelanggaran'));
+        $fullPathFisik = realpath(storage_path('app/public/' . ltrim($request->file_path, '/\\')));
+        if ($baseDir === false || $fullPathFisik === false || !str_starts_with($fullPathFisik, $baseDir . DIRECTORY_SEPARATOR) || !is_file($fullPathFisik)) {
             return abort(404, "Berkas fisik tidak ditemukan di pangkalan storage.");
         }
 

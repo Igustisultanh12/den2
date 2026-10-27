@@ -17,8 +17,12 @@ const {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+// Gateway tidak memiliki autentikasi; hanya boleh diakses dari server yang sama (Laravel
+// memanggil http://127.0.0.1:3000). Jangan ubah HOST ke 0.0.0.0 tanpa firewall/reverse proxy.
+const HOST = process.env.HOST || '127.0.0.1';
 
-app.use(cors());
+// Tidak ada pemanggilan dari browser: tolak permintaan lintas origin.
+app.use(cors({ origin: false }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -1092,9 +1096,9 @@ app.post('/sessions/:id/send', async (req, res) => {
 });
 
 // Jalankan Server Gateway
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
     console.log(`====================================================`);
-    console.log(` SINDEN Multi-Session WhatsApp Gateway aktif di port ${PORT}`);
+    console.log(` SINDEN Multi-Session WhatsApp Gateway aktif di ${HOST}:${PORT}`);
     console.log(`====================================================`);
     restoreSessions();
 });

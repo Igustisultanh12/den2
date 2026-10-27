@@ -1144,15 +1144,12 @@ Route::post('/api/mobile/attendances', function (Request $request) {
             $locName = "GPS: {$lat}, {$lng}";
         }
 
+        // Gambar di-encode ulang (anti polyglot / payload tersisip) sebelum disimpan.
         $photoPath = null;
-        if (str_starts_with($data['photo'], 'data:image/')) {
-            $parts = explode(',', $data['photo'], 2);
-            $decoded = count($parts) === 2 ? base64_decode($parts[1], true) : false;
-            if ($decoded !== false && strlen($decoded) <= 5 * 1024 * 1024 && @getimagesizefromstring($decoded)) {
-                $filename = 'attendances/presensi_' . $user->id . '_' . date('Ymd_His') . '_' . \Illuminate\Support\Str::random(6) . '.jpg';
-                \Illuminate\Support\Facades\Storage::disk('public')->put($filename, $decoded);
-                $photoPath = $filename;
-            }
+        $cleanPhoto = \App\Support\SafeImage::fromDataUrl($data['photo']);
+        if ($cleanPhoto !== null) {
+            $photoPath = 'attendances/presensi_' . $user->id . '_' . date('Ymd_His') . '_' . \Illuminate\Support\Str::random(12) . '.jpg';
+            \Illuminate\Support\Facades\Storage::disk('public')->put($photoPath, $cleanPhoto);
         }
         if ($photoPath === null) {
             return response()->json([

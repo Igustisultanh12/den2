@@ -447,7 +447,12 @@ class LiveChatController extends Controller
                 }
 
                 $cleanName = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $file->getClientOriginalName());
-                $storedPath = $file->store($destDir, 'public');
+                // Ekstensi ditentukan dari ISI berkas & whitelist (store() biasa bisa menghasilkan .php
+                // untuk "foto.jpg" yang berisi kode PHP).
+                $storedPath = \App\Support\SafeImage::storeUpload($file, $destDir, $allowedExtensions);
+                if ($storedPath === null) {
+                    return response()->json(['error' => "Isi berkas [{$cleanName}] tidak sesuai format yang diizinkan."], 422);
+                }
 
                 $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'webp']);
 
@@ -865,7 +870,7 @@ class LiveChatController extends Controller
         $channelName = 'SINDEN_' . preg_replace('/[^a-zA-Z0-9]/', '', $thread->uuid);
         $uid = (int) ($request->input('uid') ?: ($user->id ?? 1));
 
-        $appId = Setting::where('key', 'agora_app_id')->value('value') ?: env('AGORA_APP_ID', '19daeb63b0ec46f2b02197c9fbbe81d6');
+        $appId = Setting::where('key', 'agora_app_id')->value('value') ?: config('services.agora.app_id');
         $token = AgoraTokenService::generateToken($channelName, $uid);
 
         return response()->json([

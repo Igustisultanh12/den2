@@ -41,4 +41,15 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
+    // Token Bearer kiriman portal PESS. Kosong = endpoint penerima ditolak (fail-closed).
+    'pess' => [
+        'token' => env('PESS_API_TOKEN'),
+    ],
+
+    // Kredensial Agora video call; dapat ditimpa dari menu Pengaturan (tabel settings).
+    'agora' => [
+        'app_id' => env('AGORA_APP_ID'),
+        'app_certificate' => env('AGORA_APP_CERTIFICATE'),
+    ],
+
 ];

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Support\PersonnelTracking;
+use App\Support\SafeImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
@@ -81,27 +82,14 @@ class AttendanceController extends Controller
             $locationName = 'Lokasi GPS Belum Diizinkan';
         }
 
-        // Penanganan Berkas Foto Presensi (Base64 dari Kamera Antarmuka)
-        $photoPath = null;
-        if (!empty($request->photo)) {
-            if (str_starts_with($request->photo, 'data:image')) {
-                try {
-                    $parts = explode(',', $request->photo);
-                    if (count($parts) === 2) {
-                        $decoded = base64_decode($parts[1]);
-                        if ($decoded) {
-                            $filename = 'attendances/presensi_' . $user->id . '_' . date('Ymd_His') . '_' . Str::random(6) . '.jpg';
-                            Storage::disk('public')->put($filename, $decoded);
-                            $photoPath = $filename;
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::warning("Gagal menyimpan foto presensi: " . $e->getMessage());
-                }
-            } else {
-                $photoPath = $request->photo;
-            }
+        // Foto presensi (base64 dari kamera): hanya gambar valid, di-encode ulang agar
+        // payload tersisip (polyglot) terbuang. Path/URL bebas dari klien tidak diterima.
+        $cleanPhoto = SafeImage::fromDataUrl($request->photo);
+        if ($cleanPhoto === null) {
+            return back()->withErrors(['photo' => 'Foto verifikasi senyum tidak valid. Silakan ambil ulang foto.']);
         }
+        $photoPath = 'attendances/presensi_' . $user->id . '_' . date('Ymd_His') . '_' . Str::random(12) . '.jpg';
+        Storage::disk('public')->put($photoPath, $cleanPhoto);
 
         // Data yang akan disimpan / diperbarui
         $saveData = [

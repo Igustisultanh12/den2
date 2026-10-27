@@ -1370,6 +1370,26 @@ class BackupController extends Controller
         return back()->with('success', 'Otoritas akses dan seluruh berkas PC berhasil dihapus secara permanen.');
     }
 
+    /** Spreadsheet .xlsx adalah paket ZIP: tolak konten lain (mis. HTML/skrip yang disamarkan). */
+    private function isZipOfficeContent(string $bytes): bool
+    {
+        $magic = substr($bytes, 0, 4);
+        return $magic === "PK\x03\x04" || $magic === "PK\x05\x06";
+    }
+
+    /** Tulis konten ke penyimpanan cadangan dalam bentuk terenkripsi AES-256 (lihat FileSecurityService). */
+    private function storeEncryptedContent(string $relativePath, string $bytes): void
+    {
+        $dest = FileSecurityService::verifySafeStoragePath($relativePath);
+        $tmp = tempnam(sys_get_temp_dir(), 'sinden_xlsx_');
+        try {
+            file_put_contents($tmp, $bytes);
+            FileSecurityService::encryptAndStoreFile($tmp, $dest);
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
     /**
      * FITUR: SIMPAN PERUBAHAN ISI BERKAS EXCEL (.XLSX / .XLS / .CSV)
      */
@@ -1386,8 +1406,8 @@ class BackupController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Folder tidak dapat diedit sebagai spreadsheet.'], 400);
             }
 
-            $decoded = base64_decode($request->base64_content);
-            if ($decoded === false) {
+            $decoded = base64_decode($request->base64_content, true);
+            if ($decoded === false || !$this->isZipOfficeContent($decoded)) {
                 return response()->json(['status' => 'error', 'message' => 'Format berkas biner tidak valid.'], 400);
             }
 
@@ -1400,8 +1420,8 @@ class BackupController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Penyimpanan penuh! Kuota pangkalan PC terlampaui.'], 400);
             }
 
-            // Simpan langsung menimpa berkas lama di public storage disk
-            Storage::disk('public')->put($backup->file_path, $decoded);
+            // Simpan terenkripsi (sama seperti unggahan biasa) agar tidak terbaca lewat URL /storage publik.
+            $this->storeEncryptedContent($backup->file_path, $decoded);
 
             // Update metadata
             $backup->update([
@@ -1443,8 +1463,8 @@ class BackupController extends Controller
 
         try {
             $pc = Pc::findOrFail($request->pc_id);
-            $decoded = base64_decode($request->base64_content);
-            if ($decoded === false) {
+            $decoded = base64_decode($request->base64_content, true);
+            if ($decoded === false || !$this->isZipOfficeContent($decoded)) {
                 return back()->with('error', 'Format data spreadsheet tidak valid.');
             }
 
@@ -1453,13 +1473,13 @@ class BackupController extends Controller
                 return back()->with('error', 'Penyimpanan penuh! Kapasitas pangkalan PC terlampaui.');
             }
 
-            $fileName = trim($request->file_name);
-            if (!str_ends_with(strtolower($fileName), '.xlsx')) {
-                $fileName .= '.xlsx';
-            }
+            // Nama dari pengguna disanitasi: tanpa path/karakter khusus, ekstensi selalu .xlsx.
+            $baseName = preg_replace('/\.xlsx$/i', '', basename(str_replace('\\', '/', trim($request->file_name))));
+            $baseName = trim(preg_replace('/[^A-Za-z0-9 _\-\.()]/', '_', $baseName), " .") ?: 'Spreadsheet';
+            $fileName = $baseName . '.xlsx';
 
-            $path = 'backups/' . $pc->id . '/' . time() . '_' . $fileName;
-            Storage::disk('public')->put($path, $decoded);
+            $path = 'backups/' . $pc->id . '/' . time() . '_' . substr(uniqid(), -6) . '_' . $fileName;
+            $this->storeEncryptedContent($path, $decoded);
 
             Backup::create([
                 'pc_id' => $pc->id,

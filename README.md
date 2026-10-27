@@ -271,8 +271,14 @@ Buka menu **Website** di aaPanel > klik nama website Anda > atur pengaturan beri
   location / {
       try_files $uri $uri/ /index.php?$query_string;
   }
+
+  # KEAMANAN: berkas unggahan di /storage tidak boleh pernah dieksekusi sebagai PHP
+  location ~* ^/storage/.*\.(php|php[0-9]|phtml|phar|pht|inc)$ {
+      deny all;
+  }
   ```
 - Klik tombol **Save**.
+- Pastikan **WhatsApp Gateway** (`wa-gateway`) berjalan di `127.0.0.1:3000` (bawaan) dan port 3000 **tidak** dibuka di firewall/Security aaPanel. Gateway tidak memiliki autentikasi.
 
 #### C. Pasang Sertifikat SSL Gratis (Let's Encrypt):
 - Masuk ke tab **SSL** > pilih **Let's Encrypt**.

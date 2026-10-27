@@ -183,6 +183,35 @@ class FileSecurityService
     }
 
     /**
+     * Tipe konten aman untuk ditampilkan inline di domain aplikasi.
+     * HTML/XML (dan tipe tak dikenal yang terdeteksi HTML) dikirim sebagai teks biasa
+     * agar tidak dieksekusi (Stored XSS lewat berkas cadangan/berbagi). SVG tetap
+     * dirender tetapi di dalam CSP sandbox sehingga skrip di dalamnya tidak berjalan.
+     *
+     * @return array{0: string, 1: array<string, string>}
+     */
+    protected static function safeInlineType(string $ext, string $mime): array
+    {
+        $ext = strtolower($ext);
+        $mimeLower = strtolower($mime);
+        $extra = [];
+
+        if (in_array($ext, ['html', 'htm', 'xhtml', 'shtml', 'xml', 'xsl', 'mht', 'mhtml', 'php', 'js'], true)
+            || str_contains($mimeLower, 'html')
+            || (str_contains($mimeLower, 'xml') && !str_contains($mimeLower, 'svg'))
+            || str_contains($mimeLower, 'javascript')) {
+            return ['text/plain; charset=utf-8', $extra];
+        }
+
+        if ($ext === 'svg' || str_contains($mimeLower, 'svg')) {
+            $extra['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox";
+            return ['image/svg+xml', $extra];
+        }
+
+        return [$mime, $extra];
+    }
+
+    /**
      * Cek apakah berkas di disk memiliki tanda pengamanan AES-256
      */
     public static function isEncrypted(string $fullPath): bool
@@ -398,6 +427,7 @@ class FileSecurityService
         ];
 
         $mime = $mimeType ?: ($mediaMimes[$ext] ?? (@mime_content_type($fullPath) ?: 'application/octet-stream'));
+        [$mime, $securityHeaders] = self::safeInlineType($ext, $mime);
         $isEncrypted = self::isEncrypted($fullPath);
         $totalSize = $isEncrypted ? self::getEncryptedPlaintextSize($fullPath) : filesize($fullPath);
 
@@ -436,7 +466,7 @@ class FileSecurityService
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, max-age=86400, must-revalidate',
             'Pragma' => 'public',
-        ];
+        ] + $securityHeaders;
 
         if ($isPartial) {
             $headers['Content-Range'] = "bytes {$start}-{$end}/{$totalSize}";
@@ -542,6 +572,7 @@ class FileSecurityService
             ];
             $mime = $mimeMap[$ext] ?? (@mime_content_type($fullPath) ?: 'application/octet-stream');
         }
+        [$mime, $securityHeaders] = self::safeInlineType($ext, $mime);
 
         $isEncrypted = self::isEncrypted($fullPath);
 
@@ -551,7 +582,7 @@ class FileSecurityService
             'X-Content-Type-Options' => 'nosniff',
             'X-Frame-Options' => 'SAMEORIGIN',
             'Cache-Control' => 'private, no-cache, must-revalidate',
-        ];
+        ] + $securityHeaders;
 
         return new StreamedResponse(function () use ($fullPath, $isEncrypted) {
             $fp = fopen($fullPath, 'rb');

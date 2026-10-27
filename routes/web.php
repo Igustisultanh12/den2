@@ -57,10 +57,11 @@ Route::get('/', function () {
 Route::get('/aktivasi', function () {
     return Inertia::render('Auth/Aktivasi'); 
 })->name('aktivasi');
-Route::post('/aktivasi', [UserController::class, 'activate'])->name('aktivasi.proses');
+// Token aktivasi/reset hanya 6 karakter: batasi percobaan agar tidak dapat di-brute-force.
+Route::post('/aktivasi', [UserController::class, 'activate'])->middleware('throttle:5,1')->name('aktivasi.proses');
 
 Route::get('forgot-password-custom', [ResetPasswordController::class, 'showResetForm'])->name('password.request.custom');
-Route::post('reset-password-custom', [ResetPasswordController::class, 'store'])->name('password.update.custom');
+Route::post('reset-password-custom', [ResetPasswordController::class, 'store'])->middleware('throttle:5,1')->name('password.update.custom');
 
 // --- INTEGRASI GOOGLE OAUTH: LOGIN & TAUTKAN AKUN ---
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirectToGoogle'])->name('auth.google.redirect');
