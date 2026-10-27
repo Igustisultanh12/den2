@@ -1,6 +1,7 @@
 package id.my.sisinden.app.ui.auth
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +37,7 @@ fun ActivationScreen(
     val vm: ActivationViewModel = viewModel { ActivationViewModel(repository) }
     val s by vm.state.collectAsStateWithLifecycle()
 
+    Box(Modifier.fillMaxSize()) {
     SindenScaffold(title = "Aktivasi Akun", subtitle = "Gunakan token dari Admin Sinden 2", onBack = onBack) { padding ->
         Column(
             Modifier
@@ -73,8 +75,20 @@ fun ActivationScreen(
                 visualTransformation = PasswordVisualTransformation(),
             )
             Spacer(Modifier.height(Spacing.sm))
-            PrimaryButton(text = "Aktifkan akun", onClick = vm::submit, loading = s.submitting)
+            PrimaryButton(text = "Aktifkan akun", onClick = vm::submit, enabled = !s.busy)
             Spacer(Modifier.height(Spacing.xxl))
         }
+    }
+
+    SecurityCheckOverlay(
+        step = s.step,
+        labels = listOf("Memeriksa keamanan sistem", "Memverifikasi token aktivasi", "Mengaktifkan akun"),
+        action = TurnstileAction.ACTIVATE,
+        widgetKey = s.widgetKey,
+        showWidget = s.showWidget,
+        onToken = vm::onTurnstileToken,
+        onWidgetError = vm::onTurnstileError,
+        onCancel = vm::cancelCheck,
+    )
     }
 }

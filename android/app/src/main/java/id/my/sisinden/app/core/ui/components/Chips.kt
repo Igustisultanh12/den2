@@ -13,12 +13,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -75,7 +75,11 @@ fun StatusChip(text: String, tone: Tone, modifier: Modifier = Modifier) {
     }
 }
 
-/** Baris chip filter yang dapat digulir horizontal. */
+/**
+ * Baris chip filter gaya Livin ("Sering Dipakai · Transfer · Top-Up"):
+ * terpilih = latar biru muda + garis biru 2dp + teks tebal; lainnya garis
+ * tipis. Tinggi minimum 44dp agar mudah disentuh.
+ */
 @Composable
 fun <T> FilterChipRow(
     options: List<T>,
@@ -92,20 +96,31 @@ fun <T> FilterChipRow(
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         options.forEach { option ->
-            val isSelected = option == selected
-            FilterChip(
-                selected = isSelected,
-                onClick = { onSelect(option) },
-                label = { Text(label(option)) },
-                leadingIcon = if (isSelected) {
-                    { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                } else null,
-                shape = RoundedCornerShape(50),
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
+            PillChip(text = label(option), selected = option == selected, onClick = { onSelect(option) })
+        }
+    }
+}
+
+/** Satu chip pil Livin. */
+@Composable
+fun PillChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val isSelected = selected
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .heightIn(min = 44.dp)
+            .semantics { this.selected = isSelected },
+        shape = RoundedCornerShape(50),
+        color = if (selected) scheme.primaryContainer else scheme.surface.copy(alpha = if (SindenTheme.isDark) 0.06f else 1f),
+        border = if (selected) BorderStroke(2.dp, scheme.primary) else BorderStroke(1.dp, scheme.outlineVariant),
+    ) {
+        Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+            Text(
+                text,
+                style = if (selected) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium,
+                color = if (selected) scheme.primary else scheme.onSurface,
+                maxLines = 1,
             )
         }
     }

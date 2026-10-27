@@ -8,12 +8,15 @@ data class LoginRequest(
     @SerializedName("username") val username: String,
     @SerializedName("password") val password: String,
     @SerializedName("device_name") val deviceName: String,
+    /** Token Cloudflare Turnstile (sekali pakai), diverifikasi server. */
+    @SerializedName("cf_turnstile_token") val turnstileToken: String? = null,
 )
 
 data class ActivateRequest(
     @SerializedName("nrp") val nrp: String,
     @SerializedName("token") val token: String,
     @SerializedName("password") val password: String,
+    @SerializedName("cf_turnstile_token") val turnstileToken: String? = null,
 )
 
 data class LoginResponse(
@@ -109,6 +112,10 @@ data class UserProfile(
 }
 
 data class ConfigResponse(
+    @SerializedName("app_name") val appName: String? = null,
+    @SerializedName("login_background") val loginBackground: String? = null,
+    @SerializedName("turnstile_site_key") val turnstileSiteKey: String? = null,
+    @SerializedName("turnstile_enabled") val turnstileEnabled: Boolean? = null,
     @SerializedName("agency_name") val agencyName: String? = null,
     @SerializedName("agency_logo") val agencyLogo: String? = null,
     @SerializedName("api_status") val apiStatus: String? = null,

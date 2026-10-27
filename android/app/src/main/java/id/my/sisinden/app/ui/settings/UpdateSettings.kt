@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import id.my.sisinden.app.BuildConfig
 import id.my.sisinden.app.SindenApplication
+import id.my.sisinden.app.core.security.expectExternalActivity
 import id.my.sisinden.app.core.ui.components.SindenCard
 import id.my.sisinden.app.core.ui.theme.Spacing
 import id.my.sisinden.app.core.update.AppUpdater
@@ -101,6 +102,7 @@ internal fun UpdateCard() {
         Spacer(Modifier.height(Spacing.sm))
         if (state is UpdateState.NeedsInstallPermission) {
             OutlinedButton(onClick = {
+                context.expectExternalActivity()
                 context.startActivity(AppUpdater.installPermissionIntent(context))
             }, modifier = Modifier.fillMaxWidth()) { Text("Izinkan pemasangan") }
         }
@@ -191,7 +193,8 @@ fun UpdatePromptHost() {
             when (s) {
                 is UpdateState.NeedsInstallPermission -> Row {
                     TextButton(onClick = {
-                                context.startActivity(AppUpdater.installPermissionIntent(context))
+                        context.expectExternalActivity()
+                        context.startActivity(AppUpdater.installPermissionIntent(context))
                     }) { Text("Izinkan") }
                     TextButton(onClick = { app.appScope.launch { AppUpdater.downloadAndInstall(context.applicationContext, s.info) } }) { Text("Pasang sekarang") }
                 }

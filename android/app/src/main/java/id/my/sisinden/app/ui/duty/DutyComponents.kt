@@ -1,9 +1,8 @@
 package id.my.sisinden.app.ui.duty
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,11 +11,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,19 +21,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import id.my.sisinden.app.core.ui.components.InitialsAvatar
-import id.my.sisinden.app.core.ui.components.SindenCard
+import id.my.sisinden.app.core.notification.DutyReminders
 import id.my.sisinden.app.core.ui.components.StatusChip
 import id.my.sisinden.app.core.ui.components.Tone
+import id.my.sisinden.app.core.ui.theme.Blue400
+import id.my.sisinden.app.core.ui.theme.Blue600
 import id.my.sisinden.app.core.ui.theme.Spacing
 import id.my.sisinden.app.core.util.Fmt
-import id.my.sisinden.app.data.model.DutyDay
-import id.my.sisinden.app.data.model.DutyEntry
+import id.my.sisinden.app.data.model.DutyRosterResponse
 import id.my.sisinden.app.data.model.SpJagaSummary
+import java.time.LocalDate
 
 fun spStatusTone(sp: SpJagaSummary): Tone = when (sp.status) {
     "published" -> Tone.SUCCESS
@@ -45,181 +46,148 @@ fun spStatusTone(sp: SpJagaSummary): Tone = when (sp.status) {
     else -> Tone.NEUTRAL
 }
 
-fun roleTone(entry: DutyEntry): Tone = when (entry.roleCode) {
-    "PERWIRA" -> Tone.INFO
-    "BAGA" -> Tone.WARNING
-    else -> Tone.NEUTRAL
+/** Satu tanggal jaga milik pengguna yang sedang masuk. */
+data class MyDuty(val date: LocalDate, val role: String?, val spId: Int?)
+
+/**
+ * Ambil HANYA jadwal milik pengguna dari respons SP Jaga. Daftar personel lain
+ * sengaja tidak ditampilkan di aplikasi; jadwal lengkap tersedia lewat PDF resmi.
+ */
+fun myDutiesOf(roster: DutyRosterResponse?): List<MyDuty> {
+    if (roster == null) return emptyList()
+    val fromDays = roster.days.orEmpty()
+        .filter { it.hasMe }
+        .mapNotNull { day ->
+            val date = Fmt.parseDate(day.date) ?: return@mapNotNull null
+            MyDuty(date, day.safeEntries.firstOrNull { it.isMe }?.role, day.spId ?: roster.sp?.id)
+        }
+    if (fromDays.isNotEmpty()) return fromDays.sortedBy { it.date }
+    // Cadangan: server hanya mengirim my_dates.
+    return roster.myDates.orEmpty()
+        .mapNotNull { Fmt.parseDate(it) }
+        .map { MyDuty(it, roster.myRoles?.firstOrNull(), roster.sp?.id) }
+        .sortedBy { it.date }
 }
 
-/** Kotak tanggal kalender kecil (hari + tanggal), disorot untuk hari ini. */
+/** Status relatif satu tanggal jaga terhadap hari ini. */
+enum class DutyTiming { PAST, TODAY, TOMORROW, UPCOMING }
+
+fun timingOf(date: LocalDate, today: LocalDate = LocalDate.now()): DutyTiming = when {
+    date.isBefore(today) -> DutyTiming.PAST
+    date == today -> DutyTiming.TODAY
+    date == today.plusDays(1) -> DutyTiming.TOMORROW
+    else -> DutyTiming.UPCOMING
+}
+
+/**
+ * Baris tanggal jaga: blok tanggal besar (mudah dibaca), hari lengkap, peran,
+ * dan status relatif. Warna bukan satu-satunya penanda — selalu ada teks.
+ */
 @Composable
-fun DateBlock(date: String, highlight: Boolean, modifier: Modifier = Modifier) {
-    val d = Fmt.parseDate(date)
-    val bg = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-    val fg = if (highlight) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-    Column(
-        modifier
-            .width(54.dp)
-            .clip(MaterialTheme.shapes.small)
-            .background(bg)
-            .padding(vertical = Spacing.sm),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(d?.let { Fmt.weekdayShort(it) } ?: "-", style = MaterialTheme.typography.labelSmall, color = fg.copy(alpha = 0.8f))
-        Text(d?.dayOfMonth?.toString() ?: "-", style = MaterialTheme.typography.titleLarge, color = fg, fontWeight = FontWeight.Bold)
-        Text(d?.let { Fmt.monthShort(it.monthValue) } ?: "", style = MaterialTheme.typography.labelSmall, color = fg.copy(alpha = 0.8f))
+fun MyDutyRow(duty: MyDuty, modifier: Modifier = Modifier) {
+    val timing = timingOf(duty.date)
+    val scheme = MaterialTheme.colorScheme
+    val past = timing == DutyTiming.PAST
+    val highlight = timing == DutyTiming.TODAY || timing == DutyTiming.TOMORROW
+    val label = when (timing) {
+        DutyTiming.PAST -> "Selesai"
+        DutyTiming.TODAY -> "Hari ini"
+        DutyTiming.TOMORROW -> "Besok"
+        DutyTiming.UPCOMING -> Fmt.relativeDay(duty.date).let { if (it == Fmt.dayMonth(duty.date)) "Mendatang" else it }
     }
-}
+    val spoken = "${Fmt.fullDate(duty.date)}${duty.role?.let { ", $it" } ?: ""}, $label"
 
-/** Baris satu personel jaga. */
-@Composable
-fun DutyEntryRow(entry: DutyEntry, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().padding(vertical = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-        InitialsAvatar(
-            text = entry.name.orEmpty().split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1) },
-            size = 36.dp,
-            highlight = entry.isMe,
-        )
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(if (highlight) scheme.primaryContainer else Color.Transparent)
+            .padding(horizontal = Spacing.sm, vertical = Spacing.sm)
+            .clearAndSetSemantics { contentDescription = spoken },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        DateBadge(duty.date, emphasized = highlight, muted = past)
         Spacer(Modifier.width(Spacing.md))
         Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    entry.name.orEmpty().ifBlank { "-" },
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (entry.isMe) {
-                    Spacer(Modifier.width(Spacing.xs))
-                    StatusChip("Anda", Tone.SUCCESS)
-                }
-            }
             Text(
-                listOfNotNull(
-                    entry.pangkatKorps?.takeIf { it.isNotBlank() },
-                    entry.nrp?.takeIf { it.isNotBlank() }?.let { "NRP $it" },
-                    entry.divisiNo?.let { "Divisi $it" },
-                ).joinToString(" · "),
+                Fmt.weekday(duty.date),
+                style = MaterialTheme.typography.titleSmall,
+                color = if (past) scheme.onSurfaceVariant else scheme.onSurface,
+            )
+            Text(
+                duty.role ?: "Petugas jaga",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = scheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(Modifier.width(Spacing.sm))
-        StatusChip(entry.role?.substringBefore(" (")?.ifBlank { null } ?: "Jaga", roleTone(entry))
-    }
-}
-
-/** Kartu satu hari jaga: tanggal di kiri, ringkasan personel di kanan. */
-@Composable
-fun DutyDayCard(
-    day: DutyDay,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    maxEntries: Int = 3,
-) {
-    val highlight = day.isToday
-    SindenCard(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onClick,
-        contentPadding = Spacing.md,
-        border = BorderStroke(
-            if (day.hasMe) 1.5.dp else 1.dp,
-            if (day.hasMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-        ),
-    ) {
-        Row(verticalAlignment = Alignment.Top) {
-            DateBlock(day.date, highlight)
-            Spacer(Modifier.width(Spacing.md))
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val d = Fmt.parseDate(day.date)
-                    Text(
-                        d?.let { Fmt.relativeDay(it) } ?: day.date,
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (day.hasMe) {
-                        Icon(Icons.Outlined.Star, contentDescription = "Anda bertugas", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                    }
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text(
-                    "${day.safeEntries.size} personel bertugas",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(Spacing.xs))
-                day.safeEntries.sortedByDescending { it.isMe }.take(maxEntries).forEach { e ->
-                    Text(
-                        buildString {
-                            append("• ")
-                            append(e.name.orEmpty())
-                            e.role?.let { append(" — ").append(it.substringBefore(" (")) }
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = if (e.isMe) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (e.isMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                val more = day.safeEntries.size - maxEntries
-                if (more > 0) {
-                    Text("+$more lainnya", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                }
+        if (past) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(label, style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
             }
+        } else {
+            StatusChip(label, if (highlight) Tone.INFO else Tone.SUCCESS)
         }
     }
 }
 
-/** Kartu tanggal ringkas untuk baris horizontal di dashboard. */
+/** Blok tanggal: angka besar + bulan singkat. */
 @Composable
-fun UpcomingDutyChip(day: DutyDay, onClick: () -> Unit) {
-    SindenCard(
-        modifier = Modifier.widthIn(min = 96.dp),
-        onClick = onClick,
-        contentPadding = Spacing.md,
-        containerColor = if (day.hasMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+fun DateBadge(date: LocalDate, emphasized: Boolean, muted: Boolean, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.small
+    val bg: Modifier = when {
+        emphasized -> Modifier.background(Brush.verticalGradient(listOf(Blue400, Blue600)))
+        else -> Modifier.background(scheme.surfaceVariant)
+    }
+    val fg = when {
+        emphasized -> Color.White
+        muted -> scheme.onSurfaceVariant
+        else -> scheme.onSurface
+    }
+    Column(
+        modifier
+            .width(58.dp)
+            .clip(shape)
+            .then(bg)
+            .border(1.dp, if (emphasized) Color.White.copy(alpha = 0.35f) else scheme.outlineVariant, shape)
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val d = Fmt.parseDate(day.date)
-        Text(
-            d?.let { Fmt.weekdayShort(it) } ?: "",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(d?.let { Fmt.dayMonth(it) } ?: day.date, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(Spacing.xs))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(8.dp).clip(CircleShape).background(
-                    if (day.hasMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                )
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                if (day.hasMe) "Anda jaga" else "${day.safeEntries.size} personel",
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Start,
-            )
-        }
+        Text(date.dayOfMonth.toString(), style = MaterialTheme.typography.headlineSmall, color = fg)
+        Text(Fmt.monthShort(date.monthValue), style = MaterialTheme.typography.labelMedium, color = fg)
     }
 }
 
-/** Ringkas info SP Jaga (nomor, periode, status). */
+/** Info SP Jaga ringkas (nomor + status), tanpa jumlah/nama personel lain. */
 @Composable
 fun SpInfoRow(sp: SpJagaSummary, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         Column(Modifier.weight(1f)) {
-            Text(sp.nomorSprin ?: "SP Jaga", style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                "Periode ${sp.periodeLabel ?: "${sp.bulan}/${sp.tahun}"} · ${sp.totalPersonel} personel",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text(sp.nomorSprin ?: "SP Jaga", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         StatusChip(sp.statusLabel, spStatusTone(sp))
     }
 }
+
+/** Keterangan pengingat H-1 aktif. */
+@Composable
+fun ReminderNote(modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Outlined.NotificationsActive, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(Spacing.sm))
+        Text(
+            "Pengingat otomatis H-1 pukul %02d.%02d".format(DutyReminders.REMIND_AT.hour, DutyReminders.REMIND_AT.minute),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+/** Jarak kecil antarbaris jadwal. */
+@Composable
+fun DutyRowSpacer() = Spacer(Modifier.height(Spacing.xs))

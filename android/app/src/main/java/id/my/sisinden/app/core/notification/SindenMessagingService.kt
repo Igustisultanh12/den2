@@ -32,11 +32,32 @@ class SindenMessagingService : FirebaseMessagingService() {
                 message = d["body"].orEmpty().ifBlank { "Terdapat pemberitahuan kedinasan baru." },
                 link = d["link"],
             )
-            "chat" -> NotificationHelper.showPushedChat(
-                this,
-                sender = d["title"].orEmpty().ifBlank { "Chat Dinas" },
-                text = d["body"].orEmpty().ifBlank { "Pesan baru" },
-            )
+            "chat" -> {
+                val thread = d["thread_uuid"]
+                // Sedang membuka utas yang sama di layar → tidak perlu banner.
+                if (CommsState.appForeground && thread != null && thread == CommsState.activeChatThread) return
+                NotificationHelper.showPushedChat(
+                    this,
+                    messageId = d["id"]?.toLongOrNull() ?: System.currentTimeMillis(),
+                    sender = d["title"].orEmpty().ifBlank { "Chat Dinas" },
+                    text = d["body"].orEmpty().ifBlank { "Pesan baru" },
+                )
+            }
+            "call" -> {
+                val thread = d["thread_uuid"].orEmpty()
+                val callId = d["call_id"].orEmpty()
+                if (thread.isBlank() || CommsState.activeCallThread != null) return
+                // Aplikasi sedang terbuka & tidak terkunci: layar panggilan dibuka oleh poller.
+                if (CommsState.appForeground && CommsState.mainUiVisible) return
+                if (callId.isNotBlank()) CommsState.claimCall(callId)
+                CallNotifications.showIncoming(
+                    this,
+                    threadUuid = thread,
+                    video = !d["call_type"].equals("audio", ignoreCase = true),
+                    callerName = d["caller_name"].orEmpty().ifBlank { "Panggilan Dinas" },
+                )
+            }
+            "call_cancel" -> CallNotifications.cancel(this)
             // Admin mengunggah APK baru di Pengaturan web.
             "app_update" -> AppUpdater.onServerPush(this, d["version"].orEmpty(), d["title"].orEmpty(), d["body"].orEmpty())
         }

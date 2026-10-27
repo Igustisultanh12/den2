@@ -37,6 +37,8 @@ class SindenRepository(
     private val store: SessionStore,
     val session: SessionManager,
     private val appScope: CoroutineScope,
+    /** Kunci PIN/biometrik (gaya M-Banking). */
+    val appLock: id.my.sisinden.app.core.security.AppLockManager,
 ) {
     /** Jalankan pekerjaan yang harus selesai walau layar pemanggil ditutup (mis. logout). */
     fun appScopeLaunch(block: suspend () -> Unit) {
@@ -50,13 +52,26 @@ class SindenRepository(
 
     // ------------------------------------------------------------- Sesi
 
-    suspend fun login(username: String, password: String): ApiResult<UserProfile> {
+    /**
+     * @param turnstileToken token Cloudflare Turnstile dari widget login.
+     * @param beforeSessionStart dijalankan setelah kredensial diterima server dan
+     *   sebelum layar berpindah ke beranda (untuk animasi tahap akhir).
+     */
+    suspend fun login(
+        username: String,
+        password: String,
+        turnstileToken: String? = null,
+        beforeSessionStart: suspend () -> Unit = {},
+    ): ApiResult<UserProfile> {
         val device = "Sinden 2 Android (${Build.MANUFACTURER} ${Build.MODEL})".take(100)
-        return when (val res = call { login(LoginRequest(username.trim(), password, device)) }) {
+        return when (val res = call { login(LoginRequest(username.trim(), password, device, turnstileToken)) }) {
             is ApiResult.Success -> {
                 val token = res.data.token
                 val user = res.data.user
                 if (res.data.status == "success" && !token.isNullOrBlank() && user != null) {
+                    beforeSessionStart()
+                    // Baru saja masuk dengan kata sandi → tidak perlu PIN lagi untuk sesi ini.
+                    appLock.unlock()
                     session.startSession(token, user)
                     ApiResult.Success(user)
                 } else {
@@ -67,8 +82,8 @@ class SindenRepository(
         }
     }
 
-    suspend fun activate(nrp: String, token: String, password: String): ApiResult<SimpleResponse> =
-        call { activate(ActivateRequest(nrp.trim(), token.trim(), password)) }
+    suspend fun activate(nrp: String, token: String, password: String, turnstileToken: String? = null): ApiResult<SimpleResponse> =
+        call { activate(ActivateRequest(nrp.trim(), token.trim(), password, turnstileToken)) }
 
     /** Segarkan profil + permission dari server. */
     suspend fun refreshSession(): ApiResult<UserProfile> = when (val res = call { me() }) {
@@ -82,8 +97,15 @@ class SindenRepository(
         is ApiResult.Failure -> res
     }
 
+    /** Lupa PIN / PIN salah berulang: hapus PIN lalu keluar (wajib masuk dengan kata sandi). */
+    suspend fun logoutAndResetPin() {
+        appLock.store.clear()
+        appLock.lock()
+        logout()
+    }
+
     suspend fun logout() {
-        // Cabut token di server (best-effort) beserta token push perangkat ini, lalu hapus sesi lokal.
+        // Cabut token di server (best-effort), lalu hapus sesi lokal apa pun hasilnya.
         if (session.token != null) {
             val pushToken = id.my.sisinden.app.core.notification.PushManager.lastToken(appContext)
             call { logout(LogoutRequest(pushToken)) }
@@ -99,9 +121,6 @@ class SindenRepository(
     suspend fun registerPushToken(token: String) = call {
         registerPush(PushRegisterRequest(token, id.my.sisinden.app.BuildConfig.VERSION_NAME, "${Build.MANUFACTURER} ${Build.MODEL}".take(100)))
     }
-
-    /** Alamat server aktif (dipakai pemeriksa pembaruan aplikasi). */
-    suspend fun currentBaseUrl(): String = store.baseUrl()
 
     // ------------------------------------------------------- Dashboard
 
@@ -229,6 +248,7 @@ class SindenRepository(
 
     suspend fun commanderAccount(month: String?) = call { commanderAccount(month) }
     suspend fun createCommanderTx(request: CommanderTxRequest) = call { createCommanderTx(request) }
+    suspend fun updateCommanderTx(id: Int, request: CommanderTxRequest) = call { updateCommanderTx(id, request) }
     suspend fun deleteCommanderTx(id: Int) = call { deleteCommanderTx(id) }
 
     // ----------------------------------------------------------- Mitra
@@ -255,6 +275,45 @@ class SindenRepository(
     suspend fun createUser(request: CreateUserRequest) = call { createUser(request) }
     suspend fun setUserActive(id: Int, active: Boolean) = call { updateUserStatus(id, UpdateUserStatusRequest(active)) }
     suspend fun deleteUser(id: Int) = call { deleteUser(id) }
+
+    // ------------------------------------------------------ Chat Dinas
+
+    suspend fun chatHome() = call { chatHome() }
+    suspend fun chatSync(uuid: String?, status: String? = null, search: String? = null) =
+        call { chatSync(uuid, status, search?.takeIf { it.isNotBlank() }) }
+    suspend fun chatUnread() = call { chatUnread() }
+    suspend fun chatMessages(uuid: String) = call { chatMessages(uuid) }
+    suspend fun chatTyping(uuid: String) = call { chatTyping(uuid) }
+    suspend fun chatSearchUsers(query: String) = call { chatSearchUsers(query.trim()) }
+    suspend fun chatStart(userId: Int) = call { chatStart(ChatStartRequest(userId)) }
+    suspend fun chatToggleStatus(uuid: String) = call { chatToggleStatus(uuid) }
+    suspend fun chatDelete(uuid: String) = call { chatDelete(uuid) }
+
+    /** Kirim pesan teks dan/atau lampiran (maks. 20 MB total, divalidasi server). */
+    suspend fun chatSend(uuid: String, text: String, files: List<UploadImage>): ApiResult<ChatSendResponse> {
+        val body = text.trim().takeIf { it.isNotEmpty() }?.toRequestBody("text/plain".toMediaType())
+        val parts = files.map {
+            MultipartBody.Part.createFormData("attachments[]", it.fileName, it.bytes.toRequestBody(it.mimeType.toMediaType()))
+        }
+        return call { chatSend(uuid, body, parts) }
+    }
+
+    // ------------------------------------------------- Panggilan (Vicon)
+
+    suspend fun incomingCall() = call { incomingCall() }
+    suspend fun initiateCall(uuid: String, video: Boolean) =
+        call { initiateCall(uuid, InitiateCallRequest(if (video) "video" else "audio")) }
+    suspend fun callSignal(uuid: String) = call { callSignal(uuid) }
+    suspend fun sendCallSignal(uuid: String, action: String, status: String) =
+        call { sendCallSignal(uuid, CallSignalRequest(action, status)) }
+    suspend fun endCall(uuid: String, reason: String, durationSeconds: Int = 0) =
+        call { endCall(uuid, EndCallRequest(reason, durationSeconds)) }
+    suspend fun agoraToken(uuid: String, uid: Int) = call { agoraToken(uuid, uid) }
+
+    // ------------------------------------------------- TTE SP Jaga
+
+    suspend fun pendingSpJaga() = call { pendingSpJaga() }
+    suspend fun approveSpJaga(id: Int) = call { approveSpJaga(id) }
 
     // ------------------------------------------------------------- PDF
 
@@ -318,7 +377,8 @@ class SindenRepository(
     val hideBalanceFlow = store.hideBalanceFlow
     suspend fun setThemeMode(mode: id.my.sisinden.app.core.ui.theme.ThemeMode) = store.setThemeMode(mode)
     suspend fun setHideBalance(hide: Boolean) = store.setHideBalance(hide)
-    suspend fun setBaseUrl(url: String) = store.setBaseUrl(url)
+    val textScaleFlow = store.textScaleFlow
+    suspend fun setTextScale(scale: id.my.sisinden.app.core.ui.theme.TextScale) = store.setTextScale(scale)
 }
 
 enum class CashKind(val title: String, val subtitle: String) {

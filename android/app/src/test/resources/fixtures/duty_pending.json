@@ -1,0 +1,14 @@
+{
+    "status": "success",
+    "data": [
+        {
+            "id": 1,
+            "nomor_sprin": "Sprin/ 30 /XI/2026",
+            "bulan": 11,
+            "tahun": 2026,
+            "status": "pending_signature",
+            "total_personel": 24,
+            "tanggal_surat": "2026-10-28"
+        }
+    ]
+}

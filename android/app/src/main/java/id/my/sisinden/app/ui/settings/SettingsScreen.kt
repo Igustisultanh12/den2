@@ -15,18 +15,19 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.SettingsBrightness
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -35,19 +36,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import id.my.sisinden.app.BuildConfig
-import id.my.sisinden.app.R
-import java.util.Calendar
-import id.my.sisinden.app.core.data.SessionStore
 import id.my.sisinden.app.core.notification.NotificationHelper
 import id.my.sisinden.app.core.ui.components.SindenCard
 import id.my.sisinden.app.core.ui.components.SindenScaffold
 import id.my.sisinden.app.core.ui.theme.Spacing
+import id.my.sisinden.app.core.ui.theme.TextScale
 import id.my.sisinden.app.core.ui.theme.ThemeMode
 import id.my.sisinden.app.data.repository.SindenRepository
-import id.my.sisinden.app.ui.auth.ServerDialog
 import kotlinx.coroutines.launch
 
 @Composable
@@ -56,15 +52,26 @@ fun SettingsScreen(repository: SindenRepository, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val theme by repository.themeModeFlow.collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
     val hideBalance by repository.hideBalanceFlow.collectAsStateWithLifecycle(initialValue = false)
-    val baseUrl by repository.baseUrlFlow.collectAsStateWithLifecycle(initialValue = SessionStore.DEFAULT_BASE_URL)
+    val textScale by repository.textScaleFlow.collectAsStateWithLifecycle(initialValue = TextScale.NORMAL)
     var sound by rememberSaveable { mutableStateOf(NotificationHelper.isNotificationSoundEnabled(context)) }
-    var showServer by rememberSaveable { mutableStateOf(false) }
+    val snackbar = remember { SnackbarHostState() }
+    val userId = repository.session.user?.id ?: 0
 
-    SindenScaffold(title = "Pengaturan", onBack = onBack) { padding ->
+    SindenScaffold(title = "Pengaturan", onBack = onBack, snackbarHostState = snackbar) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.screen),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
+            NotificationCard(repository = repository, onMessage = { msg -> scope.launch { snackbar.showSnackbar(msg) } })
+
+            UpdateCard()
+
+            SecurityCard(
+                appLock = repository.appLock,
+                userId = userId,
+                onMessage = { msg -> scope.launch { snackbar.showSnackbar(msg) } },
+            )
+
             SindenCard(Modifier.fillMaxWidth()) {
                 Text("Tampilan", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(Spacing.sm))
@@ -95,6 +102,41 @@ fun SettingsScreen(repository: SindenRepository, onBack: () -> Unit) {
             }
 
             SindenCard(Modifier.fillMaxWidth()) {
+                Text("Ukuran teks", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Perbesar huruf di seluruh aplikasi agar lebih mudah dibaca.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(Spacing.sm))
+                Column(Modifier.selectableGroup()) {
+                    TextScale.entries.forEach { scale ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = textScale == scale,
+                                    onClick = { scope.launch { repository.setTextScale(scale) } },
+                                    role = Role.RadioButton,
+                                )
+                                .padding(vertical = Spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Outlined.FormatSize, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(Spacing.md))
+                            Text(
+                                scale.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontSize = MaterialTheme.typography.bodyLarge.fontSize * (scale.factor / textScale.factor),
+                                modifier = Modifier.weight(1f),
+                            )
+                            RadioButton(selected = textScale == scale, onClick = null)
+                        }
+                    }
+                }
+            }
+
+            SindenCard(Modifier.fillMaxWidth()) {
                 SwitchRow(
                     title = "Sembunyikan saldo",
                     subtitle = "Samarkan nominal kas di beranda",
@@ -112,21 +154,6 @@ fun SettingsScreen(repository: SindenRepository, onBack: () -> Unit) {
                 )
             }
 
-            UpdateCard()
-            PushCard(repository)
-
-            SindenCard(Modifier.fillMaxWidth(), onClick = { showServer = true }) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Dns, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.width(Spacing.md))
-                    Column(Modifier.weight(1f)) {
-                        Text("Alamat server", style = MaterialTheme.typography.bodyLarge)
-                        Text(baseUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    TextButton(onClick = { showServer = true }) { Text("Ubah") }
-                }
-            }
-
             Text(
                 "Sinden 2 Android v${BuildConfig.VERSION_NAME} · Denintel Koarmada 2",
                 style = MaterialTheme.typography.labelSmall,
@@ -134,35 +161,13 @@ fun SettingsScreen(repository: SindenRepository, onBack: () -> Unit) {
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = Spacing.lg),
             )
             Text(
-                stringResource(R.string.app_copyright, Calendar.getInstance().get(Calendar.YEAR)),
+                androidx.compose.ui.res.stringResource(id.my.sisinden.app.R.string.app_copyright, java.time.Year.now().value),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(start = Spacing.lg, end = Spacing.lg, bottom = Spacing.lg),
             )
         }
-    }
-
-    if (showServer) {
-        ServerDialog(
-            current = baseUrl,
-            onSave = { input ->
-                val normalized = SessionStore.normalizeBaseUrl(input)
-                if (normalized == null) {
-                    "Alamat server tidak valid. Gunakan alamat HTTPS."
-                } else {
-                    // Mengganti server mengakhiri sesi: token server lama tidak berlaku di server baru.
-                    // Cabut token di server LAMA terlebih dahulu agar token tidak pernah terkirim ke server baru.
-                    val changed = normalized != baseUrl
-                    repository.appScopeLaunch {
-                        if (changed) repository.logout()
-                        repository.setBaseUrl(normalized)
-                    }
-                    null
-                }
-            },
-            onDismiss = { showServer = false },
-        )
     }
 }
 

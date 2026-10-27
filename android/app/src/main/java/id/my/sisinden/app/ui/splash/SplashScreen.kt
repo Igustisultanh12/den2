@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,14 +32,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import id.my.sisinden.app.R
-import id.my.sisinden.app.core.ui.theme.Navy900
-import id.my.sisinden.app.core.ui.theme.Navy950
-import id.my.sisinden.app.core.ui.theme.Ocean600
+import id.my.sisinden.app.ui.common.BrandBackdrop
+import id.my.sisinden.app.ui.common.FloatingLogo
+import id.my.sisinden.app.ui.common.Slate300
 
 @Composable
 fun SplashScreen() {
-    val scale = remember { Animatable(0.85f) }
+    val scale = remember { Animatable(0.9f) }
     val alpha = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         alpha.animateTo(1f, tween(450))
@@ -47,30 +47,21 @@ fun SplashScreen() {
         scale.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
     }
 
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(Navy900, Navy950))),
-        contentAlignment = Alignment.Center,
-    ) {
+    BrandBackdrop(backgroundUrl = null) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.graphicsLayer {
-                scaleX = scale.value
-                scaleY = scale.value
-                this.alpha = alpha.value
-            },
+            modifier = Modifier
+                .align(Alignment.Center)
+                .graphicsLayer {
+                    scaleX = scale.value
+                    scaleY = scale.value
+                    this.alpha = alpha.value
+                },
         ) {
-            Box(
-                Modifier.size(88.dp).clip(RoundedCornerShape(26.dp)).background(Ocean600),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(painterResource(R.drawable.ic_sinden_mark), contentDescription = null, modifier = Modifier.size(64.dp))
-            }
-            Spacer(Modifier.height(20.dp))
-            Text("SINDEN 2", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
+            FloatingLogo(size = 120.dp)
+            Text("SINDEN 2", color = Color.White, style = MaterialTheme.typography.headlineMedium, letterSpacing = 3.sp)
             Spacer(Modifier.height(4.dp))
-            Text("Denintel Koarmada 2", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+            Text("Denintel Koarmada 2", color = Slate300, style = MaterialTheme.typography.bodyMedium)
         }
         Column(
             Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 48.dp),
@@ -79,10 +70,10 @@ fun SplashScreen() {
         ) {
             LinearProgressIndicator(
                 modifier = Modifier.width(120.dp).clip(RoundedCornerShape(50)),
-                color = Color.White,
+                color = Color(0xFFFB923C),
                 trackColor = Color.White.copy(alpha = 0.15f),
             )
-            Text("Memulihkan sesi…", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+            Text("Memuat…", color = Slate300, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

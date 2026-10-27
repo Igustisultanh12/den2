@@ -20,9 +20,6 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +28,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import id.my.sisinden.app.core.network.ApiResult
+import id.my.sisinden.app.core.notification.CommsState
+import id.my.sisinden.app.core.notification.NotificationSync
+import id.my.sisinden.app.core.notification.PushManager
+import id.my.sisinden.app.core.update.AppUpdater
+import id.my.sisinden.app.ui.settings.UpdatePromptHost
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import id.my.sisinden.app.ui.call.CallScreen
+import id.my.sisinden.app.ui.chat.ChatHomeScreen
+import id.my.sisinden.app.ui.chat.ChatThreadScreen
+import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.Color
+import id.my.sisinden.app.core.ui.components.GlassBackground
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,14 +61,12 @@ import androidx.navigation.navDeepLink
 import id.my.sisinden.app.core.data.SessionState
 import id.my.sisinden.app.core.security.Perm
 import id.my.sisinden.app.core.security.PermissionSet
-import id.my.sisinden.app.data.repository.CashKind
 import id.my.sisinden.app.data.repository.SindenRepository
 import id.my.sisinden.app.ui.attendance.AttendanceScreen
-import id.my.sisinden.app.ui.cash.CashScreen
 import id.my.sisinden.app.ui.commander.CommanderScreen
+import id.my.sisinden.app.ui.tracking.TrackingScreen
 import id.my.sisinden.app.ui.common.AccessDeniedScreen
 import id.my.sisinden.app.ui.dashboard.DashboardScreen
-import id.my.sisinden.app.ui.duty.DutyDayScreen
 import id.my.sisinden.app.ui.duty.DutyRosterScreen
 import id.my.sisinden.app.ui.letters.LetterLogsScreen
 import id.my.sisinden.app.ui.menu.MenuScreen
@@ -66,17 +78,11 @@ import id.my.sisinden.app.ui.settings.SettingsScreen
 import id.my.sisinden.app.ui.signature.SignatureScreen
 import id.my.sisinden.app.ui.skhpp.SkhppFormScreen
 import id.my.sisinden.app.ui.skhpp.SkhppScreen
-import id.my.sisinden.app.ui.tracking.TrackingScreen
-import id.my.sisinden.app.ui.settings.UpdatePromptHost
-import id.my.sisinden.app.core.network.ApiResult
-import id.my.sisinden.app.core.notification.PushManager
-import id.my.sisinden.app.core.update.AppUpdater
-import androidx.compose.ui.platform.LocalContext
 import id.my.sisinden.app.ui.users.UsersScreen
 import id.my.sisinden.app.ui.violations.ViolationFormScreen
 import id.my.sisinden.app.ui.violations.ViolationsScreen
 
-private data class TabItem(
+internal data class TabItem(
     val route: String,
     val label: String,
     val icon: ImageVector,
@@ -127,17 +133,66 @@ fun MainNavigation(
     val tabs = allTabs.filter { perms.has(it.permission) }
     val showBottomBar = currentRoute in Routes.tabs
 
-    // Notifikasi push (FCM) & pembaruan aplikasi dari APK yang diunggah Admin di Pengaturan web.
     val context = LocalContext.current
-    LaunchedEffect(session.user.id) {
-        AppUpdater.serverBaseUrl = repository.currentBaseUrl()
-        val cfg = (repository.getConfig() as? ApiResult.Success)?.data
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val myUserId = session.user.id
+    val canChat = perms.has(Perm.CHAT_VIEW)
+
+    // Navigasi utama tampil (tidak terkunci): panggilan masuk ditangani poller, bukan notifikasi.
+    LifecycleResumeEffect(Unit) {
+        CommsState.mainUiVisible = true
+        onPauseOrDispose { CommsState.mainUiVisible = false }
+    }
+
+    // Notifikasi push (FCM): ambil konfigurasi Firebase dari server lalu daftarkan perangkat.
+    LaunchedEffect(myUserId) {
+        val cfg = when (val res = repository.getConfig()) {
+            is ApiResult.Success -> res.data
+            is ApiResult.Failure -> null
+        }
         PushManager.configure(context, cfg?.push)
         PushManager.register(context, repository)
+        // Pembaruan aplikasi dari APK yang diunggah Admin di Pengaturan web.
         AppUpdater.schedule(context)
         AppUpdater.autoCheckOnOpen(context)
     }
     UpdatePromptHost()
+
+    // Notifikasi bersuara: WorkManager di latar belakang + sinkron cepat saat aplikasi terbuka.
+    LaunchedEffect(Unit) {
+        NotificationSync.schedule(context)
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                delay(15_000)
+                NotificationSync.run(context, repository)
+            }
+        }
+    }
+
+    // Panggilan masuk (Chat Dinas): cek tiap 4 detik selama aplikasi terbuka.
+    LaunchedEffect(canChat, myUserId) {
+        if (!canChat) return@LaunchedEffect
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                if (CommsState.activeCallThread == null) {
+                    val call = when (val res = repository.incomingCall()) {
+                        is ApiResult.Success -> res.data.call
+                        is ApiResult.Failure -> null
+                    }
+                    val threadUuid = call?.threadUuid
+                    val callId = call?.callId
+                    if (call != null && threadUuid != null && callId != null &&
+                        call.normalizedStatus == "RINGING" && call.caller?.id != myUserId &&
+                        CommsState.claimCall(callId)
+                    ) {
+                        val peer = listOfNotNull(call.caller?.pangkat, call.caller?.name).joinToString(" ").ifBlank { "Panggilan Dinas" }
+                        nav.navigate(Routes.call(threadUuid, call.isVideo, incoming = true, peer = peer)) { launchSingleTop = true }
+                    }
+                }
+                delay(4_000)
+            }
+        }
+    }
 
     LaunchedEffect(newIntent) {
         if (newIntent != null) {
@@ -152,31 +207,20 @@ fun MainNavigation(
     val openPdf: (String, String, String) -> Unit = remember(nav) {
         { path, title, file -> nav.navigate(Routes.pdf(path, title, file)) }
     }
+    val downloadPdf: (String, String, String) -> Unit = remember(nav) {
+        { path, title, file -> nav.navigate(Routes.pdf(path, title, file, save = true)) }
+    }
     val navigate: (String) -> Unit = remember(nav) {
         { route -> if (route in Routes.tabs) nav.navigateToTab(route) else nav.navigate(route) { launchSingleTop = true } }
     }
 
+    GlassBackground {
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         contentWindowInsets = if (showBottomBar) WindowInsets(0, 0, 0, 0) else WindowInsets.navigationBars,
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
-                    tabs.forEach { tab ->
-                        val selected = currentRoute == tab.route
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = { if (!selected) nav.navigateToTab(tab.route) },
-                            icon = { Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = null) },
-                            label = { Text(tab.label, style = MaterialTheme.typography.labelMedium) },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                            ),
-                        )
-                    }
-                }
+                SindenBottomBar(tabs = tabs, currentRoute = currentRoute, onSelect = { nav.navigateToTab(it) })
             }
         },
     ) { padding ->
@@ -195,7 +239,6 @@ fun MainNavigation(
                     repository = repository,
                     session = sessionState.value,
                     onNavigate = navigate,
-                    onOpenDutyDay = { sp, date -> nav.navigate(Routes.dutyDay(sp, date)) },
                 )
             }
             composable(Routes.DUTY, deepLinks = appDeepLink("duty")) {
@@ -203,8 +246,8 @@ fun MainNavigation(
                     DutyRosterScreen(
                         repository = repository,
                         permissions = currentPerms(),
-                        onOpenDay = { sp, date -> nav.navigate(Routes.dutyDay(sp, date)) },
                         onOpenPdf = openPdf,
+                        onDownloadPdf = downloadPdf,
                     )
                 }
             }
@@ -223,27 +266,6 @@ fun MainNavigation(
                     onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                     onOpenNotifications = { nav.navigate(Routes.NOTIFICATIONS) },
                 )
-            }
-
-            // ------------------------------------------------------ Daftar jaga
-            composable(
-                Routes.DUTY_DAY,
-                arguments = listOf(
-                    navArgument("sp") { type = NavType.IntType; defaultValue = -1 },
-                    navArgument("date") { type = NavType.StringType; defaultValue = "" },
-                ),
-            ) { entry ->
-                Guard(currentPerms(), Perm.DUTY_VIEW, back) {
-                    val sp = entry.arguments?.getInt("sp")?.takeIf { it > 0 }
-                    DutyDayScreen(
-                        repository = repository,
-                        spId = sp,
-                        date = entry.arguments?.getString("date").orEmpty(),
-                        canPdf = currentPerms().has(Perm.DUTY_PDF),
-                        onBack = back,
-                        onOpenPdf = openPdf,
-                    )
-                }
             }
 
             // ------------------------------------------------------ Modul
@@ -273,16 +295,14 @@ fun MainNavigation(
                 }
             }
             composable(Routes.SIGNATURE, deepLinks = appDeepLink("signature")) {
-                Guard(currentPerms(), Perm.SIGNATURE_VIEW, back) { SignatureScreen(repository, currentPerms(), onBack = back) }
-            }
-            composable(Routes.CASH, deepLinks = appDeepLink("cash")) {
-                Guard(currentPerms(), Perm.CASH_VIEW, back) {
-                    CashScreen(repository, CashKind.BASE, currentPerms(), onBack = back, onOpenPdf = openPdf)
-                }
-            }
-            composable(Routes.TECHNICAL_CASH, deepLinks = appDeepLink("technical_cash")) {
-                Guard(currentPerms(), Perm.TECHNICAL_CASH_VIEW, back) {
-                    CashScreen(repository, CashKind.TECHNICAL, currentPerms(), onBack = back, onOpenPdf = openPdf)
+                Guard(currentPerms(), Perm.SIGNATURE_VIEW, back) {
+                    SignatureScreen(
+                        repository = repository,
+                        permissions = currentPerms(),
+                        onBack = back,
+                        onOpenPdf = openPdf,
+                        onOpenSkhpp = { nav.navigate(Routes.SKHPP) { launchSingleTop = true } },
+                    )
                 }
             }
             composable(Routes.COMMANDER, deepLinks = appDeepLink("commander")) {
@@ -309,14 +329,70 @@ fun MainNavigation(
                     ViolationFormScreen(repository, onBack = back, onSubmitted = { nav.popWithRefresh() })
                 }
             }
-            composable(Routes.USERS, deepLinks = appDeepLink("users")) {
-                Guard(currentPerms(), Perm.USERS_VIEW, back) { UsersScreen(repository, currentPerms(), onBack = back) }
-            }
             composable(Routes.TRACKING, deepLinks = appDeepLink("tracking")) {
                 Guard(currentPerms(), Perm.TRACKING_VIEW, back) { TrackingScreen(repository, onBack = back) }
             }
+            composable(Routes.USERS, deepLinks = appDeepLink("users")) {
+                Guard(currentPerms(), Perm.USERS_VIEW, back) { UsersScreen(repository, currentPerms(), onBack = back) }
+            }
             composable(Routes.SETTINGS, deepLinks = appDeepLink("settings")) {
                 SettingsScreen(repository, onBack = back)
+            }
+
+            // ------------------------------------------------------ Chat Dinas & Vicon
+            composable(Routes.CHAT, deepLinks = appDeepLink("chat")) {
+                Guard(currentPerms(), Perm.CHAT_VIEW, back) {
+                    ChatHomeScreen(
+                        repository = repository,
+                        myUserId = sessionState.value.user.id,
+                        onBack = back,
+                        onOpenThread = { uuid, title -> nav.navigate(Routes.chatThread(uuid, title)) { launchSingleTop = true } },
+                        onCall = { uuid, video, peer -> nav.navigate(Routes.call(uuid, video, incoming = false, peer = peer)) },
+                    )
+                }
+            }
+            composable(
+                Routes.CHAT_THREAD,
+                arguments = listOf(
+                    navArgument("uuid") { type = NavType.StringType },
+                    navArgument("title") { type = NavType.StringType; defaultValue = "Chat Dinas" },
+                ),
+            ) { entry ->
+                Guard(currentPerms(), Perm.CHAT_MANAGE, back) {
+                    val uuid = entry.arguments?.getString("uuid").orEmpty()
+                    val title = entry.arguments?.getString("title").orEmpty().ifBlank { "Chat Dinas" }
+                    ChatThreadScreen(
+                        repository = repository,
+                        uuid = uuid,
+                        title = title,
+                        isOperator = true,
+                        myUserId = sessionState.value.user.id,
+                        onBack = back,
+                        onCall = { video -> nav.navigate(Routes.call(uuid, video, incoming = false, peer = title)) },
+                    )
+                }
+            }
+            composable(
+                Routes.CALL,
+                deepLinks = appDeepLink("call/{uuid}?video={video}&incoming={incoming}&peer={peer}"),
+                arguments = listOf(
+                    navArgument("uuid") { type = NavType.StringType },
+                    navArgument("video") { type = NavType.BoolType; defaultValue = true },
+                    navArgument("incoming") { type = NavType.BoolType; defaultValue = false },
+                    navArgument("peer") { type = NavType.StringType; defaultValue = "Panggilan Dinas" },
+                ),
+            ) { entry ->
+                Guard(currentPerms(), Perm.CHAT_VIEW, back) {
+                    CallScreen(
+                        repository = repository,
+                        threadUuid = entry.arguments?.getString("uuid").orEmpty(),
+                        video = entry.arguments?.getBoolean("video") ?: true,
+                        incoming = entry.arguments?.getBoolean("incoming") ?: false,
+                        peerName = entry.arguments?.getString("peer").orEmpty().ifBlank { "Panggilan Dinas" },
+                        myUserId = sessionState.value.user.id,
+                        onClose = { nav.popBackStack() },
+                    )
+                }
             }
 
             // ------------------------------------------------------ PDF
@@ -326,6 +402,7 @@ fun MainNavigation(
                     navArgument("path") { type = NavType.StringType; defaultValue = "" },
                     navArgument("title") { type = NavType.StringType; defaultValue = "Dokumen" },
                     navArgument("file") { type = NavType.StringType; defaultValue = "dokumen.pdf" },
+                    navArgument("save") { type = NavType.BoolType; defaultValue = false },
                 ),
             ) { entry ->
                 PdfPreviewScreen(
@@ -333,10 +410,12 @@ fun MainNavigation(
                     apiPath = entry.arguments?.getString("path").orEmpty(),
                     title = entry.arguments?.getString("title").orEmpty(),
                     fileName = entry.arguments?.getString("file").orEmpty(),
+                    autoSave = entry.arguments?.getBoolean("save") ?: false,
                     onBack = back,
                 )
             }
         }
+    }
     }
 }
 

@@ -1,5 +1,6 @@
 package id.my.sisinden.app.ui.pdf
 
+import id.my.sisinden.app.core.security.expectExternalActivity
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -48,6 +49,9 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -136,6 +140,7 @@ fun PdfPreviewScreen(
     title: String,
     fileName: String,
     onBack: () -> Unit,
+    autoSave: Boolean = false,
 ) {
     val context = LocalContext.current
     val vm: PdfViewModel = viewModel(key = "pdf-$apiPath") { PdfViewModel(repository, apiPath, fileName) }
@@ -163,6 +168,15 @@ fun PdfPreviewScreen(
         }
     }
 
+    // Dibuka dari tombol "Unduh PDF": langsung tawarkan lokasi simpan setelah dokumen siap.
+    var autoSaveDone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(ready != null) {
+        if (autoSave && ready != null && !autoSaveDone) {
+            autoSaveDone = true
+            run { context.expectExternalActivity(); saveLauncher.launch(fileName.ifBlank { "dokumen.pdf" }) }
+        }
+    }
+
     SindenScaffold(
         title = title.ifBlank { "Dokumen PDF" },
         subtitle = ready?.let { "${it.document.pageCount} halaman" } ?: "Pratinjau dokumen resmi",
@@ -170,7 +184,7 @@ fun PdfPreviewScreen(
         snackbarHostState = snackbar,
         actions = {
             if (ready != null) {
-                IconButton(onClick = { saveLauncher.launch(fileName.ifBlank { "dokumen.pdf" }) }) {
+                IconButton(onClick = { run { context.expectExternalActivity(); saveLauncher.launch(fileName.ifBlank { "dokumen.pdf" }) } }) {
                     Icon(Icons.Outlined.FileDownload, contentDescription = "Simpan ke perangkat")
                 }
                 IconButton(onClick = {
@@ -180,6 +194,7 @@ fun PdfPreviewScreen(
                         putExtra(Intent.EXTRA_STREAM, uri)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
+                    context.expectExternalActivity()
                     context.startActivity(Intent.createChooser(intent, "Bagikan PDF"))
                 }) {
                     Icon(Icons.Outlined.Share, contentDescription = "Bagikan")
@@ -218,6 +233,7 @@ private fun openWithExternalApp(
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
     }
     try {
+        context.expectExternalActivity()
         context.startActivity(intent)
     } catch (_: ActivityNotFoundException) {
         scope.launch { snackbar.showSnackbar("Tidak ada aplikasi pembaca PDF di perangkat.") }

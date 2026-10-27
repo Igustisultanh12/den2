@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -30,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -37,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import id.my.sisinden.app.core.ui.theme.SindenTheme
 import id.my.sisinden.app.core.ui.theme.Spacing
 
 /** Skala tekan halus untuk elemen yang dapat diketuk. */
@@ -51,24 +54,36 @@ fun Modifier.pressScale(interaction: MutableInteractionSource): Modifier {
     return this.graphicsLayer { scaleX = scale; scaleY = scale }
 }
 
-/** Kartu dasar Sinden 2: permukaan putih, garis tipis, radius sedang, tanpa bayangan berat. */
+/**
+ * Kartu dasar Sinden 2.
+ * Terang: putih bersih dengan garis #EDEDED 1,5dp (gaya Livin).
+ * Gelap: permukaan kaca tembus pandang dengan tepi bergradien (iOS 26).
+ */
 @Composable
 fun SindenCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     containerColor: Color = MaterialTheme.colorScheme.surface,
-    border: BorderStroke? = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    border: BorderStroke? = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
     contentPadding: Dp = Spacing.lg,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val glass = SindenTheme.glass
+    val useGlass = SindenTheme.isDark && containerColor == MaterialTheme.colorScheme.surface
+    val color = if (useGlass) glass.fill else containerColor
+    val stroke = when {
+        border == null -> null
+        useGlass -> BorderStroke(1.dp, Brush.verticalGradient(listOf(glass.edgeTop, glass.edgeBottom)))
+        else -> border
+    }
     if (onClick != null) {
         val interaction = remember { MutableInteractionSource() }
         Surface(
             onClick = onClick,
             modifier = modifier.pressScale(interaction),
             shape = MaterialTheme.shapes.medium,
-            color = containerColor,
-            border = border,
+            color = color,
+            border = stroke,
             interactionSource = interaction,
         ) {
             Column(Modifier.padding(contentPadding), content = content)
@@ -77,15 +92,15 @@ fun SindenCard(
         Surface(
             modifier = modifier,
             shape = MaterialTheme.shapes.medium,
-            color = containerColor,
-            border = border,
+            color = color,
+            border = stroke,
         ) {
             Column(Modifier.padding(contentPadding), content = content)
         }
     }
 }
 
-/** Wadah ikon bulat berwarna lembut. */
+/** Wadah ikon "squircle" berwarna lembut (sudut 30%, seperti ubin Livin). */
 @Composable
 fun IconBadge(
     icon: ImageVector,
@@ -96,7 +111,7 @@ fun IconBadge(
     container: Color = tint.copy(alpha = 0.12f),
 ) {
     Box(
-        modifier.size(size).clip(CircleShape).background(container),
+        modifier.size(size).clip(RoundedCornerShape(30)).background(container),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(iconSize))
@@ -125,7 +140,7 @@ fun StatTile(
     onClick: (() -> Unit)? = null,
 ) {
     SindenCard(modifier = modifier, onClick = onClick, contentPadding = Spacing.md) {
-        IconBadge(icon, tint, size = 36.dp, iconSize = 18.dp)
+        IconBadge(icon, tint, size = 44.dp, iconSize = 24.dp)
         Spacer(Modifier.height(Spacing.md))
         Text(
             value,

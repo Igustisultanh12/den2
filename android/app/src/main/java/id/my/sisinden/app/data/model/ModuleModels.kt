@@ -206,6 +206,8 @@ data class SignatureListResponse(
     @SerializedName("status") val status: String? = null,
     @SerializedName("can_approve") val canApprove: Boolean = false,
     @SerializedName("requests") val requests: List<SignatureRequestDto>? = null,
+    /** SKHPP yang menunggu TTE Komandan (pengaju hanya melihat miliknya). */
+    @SerializedName("skhpp_requests") val skhppRequests: List<SkhppQueueDto>? = null,
 )
 
 data class SignatureDecisionRequest(

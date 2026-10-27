@@ -95,6 +95,8 @@ data class NotificationDto(
     @SerializedName("title") val title: String? = null,
     @SerializedName("message") val message: String? = null,
     @SerializedName("type") val type: String? = null,
+    /** Tautan web asal (mis. /signature-requests?open_id=1) — dipetakan ke rute aplikasi. */
+    @SerializedName("link") val link: String? = null,
     @SerializedName("is_read") val isRead: Boolean = false,
     @SerializedName("created_at") val createdAt: String? = null,
 )

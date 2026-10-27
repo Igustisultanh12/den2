@@ -1,5 +1,6 @@
 package id.my.sisinden.app.ui.skhpp
 
+import id.my.sisinden.app.core.security.expectExternalActivity
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -156,6 +157,7 @@ fun SkhppFormScreen(repository: SindenRepository, onBack: () -> Unit, onSubmitte
     }
     fun pick(second: Boolean) {
         pickingSecond = second
+        context.expectExternalActivity()
         picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 

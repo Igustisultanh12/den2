@@ -238,8 +238,8 @@ fun PrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled && !loading,
-        modifier = modifier.fillMaxWidth().height(52.dp),
-        shape = MaterialTheme.shapes.small,
+        modifier = modifier.fillMaxWidth().height(56.dp),
+        shape = MaterialTheme.shapes.medium,
     ) {
         if (loading) {
             CircularProgressIndicator(

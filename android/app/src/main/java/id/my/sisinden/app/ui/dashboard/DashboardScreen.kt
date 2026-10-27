@@ -1,26 +1,28 @@
 package id.my.sisinden.app.ui.dashboard
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -30,66 +32,82 @@ import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Badge
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import id.my.sisinden.app.R
 import id.my.sisinden.app.core.data.SessionState
 import id.my.sisinden.app.core.security.Perm
+import id.my.sisinden.app.core.ui.components.CountBadge
 import id.my.sisinden.app.core.ui.components.ErrorState
-import id.my.sisinden.app.core.ui.components.IconBadge
+import id.my.sisinden.app.core.ui.components.FeatureTile
+import id.my.sisinden.app.core.ui.components.FilterChipRow
+import id.my.sisinden.app.core.ui.components.GradientIconTile
 import id.my.sisinden.app.core.ui.components.LoadState
-import id.my.sisinden.app.core.ui.components.dataOrNull
 import id.my.sisinden.app.core.ui.components.RefreshableBox
 import id.my.sisinden.app.core.ui.components.SectionHeader
 import id.my.sisinden.app.core.ui.components.SindenCard
 import id.my.sisinden.app.core.ui.components.SkeletonBlock
+import id.my.sisinden.app.core.ui.components.SoftDivider
 import id.my.sisinden.app.core.ui.components.StatTile
-import id.my.sisinden.app.core.ui.components.StatusChip
 import id.my.sisinden.app.core.ui.components.Tone
+import id.my.sisinden.app.core.ui.components.dataOrNull
 import id.my.sisinden.app.core.ui.components.shimmerBrush
 import id.my.sisinden.app.core.ui.components.toneAccent
-import id.my.sisinden.app.core.ui.theme.Navy900
-import id.my.sisinden.app.core.ui.theme.Ocean600
-import id.my.sisinden.app.core.ui.theme.Ocean700
+import id.my.sisinden.app.core.ui.theme.Blue400
+import id.my.sisinden.app.core.ui.theme.Blue600
+import id.my.sisinden.app.core.ui.theme.SindenTheme
 import id.my.sisinden.app.core.ui.theme.Spacing
 import id.my.sisinden.app.core.util.Fmt
 import id.my.sisinden.app.data.model.DashboardDuty
 import id.my.sisinden.app.data.model.DashboardResponse
 import id.my.sisinden.app.data.model.DashboardSummary
 import id.my.sisinden.app.data.repository.SindenRepository
-import id.my.sisinden.app.ui.duty.DutyEntryRow
-import id.my.sisinden.app.ui.duty.UpcomingDutyChip
+import id.my.sisinden.app.ui.duty.MyDuty
+import id.my.sisinden.app.ui.duty.MyDutyRow
+import id.my.sisinden.app.ui.duty.ReminderNote
 import id.my.sisinden.app.ui.navigation.Feature
+import id.my.sisinden.app.ui.navigation.FeatureGroup
 import id.my.sisinden.app.ui.navigation.Routes
 import java.time.LocalDate
 
+/**
+ * Beranda bergaya "Elder Friendly Livin'": header biru bergradien dengan
+ * kartu akun, "Fitur Utama Anda" (ubin bergradien berlabel), Daftar Jaga
+ * pribadi, ringkasan sesuai hak akses, dan "Fitur Lainnya" berkategori.
+ */
 @Composable
 fun DashboardScreen(
     repository: SindenRepository,
     session: SessionState.LoggedIn,
     onNavigate: (String) -> Unit,
-    onOpenDutyDay: (Int?, String) -> Unit,
 ) {
     val context = LocalContext.current
     val vm: DashboardViewModel = viewModel { DashboardViewModel(repository, context.applicationContext) }
@@ -99,208 +117,291 @@ fun DashboardScreen(
 
     val data = state.dataOrNull
     val summary = data?.summary
-    val unread = summary?.notificationsUnread ?: 0
     val perms = session.permissions
+    val features = Feature.permitted(perms).filter { it != Feature.DUTY && it != Feature.ATTENDANCE }
 
     RefreshableBox(isRefreshing = refreshing, onRefresh = { vm.load(pullToRefresh = true) }) {
         Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xl),
         ) {
-            HeroHeader(
+            HeaderWithAccount(
                 session = session,
-                unread = unread,
-                canOpenNotifications = perms.has(Perm.NOTIFICATIONS_VIEW),
-                onOpenNotifications = { onNavigate(Routes.NOTIFICATIONS) },
-            )
-
-            // Kartu presensi menumpang di bawah header
-            AttendanceQuickCard(
                 summary = summary,
                 loading = state is LoadState.Loading,
-                onClick = { onNavigate(Routes.ATTENDANCE) },
-                modifier = Modifier.offset(y = (-36).dp).padding(horizontal = Spacing.screen),
+                unread = summary?.notificationsUnread ?: 0,
+                canOpenNotifications = perms.has(Perm.NOTIFICATIONS_VIEW),
+                canAttend = perms.has(Perm.ATTENDANCE_VIEW),
+                onNavigate = onNavigate,
             )
 
-            Column(Modifier.offset(y = (-20).dp), verticalArrangement = Arrangement.spacedBy(Spacing.xl)) {
-                // ---------------------------------------------- DAFTAR JAGA (utama)
-                if (perms.has(Perm.DUTY_VIEW)) {
-                    DutySection(
-                        state = state,
-                        duty = data?.duty,
-                        onRetry = { vm.load() },
-                        onOpenDay = onOpenDutyDay,
-                        onOpenAll = { onNavigate(Routes.DUTY) },
-                    )
-                }
-
-                // ---------------------------------------------- Ringkasan per hak akses
-                if (summary != null) {
-                    SummarySection(summary, hideBalance, vm::toggleHideBalance, onNavigate)
-                }
-
-                // ---------------------------------------------- Akses cepat
-                QuickAccess(features = Feature.permitted(perms).filter { it != Feature.DUTY && it != Feature.ATTENDANCE }, onNavigate = onNavigate)
-
-                if (session.isStale) {
-                    Text(
-                        "Hak akses ditampilkan dari data tersimpan. Tarik ke bawah untuk menyinkronkan dengan server.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = Spacing.screen),
-                    )
-                }
-                Spacer(Modifier.height(Spacing.lg))
+            if (features.isNotEmpty()) {
+                MainFeatures(features.take(4), unread = summary?.notificationsUnread ?: 0, onNavigate = onNavigate)
             }
+
+            if (perms.has(Perm.DUTY_VIEW)) {
+                DutySection(
+                    state = state,
+                    duty = data?.duty,
+                    onRetry = { vm.load() },
+                    onOpenDuty = { onNavigate(Routes.DUTY) },
+                )
+            }
+
+            if (summary != null) {
+                SummarySection(summary, hideBalance, vm::toggleHideBalance, onNavigate)
+            }
+
+            if (features.size > 4) {
+                OtherFeatures(features, onNavigate)
+            }
+
+            if (session.isStale) {
+                Text(
+                    "Hak akses ditampilkan dari data tersimpan. Tarik ke bawah untuk menyinkronkan dengan server.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Spacing.screen),
+                )
+            }
+            Spacer(Modifier.height(Spacing.lg))
         }
     }
 }
 
+// ---------------------------------------------------------------- Header
+
 @Composable
-private fun HeroHeader(
+private fun HeaderWithAccount(
     session: SessionState.LoggedIn,
+    summary: DashboardSummary?,
+    loading: Boolean,
     unread: Int,
     canOpenNotifications: Boolean,
-    onOpenNotifications: () -> Unit,
+    canAttend: Boolean,
+    onNavigate: (String) -> Unit,
 ) {
-    val user = session.user
-    Box(
+    val gradient = SindenTheme.heroGradient
+    Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .background(Brush.linearGradient(listOf(Navy900, Ocean700, Ocean600)))
+            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
+            .background(Brush.verticalGradient(gradient))
             .statusBarsPadding()
-            .padding(start = Spacing.screen, end = Spacing.screen, top = Spacing.lg, bottom = 56.dp),
+            .padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.sm, bottom = Spacing.xl),
     ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = 0.18f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(user.initials, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        // Baris navigasi atas: logo + tombol berlabel (Livin: "Pesan", "Keluar")
+        Row(Modifier.fillMaxWidth().padding(vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painterResource(R.drawable.ic_sinden_mark),
+                contentDescription = null,
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)),
+            )
+            Spacer(Modifier.width(Spacing.sm))
+            Column(Modifier.weight(1f)) {
+                Text("SINDEN 2", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = Color.White)
+                Text("Denintel Koarmada 2", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.9f))
+            }
+            if (canOpenNotifications) {
+                HeaderAction(Icons.Outlined.Notifications, "Warta", badge = unread) { onNavigate(Routes.NOTIFICATIONS) }
+                Spacer(Modifier.width(Spacing.sm))
+            }
+            HeaderAction(Icons.Outlined.Settings, "Atur") { onNavigate(Routes.SETTINGS) }
+        }
+        Spacer(Modifier.height(Spacing.md))
+        AccountCard(session, summary, loading, canAttend, onOpenAttendance = { onNavigate(Routes.ATTENDANCE) })
+    }
+}
+
+/** Tombol ikon + label di header (ikon saja menyulitkan pengguna lansia). */
+@Composable
+private fun HeaderAction(icon: ImageVector, label: String, badge: Int = 0, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box {
+            Icon(
+                icon,
+                contentDescription = if (badge > 0) "$label, $badge belum dibaca" else label,
+                tint = Color.White,
+                modifier = Modifier.size(28.dp),
+            )
+            if (badge > 0) CountBadge(badge, Modifier.align(Alignment.TopEnd))
+        }
+        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White)
+    }
+}
+
+/** Kartu akun Livin: sapaan + identitas + bar info presensi hari ini. */
+@Composable
+private fun AccountCard(
+    session: SessionState.LoggedIn,
+    summary: DashboardSummary?,
+    loading: Boolean,
+    canAttend: Boolean,
+    onOpenAttendance: () -> Unit,
+) {
+    val user = session.user
+    val dark = SindenTheme.isDark
+    val glass = SindenTheme.glass
+    val shape = RoundedCornerShape(24.dp)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .shadow(8.dp, shape, ambientColor = glass.shadow, spotColor = glass.shadow)
+            .clip(shape)
+            .background(if (dark) glass.fillStrong else MaterialTheme.colorScheme.surface)
+            .border(2.dp, Brush.verticalGradient(listOf(glass.edgeTop, glass.edgeBottom)), shape)
+            .padding(Spacing.lg),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(Brush.verticalGradient(listOf(Blue400, Blue600))),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(user.initials, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = Color.White)
+            }
+            Spacer(Modifier.width(Spacing.md))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "${Fmt.greeting()}, ${user.firstName}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    user.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    Fmt.fullDate(LocalDate.now()),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+
+        if (canAttend) {
+            Spacer(Modifier.height(Spacing.md))
+            AttendanceBar(summary, loading, onOpenAttendance)
+        }
+    }
+}
+
+/** Bar info di dalam kartu akun (setara "Tabungan Now IDR · Buka Detail" di Livin). */
+@Composable
+private fun AttendanceBar(summary: DashboardSummary?, loading: Boolean, onClick: () -> Unit) {
+    val today = summary?.attendance?.today
+    val att = summary?.attendance
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Presensi hari ini", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            when {
+                loading && summary == null -> {
+                    Spacer(Modifier.height(4.dp))
+                    SkeletonBlock(Modifier.fillMaxWidth(0.6f), 18.dp)
                 }
-                Spacer(Modifier.width(Spacing.md))
-                Column(Modifier.weight(1f)) {
-                    Text("${Fmt.greeting()},", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
+                today != null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = toneAccent(Tone.SUCCESS), modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(6.dp))
                     Text(
-                        user.displayName,
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
+                        "${today.statusLabel} · ${today.timeShort ?: "-"} WIB",
+                        style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                if (canOpenNotifications) {
-                    IconButton(onClick = onOpenNotifications) {
-                        BadgedBox(badge = { if (unread > 0) Badge { Text(if (unread > 99) "99+" else unread.toString()) } }) {
-                            Icon(
-                                Icons.Outlined.Notifications,
-                                contentDescription = if (unread > 0) "Notifikasi, $unread belum dibaca" else "Notifikasi",
-                                tint = Color.White,
-                            )
-                        }
-                    }
-                }
+                else -> Text("Belum presensi", style = MaterialTheme.typography.titleSmall, color = toneAccent(Tone.WARNING))
             }
-            Spacer(Modifier.height(Spacing.lg))
-            Text(Fmt.fullDate(LocalDate.now()), color = Color.White, style = MaterialTheme.typography.titleSmall)
-            Spacer(Modifier.height(Spacing.xs))
-            Text(
-                user.subtitle,
-                color = Color.White.copy(alpha = 0.75f),
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (today != null) "Lihat riwayat" else "Lapor kehadiran sekarang",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            }
+        }
+        if (att != null && att.totalActivePersonnel > 0) {
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "${att.totalAttendedToday}/${att.totalActivePersonnel}",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text("hadir", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            GradientIconTile(Icons.Outlined.HowToReg, Feature.ATTENDANCE.gradient, size = 48.dp, iconSize = 26.dp)
         }
     }
 }
 
+// ---------------------------------------------------------------- Fitur utama
+
 @Composable
-private fun AttendanceQuickCard(
-    summary: DashboardSummary?,
-    loading: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val today = summary?.attendance?.today
-    Surface(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp,
-    ) {
-        Row(Modifier.padding(Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(
-                if (today != null) Icons.Outlined.CheckCircle else Icons.Outlined.HowToReg,
-                tint = if (today != null) toneAccent(Tone.SUCCESS) else MaterialTheme.colorScheme.primary,
-            )
-            Spacer(Modifier.width(Spacing.md))
-            Column(Modifier.weight(1f)) {
-                when {
-                    loading && summary == null -> {
-                        SkeletonBlock(Modifier.fillMaxWidth(0.6f), 14.dp)
-                        Spacer(Modifier.height(6.dp))
-                        SkeletonBlock(Modifier.fillMaxWidth(0.4f), 12.dp)
-                    }
-                    today != null -> {
-                        Text("Presensi tercatat", style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            "${today.statusLabel} · pukul ${today.timeShort ?: "-"} WIB",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    else -> {
-                        Text("Belum presensi hari ini", style = MaterialTheme.typography.titleSmall)
-                        Text("Ketuk untuk lapor kehadiran", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+private fun MainFeatures(features: List<Feature>, unread: Int, onNavigate: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SectionHeader("Fitur Utama Anda", actionLabel = "Semua", onAction = { onNavigate(Routes.MENU) })
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.lg),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            features.forEach { f ->
+                FeatureTile(
+                    title = f.title,
+                    icon = f.icon,
+                    gradient = f.gradient,
+                    onClick = { onNavigate(f.route) },
+                    badge = if (f == Feature.NOTIFICATIONS) unread else 0,
+                    modifier = Modifier.weight(1f),
+                )
             }
-            val att = summary?.attendance
-            if (att != null) {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "${att.totalAttendedToday}/${att.totalActivePersonnel}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text("hadir hari ini", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            repeat(4 - features.size) { Spacer(Modifier.weight(1f)) }
         }
+        SoftDivider(Modifier.fillMaxWidth().padding(horizontal = Spacing.screen))
     }
 }
+
+// ---------------------------------------------------------------- Daftar jaga (pribadi)
 
 @Composable
 private fun DutySection(
     state: LoadState<DashboardResponse>,
     duty: DashboardDuty?,
     onRetry: () -> Unit,
-    onOpenDay: (Int?, String) -> Unit,
-    onOpenAll: () -> Unit,
+    onOpenDuty: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        SectionHeader(
-            title = "Daftar Jaga",
-            subtitle = duty?.sources?.firstOrNull()?.let { "${it.nomorSprin ?: "SP Jaga"} · ${it.periodeLabel ?: ""}" }
-                ?: "Jadwal jaga siaga sintel",
-            actionLabel = "Lihat semua",
-            onAction = onOpenAll,
-        )
-
-        Box(Modifier.animateContentSize()) {
+        SectionHeader("Daftar Jaga Anda", actionLabel = "Detail", onAction = onOpenDuty)
+        Box(Modifier.padding(horizontal = Spacing.screen).animateContentSize()) {
             val failed = state as? LoadState.Failed
             when {
                 state is LoadState.Loading && duty == null -> DutySkeleton()
-                failed != null && duty == null -> SindenCard(Modifier.padding(horizontal = Spacing.screen).fillMaxWidth()) {
-                    ErrorState(failed.error, onRetry)
-                }
-                else -> DutyContent(duty, onOpenDay, onOpenAll)
+                failed != null && duty == null -> SindenCard(Modifier.fillMaxWidth()) { ErrorState(failed.error, onRetry) }
+                else -> DutyCard(duty, onOpenDuty)
             }
         }
     }
@@ -309,126 +410,79 @@ private fun DutySection(
 @Composable
 private fun DutySkeleton() {
     val brush = shimmerBrush()
-    SindenCard(Modifier.padding(horizontal = Spacing.screen).fillMaxWidth()) {
-        SkeletonBlock(Modifier.fillMaxWidth(0.5f), 16.dp, brush)
+    SindenCard(Modifier.fillMaxWidth()) {
+        SkeletonBlock(Modifier.fillMaxWidth(0.5f), 18.dp, brush)
         Spacer(Modifier.height(Spacing.md))
-        repeat(3) {
-            SkeletonBlock(Modifier.fillMaxWidth(), 36.dp, brush)
+        repeat(2) {
+            SkeletonBlock(Modifier.fillMaxWidth(), 56.dp, brush)
             Spacer(Modifier.height(Spacing.sm))
         }
     }
 }
 
+/** Kartu jadwal jaga pribadi: hanya tanggal milik pengguna, tanpa daftar personel lain. */
 @Composable
-private fun DutyContent(
-    duty: DashboardDuty?,
-    onOpenDay: (Int?, String) -> Unit,
-    onOpenAll: () -> Unit,
-) {
-    val hasSource = !duty?.sources.isNullOrEmpty()
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        if (!hasSource) {
-            SindenCard(Modifier.padding(horizontal = Spacing.screen).fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Outlined.EventAvailable, MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(Spacing.md))
-                    Column(Modifier.weight(1f)) {
-                        Text("Belum ada SP Jaga terbit", style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            "Jadwal akan muncul di sini setelah Surat Perintah Jaga periode ini disahkan.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-            return@Column
+private fun DutyCard(duty: DashboardDuty?, onOpenDuty: () -> Unit) {
+    val today = LocalDate.now()
+    val sources = duty?.sources.orEmpty()
+    val roleByDate = buildMap {
+        (listOfNotNull(duty?.today) + duty?.upcoming.orEmpty()).forEach { day ->
+            val mine = day.safeEntries.firstOrNull { it.isMe } ?: return@forEach
+            Fmt.parseDate(day.date)?.let { put(it, mine.role) }
         }
+    }
+    val myDates = duty?.myDates.orEmpty().mapNotNull { Fmt.parseDate(it) }.distinct().sorted()
+    val thisMonth = myDates.filter { it.year == today.year && it.month == today.month }
+    val upcoming = myDates.filter { !it.isBefore(today) }.take(3).map { MyDuty(it, roleByDate[it], null) }
 
-        val today = duty?.today
-        val todayDate = LocalDate.now()
-        SindenCard(
-            modifier = Modifier.padding(horizontal = Spacing.screen).fillMaxWidth(),
-            onClick = { onOpenDay(today?.spId, today?.date ?: Fmt.iso(todayDate)) },
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Jaga hari ini", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    Text(Fmt.fullDate(todayDate), style = MaterialTheme.typography.titleSmall)
-                }
-                StatusChip(
-                    if (today != null) "${today.safeEntries.size} personel" else "Tidak ada",
-                    if (today != null) Tone.INFO else Tone.NEUTRAL,
-                )
-            }
-            if (today?.hasMe == true) {
-                Spacer(Modifier.height(Spacing.md))
-                val myRole = today.safeEntries.firstOrNull { it.isMe }?.role
-                Row(
-                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small)
-                        .background(MaterialTheme.colorScheme.primaryContainer).padding(Spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Outlined.VerifiedUser, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Spacer(Modifier.width(Spacing.sm))
-                    Text(
-                        "Anda bertugas hari ini${myRole?.let { " sebagai $it" } ?: ""}.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-            }
-            Spacer(Modifier.height(Spacing.sm))
-            if (today == null || today.safeEntries.isEmpty()) {
+    SindenCard(Modifier.fillMaxWidth(), onClick = onOpenDuty) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            GradientIconTile(Icons.Outlined.EventAvailable, Feature.DUTY.gradient, size = 48.dp, iconSize = 26.dp)
+            Spacer(Modifier.width(Spacing.md))
+            Column(Modifier.weight(1f)) {
+                Text("Jadwal jaga saya", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "Tidak ada personel terjadwal jaga hari ini.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    when {
+                        sources.isEmpty() -> "SP Jaga belum diterbitkan"
+                        thisMonth.isEmpty() -> "Tidak ada jadwal bulan ini"
+                        else -> "Bulan ini: ${thisMonth.size}× · tgl ${thisMonth.joinToString(", ") { it.dayOfMonth.toString() }}"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
-            } else {
-                today.safeEntries.sortedByDescending { it.isMe }.take(5).forEach { DutyEntryRow(it) }
-                val more = today.safeEntries.size - 5
-                if (more > 0) Text("+$more personel lainnya", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
         }
 
-        // Jadwal saya berikutnya
-        val next = Fmt.parseDate(duty?.myNextDate)
-        if (next != null && next != todayDate) {
-            SindenCard(
-                modifier = Modifier.padding(horizontal = Spacing.screen).fillMaxWidth(),
-                onClick = { onOpenDay(null, Fmt.iso(next)) },
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                border = null,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Outlined.EventAvailable, MaterialTheme.colorScheme.onSecondaryContainer)
-                    Spacer(Modifier.width(Spacing.md))
-                    Column(Modifier.weight(1f)) {
-                        Text("Jadwal jaga Anda berikutnya", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                        Text(Fmt.fullDate(next), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                    }
-                    StatusChip(Fmt.relativeDay(next), Tone.SUCCESS)
-                }
-            }
-        }
-
-        val upcoming = duty?.upcoming.orEmpty()
         if (upcoming.isNotEmpty()) {
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()).padding(PaddingValues(horizontal = Spacing.screen)),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-            ) {
-                upcoming.forEach { day -> UpcomingDutyChip(day) { onOpenDay(day.spId, day.date) } }
+            Spacer(Modifier.height(Spacing.md))
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                upcoming.forEach { MyDutyRow(it) }
             }
+            Spacer(Modifier.height(Spacing.md))
+            ReminderNote()
+        } else if (sources.isNotEmpty()) {
+            Spacer(Modifier.height(Spacing.sm))
+            Text(
+                "Belum ada jadwal jaga mendatang untuk Anda.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
-        OutlinedButton(onClick = onOpenAll, modifier = Modifier.padding(horizontal = Spacing.screen).fillMaxWidth()) {
-            Text("Buka daftar jaga lengkap")
+        Spacer(Modifier.height(Spacing.md))
+        Button(
+            onClick = onOpenDuty,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = MaterialTheme.shapes.medium,
+        ) {
+            Text("Lihat jadwal & PDF SP Jaga", style = MaterialTheme.typography.labelLarge)
         }
     }
 }
+
+// ---------------------------------------------------------------- Ringkasan
 
 @Composable
 private fun SummarySection(
@@ -477,49 +531,57 @@ private fun SummarySection(
     }
 }
 
-@Composable
-private fun QuickAccess(features: List<Feature>, onNavigate: (String) -> Unit) {
-    if (features.isEmpty()) return
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-        SectionHeader("Akses cepat", actionLabel = "Semua menu", onAction = { onNavigate(Routes.MENU) })
-        features.take(8).chunked(4).forEach { row ->
-            Row(Modifier.padding(horizontal = Spacing.screen), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                row.forEach { f ->
-                    Column(
-                        Modifier.weight(1f).clip(MaterialTheme.shapes.medium),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Surface(
-                            onClick = { onNavigate(f.route) },
-                            shape = MaterialTheme.shapes.medium,
-                            color = toneAccent(f.tone).copy(alpha = 0.12f),
-                            modifier = Modifier.size(56.dp),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(f.icon, contentDescription = f.title, tint = toneAccent(f.tone))
-                            }
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            f.title,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        )
-                    }
-                }
-                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-    }
-}
-
 private data class Tile(
     val label: String,
     val value: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val icon: ImageVector,
     val tone: Tone,
     val route: String,
     val caption: String? = null,
 )
+
+// ---------------------------------------------------------------- Fitur lainnya
+
+/** "Fitur Lainnya" Livin: chip kategori + kartu baris dengan ubin gradien dan tautan "Buka ›". */
+@Composable
+private fun OtherFeatures(features: List<Feature>, onNavigate: (String) -> Unit) {
+    val groups = remember(features) { listOf<FeatureGroup?>(null) + features.map { it.group }.distinct() }
+    var selected by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedGroup = groups.firstOrNull { it?.name == selected }
+    val shown = features.filter { selectedGroup == null || it.group == selectedGroup }
+
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        SectionHeader("Fitur Lainnya")
+        FilterChipRow(
+            options = groups,
+            selected = selectedGroup,
+            label = { it?.title ?: "Semua" },
+            onSelect = { selected = it?.name },
+        )
+        Column(Modifier.padding(horizontal = Spacing.screen), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            shown.forEach { f -> FeatureRowCard(f) { onNavigate(f.route) } }
+        }
+    }
+}
+
+@Composable
+private fun FeatureRowCard(feature: Feature, onClick: () -> Unit) {
+    SindenCard(Modifier.fillMaxWidth(), onClick = onClick, contentPadding = Spacing.md) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            GradientIconTile(feature.icon, feature.gradient, size = 48.dp, iconSize = 26.dp, corner = 16.dp)
+            Spacer(Modifier.width(Spacing.md))
+            Column(Modifier.weight(1f)) {
+                Text(feature.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    feature.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text("Buka", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+    }
+}

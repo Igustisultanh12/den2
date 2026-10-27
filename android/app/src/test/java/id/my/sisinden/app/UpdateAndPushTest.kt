@@ -34,7 +34,7 @@ class UpdateAndPushTest {
         assertEquals(14_800_000L, r.apkSize)
         assertEquals("ab".repeat(32), r.sha256)
         assertEquals("https://sinden2.my.id/api/mobile/app-update/download?v=1.7.0", r.apkUrl)
-        assertTrue(r.notes.contains("Ibu Beti"))
+        assertTrue(r.notes.contains("Chat Dinas"))
 
         // Belum ada APK di server.
         assertNull(AppUpdater.parseServer(fixture("app_update_none")))

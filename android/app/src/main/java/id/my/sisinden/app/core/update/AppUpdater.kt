@@ -24,7 +24,7 @@ import id.my.sisinden.app.BuildConfig
 import id.my.sisinden.app.MainActivity
 import id.my.sisinden.app.R
 import id.my.sisinden.app.core.data.SessionStore
-import id.my.sisinden.app.core.notification.AppVisibility
+import id.my.sisinden.app.core.notification.CommsState
 import id.my.sisinden.app.core.notification.NotificationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,11 +91,7 @@ object AppUpdater {
             .build()
     }
 
-    /** Alamat server Sinden 2 aktif (diperbarui dari pengaturan aplikasi). */
-    @Volatile
-    var serverBaseUrl: String = SessionStore.DEFAULT_BASE_URL
-
-    private val baseUrl: String get() = serverBaseUrl.trimEnd('/')
+    private val baseUrl: String get() = SessionStore.DEFAULT_BASE_URL.trimEnd('/')
 
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -164,7 +160,7 @@ object AppUpdater {
         http.newCall(req).execute().use { res ->
             if (res.code == 429) throw UpdateException("Terlalu sering memeriksa. Coba lagi sebentar lagi.")
             if (!res.isSuccessful) throw IOException("server menjawab HTTP ${res.code}")
-            parseServer(res.body?.string().orEmpty(), baseUrl)
+            parseServer(res.body?.string().orEmpty())
         }
     }
 
@@ -208,6 +204,7 @@ object AppUpdater {
             }
             verify(app, apk, info)
             when {
+                CommsState.activeCallThread != null -> UpdateState.Failed("Pembaruan ditunda karena sedang dalam panggilan.", info)
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !app.packageManager.canRequestPackageInstalls() ->
                     UpdateState.NeedsInstallPermission(info)
                 else -> {
@@ -228,7 +225,7 @@ object AppUpdater {
             UpdateState.Failed("Pembaruan gagal: ${reason(e)}", info)
         }
         _state.value = result
-        if (result is UpdateState.NeedsInstallPermission && !AppVisibility.appForeground) {
+        if (result is UpdateState.NeedsInstallPermission && !CommsState.appForeground) {
             notify(app, "Pembaruan Sinden 2 ${info.version} siap dipasang", "Buka Pengaturan → Pembaruan aplikasi untuk mengizinkan pemasangan.", openIntent(app, "settings"))
         }
         return result
@@ -444,7 +441,7 @@ object AppUpdater {
     internal fun notify(context: Context, title: String, text: String, intent: PendingIntent?) {
         NotificationHelper.createNotificationChannel(context)
         val n = NotificationCompat.Builder(context, NotificationHelper.CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_sinden_mark)
+            .setSmallIcon(R.drawable.ic_stat_sinden)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -491,8 +488,6 @@ object AppUpdater {
 /** Periksa pembaruan di latar belakang; unduh & pasang otomatis bila lewat Wi-Fi. */
 class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
-        val app = applicationContext as id.my.sisinden.app.SindenApplication
-        AppUpdater.serverBaseUrl = app.sessionStore.baseUrl()
         AppUpdater.backgroundCheck(applicationContext, allowDownload = AppUpdater.isUnmetered(applicationContext))
         return Result.success()
     }
@@ -511,7 +506,7 @@ class UpdateInstallReceiver : BroadcastReceiver() {
                     intent.getParcelableExtra(Intent.EXTRA_INTENT)
                 }) ?: return
                 confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                if (AppVisibility.appForeground) {
+                if (CommsState.appForeground) {
                     try {
                         context.startActivity(confirm)
                         return
@@ -534,7 +529,7 @@ class UpdateInstallReceiver : BroadcastReceiver() {
                     else -> "Pemasangan gagal${if (msg.isNotBlank()) ": $msg" else "."}"
                 }
                 AppUpdater.setState(UpdateState.Failed(text))
-                if (!AppVisibility.appForeground && status != PackageInstaller.STATUS_FAILURE_ABORTED) {
+                if (!CommsState.appForeground && status != PackageInstaller.STATUS_FAILURE_ABORTED) {
                     AppUpdater.notify(context, "Pembaruan Sinden 2 gagal", text, null)
                 }
             }
@@ -543,12 +538,5 @@ class UpdateInstallReceiver : BroadcastReceiver() {
 
     companion object {
         const val EXTRA_VERSION = "version"
-    }
-}
-
-/** Setelah aplikasi diperbarui (MY_PACKAGE_REPLACED): bersihkan unduhan & beri tahu personel. */
-class PackageReplacedReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) AppUpdater.onPackageReplaced(context)
     }
 }

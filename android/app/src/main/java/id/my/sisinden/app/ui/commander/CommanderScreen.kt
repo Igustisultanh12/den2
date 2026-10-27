@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
@@ -82,10 +83,13 @@ class CommanderViewModel(private val repository: SindenRepository) : LoadableVie
         reload()
     }
 
-    fun create(date: String, income: Boolean, amount: Double, note: String, onDone: () -> Unit) =
-        action("Transaksi tersimpan.", onDone) {
-            repository.createCommanderTx(CommanderTxRequest(date, if (income) "MASUK" else "KELUAR", amount, note.trim()))
+    /** Tambah ([id] null) atau ubah mutasi. */
+    fun save(id: Int?, date: String, income: Boolean, amount: Double, note: String, onDone: () -> Unit) {
+        val request = CommanderTxRequest(date, if (income) "MASUK" else "KELUAR", amount, note.trim())
+        action(if (id == null) "Transaksi tersimpan." else "Transaksi diperbarui.", onDone) {
+            if (id == null) repository.createCommanderTx(request) else repository.updateCommanderTx(id, request)
         }
+    }
 
     fun delete(id: Int, onDone: () -> Unit) = action("Transaksi dihapus.", onDone) { repository.deleteCommanderTx(id) }
 }
@@ -105,7 +109,8 @@ fun CommanderScreen(
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(vm.messages, snackbar)
     val canManage = permissions.has(Perm.COMMANDER_MANAGE)
-    var creating by rememberSaveable { mutableStateOf(false) }
+    /** null = form tertutup; id 0 = transaksi baru. */
+    var editing by remember { mutableStateOf<CommanderTxDto?>(null) }
     var confirmDelete by remember { mutableStateOf<CommanderTxDto?>(null) }
 
     SindenScaffold(
@@ -124,7 +129,7 @@ fun CommanderScreen(
         floatingActionButton = {
             if (canManage) {
                 ExtendedFloatingActionButton(
-                    onClick = { creating = true },
+                    onClick = { editing = CommanderTxDto() },
                     icon = { Icon(Icons.Outlined.Add, contentDescription = null) },
                     text = { Text("Transaksi") },
                 )
@@ -180,6 +185,7 @@ fun CommanderScreen(
                                     title = tx.keterangan.orEmpty().ifBlank { "-" },
                                     subtitle = Fmt.longDate(tx.dateOnly),
                                     supporting = tx.petugasInput?.let { "Dicatat oleh $it" },
+                                    onClick = if (canManage) ({ editing = tx }) else null,
                                     leading = {
                                         IconBadge(
                                             if (tx.isIncome) Icons.Outlined.ArrowDownward else Icons.Outlined.ArrowUpward,
@@ -193,6 +199,9 @@ fun CommanderScreen(
                                             color = toneAccent(tone),
                                         )
                                         if (canManage) {
+                                            IconButton(onClick = { editing = tx }) {
+                                                Icon(Icons.Outlined.Edit, contentDescription = "Ubah transaksi", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
                                             IconButton(onClick = { confirmDelete = tx }) {
                                                 Icon(Icons.Outlined.Delete, contentDescription = "Hapus transaksi", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                             }
@@ -207,13 +216,16 @@ fun CommanderScreen(
         }
     }
 
-    if (creating) {
-        var date by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
-        var income by rememberSaveable { mutableStateOf(true) }
-        var amount by rememberSaveable { mutableStateOf("") }
-        var note by rememberSaveable { mutableStateOf("") }
-        var errors by remember { mutableStateOf(emptyMap<String, String>()) }
-        FormSheet(title = "Transaksi rekening", onDismiss = { creating = false }) {
+    editing?.let { tx ->
+        val isNew = tx.id <= 0
+        var date by rememberSaveable(tx.id) { mutableStateOf(tx.dateOnly ?: LocalDate.now().toString()) }
+        var income by rememberSaveable(tx.id) { mutableStateOf(isNew || tx.isIncome) }
+        var amount by rememberSaveable(tx.id) {
+            mutableStateOf(if (isNew) "" else java.math.BigDecimal.valueOf(tx.jumlah).stripTrailingZeros().toPlainString())
+        }
+        var note by rememberSaveable(tx.id) { mutableStateOf(tx.keterangan.orEmpty()) }
+        var errors by remember(tx.id) { mutableStateOf(emptyMap<String, String>()) }
+        FormSheet(title = if (isNew) "Transaksi rekening" else "Ubah transaksi", onDismiss = { editing = null }) {
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 FilterChip(selected = income, onClick = { income = true }, label = { Text("Masuk") })
                 FilterChip(selected = !income, onClick = { income = false }, label = { Text("Keluar") })
@@ -225,14 +237,21 @@ fun CommanderScreen(
                 supporting = Fmt.parseAmount(amount)?.let { Fmt.rupiah(it) },
             )
             SindenTextField(note, { note = it }, "Keterangan", error = errors["note"], singleLine = false, minLines = 2)
+            if (!isNew) {
+                Text(
+                    "Perubahan dicatat atas nama Anda dengan tanda (EDIT), sama seperti di web.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(Spacing.lg))
-            PrimaryButton("Simpan", loading = busy, onClick = {
+            PrimaryButton(if (isNew) "Simpan" else "Simpan perubahan", loading = busy, onClick = {
                 val value = Fmt.parseAmount(amount)
                 errors = buildMap {
                     if (value == null || value < 1.0) put("amount", "Jumlah minimal Rp1")
                     if (note.isBlank()) put("note", "Keterangan wajib diisi")
                 }
-                if (errors.isEmpty() && value != null) vm.create(date, income, value, note) { creating = false }
+                if (errors.isEmpty() && value != null) vm.save(tx.id.takeIf { it > 0 }, date, income, value, note) { editing = null }
             })
         }
     }

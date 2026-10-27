@@ -119,7 +119,7 @@ fun ProfileScreen(
             }
             ListRowCard(
                 title = "Pengaturan",
-                subtitle = "Tema, server, notifikasi",
+                subtitle = "Tema, ukuran teks, notifikasi",
                 leading = { IconBadge(Icons.Outlined.Settings, MaterialTheme.colorScheme.primary) },
                 trailing = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
                 onClick = onOpenSettings,

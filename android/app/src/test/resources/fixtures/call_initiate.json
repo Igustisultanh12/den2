@@ -1,0 +1,28 @@
+{
+    "success": true,
+    "call": {
+        "call_id": "45675e9f-dfa7-4686-ac7a-c58dfa591b26",
+        "thread_uuid": "199ccc00-945a-4409-bd44-cd8a5ae486a9",
+        "status": "RINGING",
+        "caller": {
+            "type": "USER",
+            "id": 1,
+            "name": "Bambang",
+            "pangkat": "Peltu Saa",
+            "avatar": null
+        },
+        "callee": {
+            "type": "ADMIN",
+            "id": null,
+            "name": "Operator Dinas SINDEN",
+            "pangkat": "Pengelola Dinas",
+            "avatar": null
+        },
+        "call_type": "video",
+        "offer": null,
+        "answer": null,
+        "created_at": 1791857700,
+        "started_at": null,
+        "ended_at": null
+    }
+}

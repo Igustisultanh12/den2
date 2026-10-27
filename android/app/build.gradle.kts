@@ -26,8 +26,8 @@ android {
         applicationId = "id.my.sinden2.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 13
-        versionName = "1.4.0"
+        versionCode = 18
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -124,14 +124,12 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.face.detection)
-
+    // Sinkron notifikasi bersuara di latar belakang
+    implementation(libs.androidx.work.runtime.ktx)
     // Notifikasi push (FCM). Konfigurasi Firebase diambil dari server saat runtime,
     // jadi plugin google-services & google-services.json tidak diperlukan di repo.
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
-
-    // Pemeriksaan pembaruan aplikasi di latar belakang (APK dari Pengaturan web).
-    implementation(libs.androidx.work.runtime)
 
     // Testing
     testImplementation(libs.junit)

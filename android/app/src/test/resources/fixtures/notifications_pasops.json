@@ -1,0 +1,15 @@
+{
+    "status": "success",
+    "notifications": [
+        {
+            "id": 1,
+            "title": "Pengajuan TTE SP Jaga",
+            "message": "SP Jaga menunggu TTE.",
+            "type": "warning",
+            "link": "/sp-jaga",
+            "is_read": false,
+            "created_at": "2026-10-13T09:15:00+07:00"
+        }
+    ],
+    "unreadCount": 1
+}

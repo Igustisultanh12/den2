@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -13,9 +14,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Create
+import androidx.compose.material.icons.outlined.PictureAsPdf
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.Undo
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -51,6 +55,7 @@ import id.my.sisinden.app.core.ui.theme.Spacing
 import id.my.sisinden.app.core.util.Fmt
 import id.my.sisinden.app.data.model.SignatureListResponse
 import id.my.sisinden.app.data.model.SignatureRequestDto
+import id.my.sisinden.app.data.model.SkhppQueueDto
 import id.my.sisinden.app.data.repository.SindenRepository
 import id.my.sisinden.app.ui.common.CollectMessages
 import id.my.sisinden.app.ui.common.LoadableViewModel
@@ -79,7 +84,13 @@ private fun sigLabel(s: SignatureRequestDto): String = when (s.normalizedStatus)
 }
 
 @Composable
-fun SignatureScreen(repository: SindenRepository, permissions: PermissionSet, onBack: () -> Unit) {
+fun SignatureScreen(
+    repository: SindenRepository,
+    permissions: PermissionSet,
+    onBack: () -> Unit,
+    onOpenPdf: (String, String, String) -> Unit,
+    onOpenSkhpp: () -> Unit,
+) {
     val vm: SignatureViewModel = viewModel { SignatureViewModel(repository) }
     val state by vm.state.collectAsStateWithLifecycle()
     val refreshing by vm.refreshing.collectAsStateWithLifecycle()
@@ -90,6 +101,7 @@ fun SignatureScreen(repository: SindenRepository, permissions: PermissionSet, on
 
     var filter by rememberSaveable { mutableStateOf(SigFilter.PENDING) }
     var detail by remember { mutableStateOf<SignatureRequestDto?>(null) }
+    var skhppDetail by remember { mutableStateOf<SkhppQueueDto?>(null) }
     var approving by remember { mutableStateOf<SignatureRequestDto?>(null) }
     var rejecting by remember { mutableStateOf<SignatureRequestDto?>(null) }
 
@@ -105,7 +117,8 @@ fun SignatureScreen(repository: SindenRepository, permissions: PermissionSet, on
             RefreshableBox(refreshing, { vm.load(pullToRefresh = true) }) {
                 LoadStateContent(state, onRetry = { vm.load() }) { data ->
                     val list = data.requests.orEmpty().filter { filter == SigFilter.ALL || it.isPending }
-                    if (list.isEmpty()) {
+                    val skhppQueue = data.skhppRequests.orEmpty()
+                    if (list.isEmpty() && skhppQueue.isEmpty()) {
                         EmptyState(
                             "Tidak ada dokumen",
                             if (filter == SigFilter.PENDING) "Tidak ada dokumen yang menunggu pengesahan." else "Belum ada pengajuan tanda tangan.",
@@ -116,6 +129,20 @@ fun SignatureScreen(repository: SindenRepository, permissions: PermissionSet, on
                             contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, bottom = Spacing.xxl),
                             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
+                            if (skhppQueue.isNotEmpty()) {
+                                item(key = "skhpp-header") { QueueHeader("SKHPP menunggu TTE Komandan (${skhppQueue.size})") }
+                                items(skhppQueue, key = { "skhpp-${it.id}" }) { k ->
+                                    ListRowCard(
+                                        title = "SKHPP ${k.nama.orEmpty()}".trim(),
+                                        subtitle = listOfNotNull(k.nomorSkhpp?.takeIf { it.isNotBlank() }, k.peruntukan).joinToString(" · "),
+                                        supporting = Fmt.relative(k.createdAt),
+                                        leading = { IconBadge(Icons.Outlined.VerifiedUser, toneAccent(Tone.WARNING), size = 40.dp, iconSize = 20.dp) },
+                                        trailing = { StatusChip("Menunggu", Tone.WARNING) },
+                                        onClick = { skhppDetail = k },
+                                    )
+                                }
+                                if (list.isNotEmpty()) item(key = "pdf-header") { QueueHeader("Dokumen PDF") }
+                            }
                             items(list, key = { it.id }) { s ->
                                 ListRowCard(
                                     title = s.subject.orEmpty().ifBlank { "Dokumen" },
@@ -144,6 +171,19 @@ fun SignatureScreen(repository: SindenRepository, permissions: PermissionSet, on
             InfoRow("Catatan", s.note)
             InfoRow("Kode TTE", s.verificationCode)
             InfoRow("Diajukan", Fmt.relative(s.createdAt))
+            Spacer(Modifier.height(Spacing.lg))
+            // Pratinjau dokumen untuk Komandan/Admin dan pengaju (dibatasi server).
+            OutlinedButton(
+                onClick = {
+                    detail = null
+                    onOpenPdf("api/mobile/pdf/signature/${s.id}", s.subject.orEmpty().ifBlank { "Dokumen TTE" }, "TTE_${s.id}.pdf")
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Outlined.PictureAsPdf, contentDescription = null)
+                Spacer(Modifier.width(Spacing.sm))
+                Text(if (s.isPending) "Pratinjau dokumen yang akan di-TTE" else "Lihat dokumen")
+            }
             if (canApprove && s.isPending) {
                 Spacer(Modifier.height(Spacing.lg))
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -156,6 +196,40 @@ fun SignatureScreen(repository: SindenRepository, permissions: PermissionSet, on
                         Icon(Icons.Outlined.Undo, contentDescription = null)
                         Spacer(Modifier.width(Spacing.sm))
                         Text("Kembalikan")
+                    }
+                }
+            }
+        }
+    }
+
+    skhppDetail?.let { k ->
+        FormSheet(title = "SKHPP menunggu TTE", onDismiss = { skhppDetail = null }) {
+            Row { StatusChip("Menunggu TTE Komandan", Tone.WARNING) }
+            Spacer(Modifier.height(Spacing.sm))
+            InfoRow("Atas nama", k.nama)
+            InfoRow("Nomor", k.nomorSkhpp)
+            InfoRow("Peruntukan", k.peruntukan)
+            InfoRow("Diajukan", Fmt.relative(k.createdAt))
+            Spacer(Modifier.height(Spacing.lg))
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                if (permissions.has(Perm.SKHPP_PDF)) {
+                    OutlinedButton(
+                        onClick = {
+                            skhppDetail = null
+                            onOpenPdf("api/mobile/pdf/skhpp/${k.id}", "SKHPP ${k.nama.orEmpty()}", "SKHPP_${k.nama.orEmpty()}.pdf")
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Outlined.PictureAsPdf, contentDescription = null)
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text("Pratinjau dokumen SKHPP")
+                    }
+                }
+                if (permissions.has(Perm.SKHPP_VIEW)) {
+                    Button(onClick = { skhppDetail = null; onOpenSkhpp() }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Outlined.VerifiedUser, contentDescription = null)
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text(if (permissions.has(Perm.SKHPP_APPROVE)) "Buka modul SKHPP untuk TTE" else "Buka modul SKHPP")
                     }
                 }
             }
@@ -185,4 +259,14 @@ fun SignatureScreen(repository: SindenRepository, permissions: PermissionSet, on
             })
         }
     }
+}
+
+@Composable
+private fun QueueHeader(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = Spacing.sm, bottom = Spacing.xxs),
+    )
 }

@@ -1,10 +1,9 @@
 package id.my.sisinden.app.ui.auth
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,27 +12,30 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Badge
-import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,34 +46,44 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import java.util.Calendar
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.res.stringResource
 import id.my.sisinden.app.BuildConfig
 import id.my.sisinden.app.R
 import id.my.sisinden.app.core.data.LogoutReason
-import id.my.sisinden.app.core.ui.components.PrimaryButton
-import id.my.sisinden.app.core.ui.components.SindenTextField
 import id.my.sisinden.app.core.ui.components.Tone
 import id.my.sisinden.app.core.ui.components.toneColors
-import id.my.sisinden.app.core.ui.theme.Navy900
-import id.my.sisinden.app.core.ui.theme.Ocean600
-import id.my.sisinden.app.core.ui.theme.Ocean700
 import id.my.sisinden.app.core.ui.theme.Spacing
 import id.my.sisinden.app.data.repository.SindenRepository
+import id.my.sisinden.app.ui.common.BrandBackdrop
+import id.my.sisinden.app.ui.common.FloatingLogo
+import id.my.sisinden.app.ui.common.Slate300
+import id.my.sisinden.app.ui.common.Slate400
+import id.my.sisinden.app.ui.common.Slate900
+import id.my.sisinden.app.ui.common.rememberCardFloat
+import java.time.Year
 
+/** Oranye tombol "Masuk" di web (orange-600 → cukup kontras untuk teks putih tebal). */
+private val SignInOrange = Color(0xFFEA580C)
+
+/**
+ * Halaman masuk dengan tampilan seperti login web Sinden 2: latar foto dari
+ * pengaturan Admin + lapisan gelap, logo mengambang, dan kartu kaca gelap.
+ * Alamat server tidak dapat diubah dari aplikasi.
+ */
 @Composable
 fun LoginScreen(
     repository: SindenRepository,
@@ -80,20 +92,14 @@ fun LoginScreen(
 ) {
     val vm: LoginViewModel = viewModel { LoginViewModel(repository) }
     val state by vm.state.collectAsStateWithLifecycle()
-    val baseUrl by vm.baseUrl.collectAsStateWithLifecycle()
+    val config by vm.config.collectAsStateWithLifecycle()
     val focus = LocalFocusManager.current
     var showPassword by rememberSaveable { mutableStateOf(false) }
-    var showServerDialog by rememberSaveable { mutableStateOf(false) }
+    val appName = config?.appName?.takeIf { it.isNotBlank() } ?: "SINDEN 2"
+    val cardLift = rememberCardFloat()
+    val cardLiftPx = with(LocalDensity.current) { 6.dp.toPx() }
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        // Latar hero (satu gradien lembut, tidak berlebihan)
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(300.dp)
-                .background(Brush.linearGradient(listOf(Navy900, Ocean700, Ocean600)))
-        )
-
+    BrandBackdrop(backgroundUrl = config?.loginBackground) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -101,118 +107,197 @@ fun LoginScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(horizontal = Spacing.screen),
+                .padding(horizontal = Spacing.xxl),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(40.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = 0.16f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(painterResource(R.drawable.ic_sinden_mark), contentDescription = null, modifier = Modifier.size(36.dp))
-                }
-                Spacer(Modifier.width(Spacing.md))
-                Column {
-                    Text("SINDEN 2", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Denintel Koarmada 2", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
-                }
-            }
-            Spacer(Modifier.height(28.dp))
-            Text("Selamat datang 👋", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(Spacing.xl))
+            FloatingLogo(size = 128.dp)
+            Text(
+                appName.uppercase(),
+                style = MaterialTheme.typography.headlineMedium,
+                color = Color.White,
+                letterSpacing = 1.sp,
+                textAlign = TextAlign.Center,
+            )
             Spacer(Modifier.height(Spacing.xs))
             Text(
-                "Masuk untuk melihat jadwal jaga, presensi, dan tugas kedinasan Anda.",
-                color = Color.White.copy(alpha = 0.8f),
-                style = MaterialTheme.typography.bodyMedium,
+                "Sistem Informasi Detasemen Intelijen",
+                style = MaterialTheme.typography.bodySmall,
+                color = Slate300,
+                textAlign = TextAlign.Center,
             )
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(Spacing.xxl))
 
-            Surface(
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 6.dp,
-                modifier = Modifier.fillMaxWidth(),
+            // Kartu form (bg-slate-900/90, border-white/10, mengambang halus)
+            Column(
+                Modifier
+                    .widthIn(max = 460.dp)
+                    .fillMaxWidth()
+                    .graphicsLayer { translationY = -cardLiftPx * cardLift }
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Slate900.copy(alpha = 0.90f))
+                    .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(24.dp))
+                    .padding(Spacing.xxl),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
-                Column(Modifier.padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    if (logoutReason == LogoutReason.EXPIRED || logoutReason == LogoutReason.DISABLED) {
-                        Banner(
-                            text = if (logoutReason == LogoutReason.EXPIRED) "Sesi Anda telah berakhir. Silakan masuk kembali."
-                            else "Akun Anda dinonaktifkan oleh Admin.",
-                            tone = Tone.WARNING,
-                        )
-                    }
-                    AnimatedVisibility(visible = state.errorMessage != null) {
-                        Banner(text = state.errorMessage.orEmpty(), tone = Tone.DANGER)
-                    }
-
-                    SindenTextField(
-                        value = state.identifier,
-                        onValueChange = vm::onIdentifier,
-                        label = "NRP atau Email",
-                        error = state.identifierError,
-                        leadingIcon = { Icon(Icons.Outlined.Badge, contentDescription = null) },
-                        keyboardType = KeyboardType.Email,
-                    )
-                    SindenTextField(
-                        value = state.password,
-                        onValueChange = vm::onPassword,
-                        label = "Kata sandi",
-                        error = state.passwordError,
-                        leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
-                        trailingIcon = {
-                            IconButton(onClick = { showPassword = !showPassword }) {
-                                Icon(
-                                    if (showPassword) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                                    contentDescription = if (showPassword) "Sembunyikan kata sandi" else "Tampilkan kata sandi",
-                                )
-                            }
-                        },
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done,
-                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardActions = KeyboardActions(onDone = {
-                            focus.clearFocus()
-                            vm.submit()
-                        }),
-                    )
+                Column {
+                    Text("Masuk Akun", style = MaterialTheme.typography.titleLarge, color = Color.White)
                     Spacer(Modifier.height(Spacing.xs))
-                    PrimaryButton(text = "Masuk", onClick = { focus.clearFocus(); vm.submit() }, loading = state.submitting)
-                    TextButton(onClick = onOpenActivation, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                        Text("Belum aktif? Aktivasi akun dengan token Admin")
-                    }
+                    Text(
+                        "Gunakan akun internal Anda untuk mengakses Sinden 2.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate300,
+                    )
+                }
+
+                if (logoutReason == LogoutReason.EXPIRED || logoutReason == LogoutReason.DISABLED) {
+                    Banner(
+                        text = if (logoutReason == LogoutReason.EXPIRED) "Sesi Anda telah berakhir. Silakan masuk kembali."
+                        else "Akun Anda dinonaktifkan oleh Admin.",
+                        tone = Tone.WARNING,
+                    )
+                }
+                AnimatedVisibility(visible = state.errorMessage != null) {
+                    Banner(text = state.errorMessage.orEmpty(), tone = Tone.DANGER)
+                }
+
+                DarkField(
+                    value = state.identifier,
+                    onValueChange = vm::onIdentifier,
+                    label = "NRP, Username, atau Email",
+                    error = state.identifierError,
+                    leading = { Icon(Icons.Outlined.Badge, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                )
+                DarkField(
+                    value = state.password,
+                    onValueChange = vm::onPassword,
+                    label = "Kata sandi",
+                    error = state.passwordError,
+                    leading = { Icon(Icons.Outlined.Lock, contentDescription = null) },
+                    trailing = {
+                        IconButton(onClick = { showPassword = !showPassword }) {
+                            Icon(
+                                if (showPassword) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                contentDescription = if (showPassword) "Sembunyikan kata sandi" else "Tampilkan kata sandi",
+                            )
+                        }
+                    },
+                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        focus.clearFocus()
+                        vm.submit()
+                    }),
+                )
+
+                Button(
+                    onClick = { focus.clearFocus(); vm.submit() },
+                    enabled = !state.busy,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SignInOrange,
+                        contentColor = Color.White,
+                        disabledContainerColor = SignInOrange.copy(alpha = 0.5f),
+                        disabledContentColor = Color.White.copy(alpha = 0.8f),
+                    ),
+                ) {
+                    Icon(Icons.Outlined.Shield, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(Spacing.sm))
+                    Text("Masuk", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Black)
+                }
+
+                TextButton(onClick = onOpenActivation, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                    Text(
+                        "Belum aktif? Aktivasi akun dengan token Admin",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color(0xFFFDBA74),
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
 
-            Spacer(Modifier.height(Spacing.lg))
-            TextButton(onClick = { showServerDialog = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                Icon(Icons.Outlined.Dns, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(Spacing.sm))
-                Text(baseUrl.removePrefix("https://"), style = MaterialTheme.typography.labelMedium)
-            }
-            Text(
-                "Versi ${BuildConfig.VERSION_NAME}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.align(Alignment.CenterHorizontally).offset(y = (-4).dp),
-            )
-            Text(
-                stringResource(R.string.app_copyright, Calendar.getInstance().get(Calendar.YEAR)),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(horizontal = Spacing.lg),
-            )
             Spacer(Modifier.height(Spacing.xxl))
+            Text(
+                "$appName · Versi ${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.labelSmall,
+                color = Slate400,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                stringResource(R.string.app_copyright, Year.now().value),
+                style = MaterialTheme.typography.labelSmall,
+                color = Slate400,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = Spacing.lg),
+            )
+            Spacer(Modifier.height(Spacing.lg))
         }
-    }
 
-    if (showServerDialog) {
-        ServerDialog(
-            current = baseUrl,
-            onSave = vm::saveBaseUrl,
-            onDismiss = { showServerDialog = false },
+        SecurityCheckOverlay(
+            step = state.step,
+            labels = listOf("Memeriksa keamanan sistem", "Memeriksa sesi login", "Masuk ke beranda"),
+            action = TurnstileAction.LOGIN,
+            widgetKey = state.widgetKey,
+            showWidget = state.showWidget,
+            onToken = vm::onTurnstileToken,
+            onWidgetError = vm::onTurnstileError,
+            onCancel = vm::cancelCheck,
         )
     }
+}
+
+/** Field teks bergaya web (bg-white/10, border-white/10, teks putih). */
+@Composable
+private fun DarkField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    error: String?,
+    leading: @Composable () -> Unit,
+    keyboardOptions: KeyboardOptions,
+    trailing: (@Composable () -> Unit)? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(label) },
+        isError = error != null,
+        supportingText = error?.let { { Text(it) } },
+        singleLine = true,
+        leadingIcon = leading,
+        trailingIcon = trailing,
+        visualTransformation = visualTransformation,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        shape = RoundedCornerShape(14.dp),
+        textStyle = MaterialTheme.typography.bodyLarge,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            focusedContainerColor = Color.White.copy(alpha = 0.10f),
+            unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
+            errorContainerColor = Color.White.copy(alpha = 0.08f),
+            focusedBorderColor = Color.White.copy(alpha = 0.85f),
+            unfocusedBorderColor = Color.White.copy(alpha = 0.14f),
+            focusedLabelColor = Color.White,
+            unfocusedLabelColor = Slate300,
+            focusedLeadingIconColor = Color.White,
+            unfocusedLeadingIconColor = Slate300,
+            focusedTrailingIconColor = Color.White,
+            unfocusedTrailingIconColor = Slate300,
+            cursorColor = Color(0xFFFB923C),
+            errorTextColor = Color.White,
+            errorLabelColor = Color(0xFFFCA5A5),
+            errorBorderColor = Color(0xFFF87171),
+            errorSupportingTextColor = Color(0xFFFCA5A5),
+            errorLeadingIconColor = Color(0xFFFCA5A5),
+        ),
+    )
 }
 
 @Composable
@@ -222,47 +307,8 @@ internal fun Banner(text: String, tone: Tone) {
         Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).background(c.bg).padding(Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Outlined.Info, contentDescription = null, tint = c.fg, modifier = Modifier.size(18.dp))
+        Icon(Icons.Outlined.Info, contentDescription = null, tint = c.fg, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(Spacing.sm))
         Text(text, color = c.fg, style = MaterialTheme.typography.bodySmall)
     }
-}
-
-/** Dialog alamat server (mis. mirror internal). Hanya HTTPS. */
-@Composable
-internal fun ServerDialog(current: String, onSave: (String) -> String?, onDismiss: () -> Unit) {
-    var value by rememberSaveable { mutableStateOf(current) }
-    var error by rememberSaveable { mutableStateOf<String?>(null) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Outlined.Dns, contentDescription = null) },
-        title = { Text("Alamat server") },
-        text = {
-            Column {
-                Text(
-                    "Ubah hanya atas arahan Admin. Data login akan dikirim ke alamat ini.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(Spacing.md))
-                SindenTextField(
-                    value = value,
-                    onValueChange = { value = it; error = null },
-                    label = "URL server",
-                    error = error,
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Done,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val err = onSave(value)
-                if (err == null) onDismiss() else error = err
-            }) { Text("Simpan") }
-        },
-        dismissButton = {
-            TextButton(onClick = { value = "https://sinden2.my.id"; error = null }) { Text("Bawaan") }
-        },
-    )
 }

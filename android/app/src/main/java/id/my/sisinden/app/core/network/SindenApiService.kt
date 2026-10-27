@@ -28,14 +28,13 @@ interface SindenApiService {
     suspend fun me(): Response<MeResponse>
 
     @POST("api/mobile/logout")
-    suspend fun logout(@Body request: LogoutRequest = LogoutRequest()): Response<SimpleResponse>
-
-    // ------------------------------------------------------ Notifikasi push (FCM)
-    @POST("api/mobile/push/register")
-    suspend fun registerPush(@Body request: PushRegisterRequest): Response<SimpleResponse>
+    suspend fun logout(@Body body: LogoutRequest): Response<SimpleResponse>
 
     @POST("api/mobile/push/test")
     suspend fun pushTest(): Response<PushTestResponse>
+
+    @POST("api/mobile/push/register")
+    suspend fun registerPush(@Body body: PushRegisterRequest): Response<SimpleResponse>
 
     @GET("api/mobile/dashboard")
     suspend fun dashboard(): Response<DashboardResponse>
@@ -159,6 +158,9 @@ interface SindenApiService {
     @POST("api/mobile/commander-account")
     suspend fun createCommanderTx(@Body request: CommanderTxRequest): Response<SimpleResponse>
 
+    @PUT("api/mobile/commander-account/{id}")
+    suspend fun updateCommanderTx(@Path("id") id: Int, @Body request: CommanderTxRequest): Response<SimpleResponse>
+
     @DELETE("api/mobile/commander-account/{id}")
     suspend fun deleteCommanderTx(@Path("id") id: Int): Response<SimpleResponse>
 
@@ -206,6 +208,72 @@ interface SindenApiService {
 
     @DELETE("api/mobile/users/{id}")
     suspend fun deleteUser(@Path("id") id: Int): Response<SimpleResponse>
+
+    // ------------------------------------------------------ Chat Dinas
+    @GET("api/mobile/chat")
+    suspend fun chatHome(): Response<ChatSyncResponse>
+
+    @GET("api/mobile/chat/sync")
+    suspend fun chatSync(
+        @Query("uuid") uuid: String? = null,
+        @Query("status") status: String? = null,
+        @Query("search") search: String? = null,
+    ): Response<ChatSyncResponse>
+
+    @GET("api/mobile/chat/unread")
+    suspend fun chatUnread(): Response<ChatUnreadResponse>
+
+    @GET("api/mobile/chat/{uuid}/messages")
+    suspend fun chatMessages(@Path("uuid") uuid: String): Response<ChatMessagesResponse>
+
+    @Multipart
+    @POST("api/mobile/chat/{uuid}/send")
+    suspend fun chatSend(
+        @Path("uuid") uuid: String,
+        @Part("message") message: RequestBody?,
+        @Part attachments: List<MultipartBody.Part>,
+    ): Response<ChatSendResponse>
+
+    @POST("api/mobile/chat/{uuid}/typing")
+    suspend fun chatTyping(@Path("uuid") uuid: String): Response<SimpleResponse>
+
+    @GET("api/mobile/chat/users")
+    suspend fun chatSearchUsers(@Query("q") query: String): Response<ChatUsersResponse>
+
+    @POST("api/mobile/chat/start")
+    suspend fun chatStart(@Body body: ChatStartRequest): Response<ChatStartResponse>
+
+    @POST("api/mobile/chat/{uuid}/status")
+    suspend fun chatToggleStatus(@Path("uuid") uuid: String): Response<ChatStatusResponse>
+
+    @DELETE("api/mobile/chat/{uuid}")
+    suspend fun chatDelete(@Path("uuid") uuid: String): Response<SimpleResponse>
+
+    // ------------------------------------------------------ Panggilan (Vicon)
+    @GET("api/mobile/chat/incoming-call")
+    suspend fun incomingCall(): Response<CallResponse>
+
+    @POST("api/mobile/chat/{uuid}/call/initiate")
+    suspend fun initiateCall(@Path("uuid") uuid: String, @Body body: InitiateCallRequest): Response<CallResponse>
+
+    @GET("api/mobile/chat/{uuid}/call/signal")
+    suspend fun callSignal(@Path("uuid") uuid: String): Response<CallResponse>
+
+    @POST("api/mobile/chat/{uuid}/call/signal")
+    suspend fun sendCallSignal(@Path("uuid") uuid: String, @Body body: CallSignalRequest): Response<CallResponse>
+
+    @POST("api/mobile/chat/{uuid}/call/end")
+    suspend fun endCall(@Path("uuid") uuid: String, @Body body: EndCallRequest): Response<SimpleResponse>
+
+    @GET("api/mobile/chat/{uuid}/call/agora-token")
+    suspend fun agoraToken(@Path("uuid") uuid: String, @Query("uid") uid: Int): Response<AgoraTokenResponse>
+
+    // ------------------------------------------------------ TTE SP Jaga (Pasops)
+    @GET("api/mobile/duty-roster/pending")
+    suspend fun pendingSpJaga(): Response<PendingSpJagaResponse>
+
+    @POST("api/mobile/duty-roster/{id}/approve")
+    suspend fun approveSpJaga(@Path("id") id: Int): Response<SimpleResponse>
 
     // ------------------------------------------------------ PDF (stream)
     @Streaming

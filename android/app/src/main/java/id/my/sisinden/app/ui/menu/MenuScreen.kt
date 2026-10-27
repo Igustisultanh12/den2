@@ -21,13 +21,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import id.my.sisinden.app.core.security.PermissionSet
 import id.my.sisinden.app.core.ui.components.EmptyState
-import id.my.sisinden.app.core.ui.components.IconBadge
+import id.my.sisinden.app.core.ui.components.GradientIconTile
 import id.my.sisinden.app.core.ui.components.ListRowCard
 import id.my.sisinden.app.core.ui.components.SearchField
 import id.my.sisinden.app.core.ui.components.SindenScaffold
-import id.my.sisinden.app.core.ui.components.toneAccent
 import id.my.sisinden.app.core.ui.theme.Spacing
 import id.my.sisinden.app.data.model.UserProfile
 import id.my.sisinden.app.ui.navigation.Feature
@@ -53,7 +53,7 @@ fun MenuScreen(
     SindenScaffold(title = "Menu", subtitle = "Modul sesuai hak akses ${user.roleLabel}") { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, bottom = Spacing.xxl),
+            contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, top = Spacing.lg, bottom = Spacing.xxl),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             item {
@@ -72,15 +72,18 @@ fun MenuScreen(
             grouped.forEach { (group, groupFeatures) ->
                 item(key = "header-${group.name}") {
                     Column(Modifier.fillMaxWidth().padding(top = Spacing.md, bottom = Spacing.xs)) {
-                        Text(group.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                        Text(group.title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
                     }
                 }
                 items(groupFeatures, key = { it.name }) { f ->
                     ListRowCard(
                         title = f.title,
                         subtitle = f.description,
-                        leading = { IconBadge(f.icon, toneAccent(f.tone)) },
-                        trailing = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+                        leading = { GradientIconTile(f.icon, f.gradient, size = 48.dp, iconSize = 26.dp, corner = 16.dp) },
+                        trailing = {
+                            Text("Buka", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        },
                         onClick = { onNavigate(f.route) },
                     )
                 }

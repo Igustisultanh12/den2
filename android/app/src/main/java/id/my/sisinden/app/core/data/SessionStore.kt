@@ -8,10 +8,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
+import id.my.sisinden.app.core.ui.theme.TextScale
 import id.my.sisinden.app.core.ui.theme.ThemeMode
 import id.my.sisinden.app.data.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 // Nama file DataStore dipertahankan agar sesi pengguna v1.0.x tetap terbaca.
@@ -35,6 +37,7 @@ class SessionStore(private val context: Context) {
         val THEME = stringPreferencesKey("pref_theme_mode")
         val LEGACY_DARK = booleanPreferencesKey("pref_dark_mode")
         val HIDE_BALANCE = booleanPreferencesKey("pref_hide_balance")
+        val TEXT_SCALE = stringPreferencesKey("pref_text_scale")
     }
 
     companion object {
@@ -53,7 +56,12 @@ class SessionStore(private val context: Context) {
         }
     }
 
-    val baseUrlFlow: Flow<String> = context.dataStore.data.map { it[Keys.BASE_URL] ?: DEFAULT_BASE_URL }
+    /**
+     * Alamat server tetap [DEFAULT_BASE_URL]. Pengaturan alamat server di
+     * aplikasi telah dihapus (v1.2) agar data login tidak dapat diarahkan ke
+     * server lain; nilai lama yang mungkin tersimpan diabaikan.
+     */
+    val baseUrlFlow: Flow<String> = flowOf(DEFAULT_BASE_URL)
 
     val themeModeFlow: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
         prefs[Keys.THEME]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
@@ -65,6 +73,10 @@ class SessionStore(private val context: Context) {
     }
 
     val hideBalanceFlow: Flow<Boolean> = context.dataStore.data.map { it[Keys.HIDE_BALANCE] ?: false }
+
+    val textScaleFlow: Flow<TextScale> = context.dataStore.data.map { prefs ->
+        prefs[Keys.TEXT_SCALE]?.let { runCatching { TextScale.valueOf(it) }.getOrNull() } ?: TextScale.NORMAL
+    }
 
     suspend fun readSession(): StoredSession? {
         val prefs = context.dataStore.data.first()
@@ -95,8 +107,8 @@ class SessionStore(private val context: Context) {
 
     suspend fun baseUrl(): String = baseUrlFlow.first()
 
-    suspend fun setBaseUrl(url: String) {
-        context.dataStore.edit { it[Keys.BASE_URL] = url }
+    suspend fun setTextScale(scale: TextScale) {
+        context.dataStore.edit { it[Keys.TEXT_SCALE] = scale.name }
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {

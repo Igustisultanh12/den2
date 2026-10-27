@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ikon notifikasi monokrom (perisai + bintang). Android mewarnai ikon status bar
+     sebagai siluet, sehingga logo berwarna tidak cocok untuk setSmallIcon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,1.5L3.5,4.8v6.1c0,5.2 3.6,10 8.5,11.6c4.9,-1.6 8.5,-6.4 8.5,-11.6V4.8L12,1.5zM12,6.2l1.6,3.3l3.6,0.5l-2.6,2.5l0.6,3.6L12,14.4l-3.2,1.7l0.6,-3.6L6.8,10l3.6,-0.5L12,6.2z" />
+</vector>

@@ -6,6 +6,7 @@ import id.my.sisinden.app.core.network.ErrorKind
 import id.my.sisinden.app.core.security.Perm
 import id.my.sisinden.app.data.model.AttendanceResponse
 import id.my.sisinden.app.data.model.CashLedgerResponse
+import id.my.sisinden.app.data.model.ConfigResponse
 import id.my.sisinden.app.data.model.DashboardResponse
 import id.my.sisinden.app.data.model.DutyRosterResponse
 import id.my.sisinden.app.data.model.LoginResponse
@@ -13,12 +14,17 @@ import id.my.sisinden.app.data.model.MeResponse
 import id.my.sisinden.app.data.model.MitraDto
 import id.my.sisinden.app.data.model.NotificationResponse
 import id.my.sisinden.app.data.model.UserProfile
+import id.my.sisinden.app.ui.duty.DutyTiming
+import id.my.sisinden.app.ui.duty.myDutiesOf
+import id.my.sisinden.app.ui.duty.timingOf
+import id.my.sisinden.app.ui.navigation.Feature
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 /**
  * Kontrak API diuji terhadap respons ASLI yang dihasilkan backend Laravel
@@ -95,6 +101,34 @@ class ApiContractTest {
         assertTrue(d13.safeEntries.any { it.isMe && it.roleCode == "PERWIRA" })
         assertTrue(d13.safeEntries.any { it.roleCode == "BAGA" && it.divisiNo == 2 })
         assertEquals(listOf("2026-10-13", "2026-10-16"), r.myDates)
+    }
+
+    @Test
+    fun dutyScreenShowsOnlyMyOwnDates() {
+        val r = gson.fromJson(fixture("duty_roster"), DutyRosterResponse::class.java)
+        val mine = myDutiesOf(r)
+        assertEquals(listOf(LocalDate.of(2026, 10, 13), LocalDate.of(2026, 10, 16)), mine.map { it.date })
+        // Tanggal yang bukan milik pengguna (18 Okt) tidak boleh muncul.
+        assertFalse(mine.any { it.date == LocalDate.of(2026, 10, 18) })
+        assertNotNull("peran pengguna diambil dari entri miliknya", mine.first().role)
+        assertTrue(myDutiesOf(null).isEmpty())
+    }
+
+    @Test
+    fun dutyTimingRelativeToToday() {
+        val today = LocalDate.of(2026, 10, 14)
+        assertEquals(DutyTiming.PAST, timingOf(LocalDate.of(2026, 10, 13), today))
+        assertEquals(DutyTiming.TODAY, timingOf(today, today))
+        assertEquals(DutyTiming.TOMORROW, timingOf(LocalDate.of(2026, 10, 15), today))
+        assertEquals(DutyTiming.UPCOMING, timingOf(LocalDate.of(2026, 10, 20), today))
+    }
+
+    @Test
+    fun loginConfigCarriesWebBackground() {
+        val json = """{"status":"success","app_name":"SI SINDEN","login_background":"https://sinden2.my.id/storage/backgrounds/a.jpg"}"""
+        val c = gson.fromJson(json, ConfigResponse::class.java)
+        assertEquals("SI SINDEN", c.appName)
+        assertTrue(c.loginBackground!!.endsWith("a.jpg"))
     }
 
     @Test

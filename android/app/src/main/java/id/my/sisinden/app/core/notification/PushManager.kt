@@ -9,8 +9,8 @@ import id.my.sisinden.app.data.model.PushConfigDto
 import id.my.sisinden.app.data.repository.SindenRepository
 
 /**
- * Notifikasi push (Firebase Cloud Messaging) — warta & Chat Dinas
- * tetap muncul walau aplikasi ditutup.
+ * Notifikasi push (Firebase Cloud Messaging) — seperti WhatsApp, pesan &
+ * panggilan tetap muncul walau aplikasi ditutup.
  *
  * Konfigurasi klien Firebase dikirim server (/api/mobile/config) setelah Admin
  * mengunggah google-services.json di Pengaturan web, lalu disimpan di HP agar
