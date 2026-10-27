@@ -99,7 +99,7 @@ const submit = () => {
                 </div>
 
                 <p class="text-xs text-slate-400 text-center font-medium">
-                    © {{ new Date().getFullYear() }} {{ appName }}. All Rights Reserved.
+                    <AppCopyright />
                 </p>
             </div>
 

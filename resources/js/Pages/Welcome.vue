@@ -83,7 +83,7 @@ const agencyName = computed(() => props.settings?.agency_name || 'Denintel Koarm
             <div class="flex gap-6 items-center">
                 <span class="text-[9px] font-bold uppercase tracking-[0.2em]">{{ agencyName }}</span>
                 <div class="h-4 w-[1px] bg-white/10"></div>
-                <span class="text-[9px] font-bold uppercase tracking-[0.2em]">© {{ new Date().getFullYear() }}</span>
+                <span class="text-[9px] font-bold tracking-[0.1em]"><AppCopyright /></span>
             </div>
         </footer>
 

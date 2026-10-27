@@ -68,7 +68,7 @@ class BirthdayGreeting extends Command
         $config = UcapanConfig::where('slug', 'birthday_message')->first();
         
         // Pesan Cadangan jika di database belum di-set narasi-nya
-        $fallback = "KOMANDO DAERAH TNI ANGKATAN LAUT V\nDETASEMEN INTELIJEN\n\nSelamat Ulang Tahun, *{name}*!\n\nSemoga panjang umur, sehat selalu, dan senantiasa dalam lindungan Tuhan YME.\n\n*JALESVEVA JAYAMAHE!*";
+        $fallback = "KOMANDO ARMADA II\nDETASEMEN INTELIJEN\n\nSelamat Ulang Tahun, *{name}*!\n\nSemoga panjang umur, sehat selalu, dan senantiasa dalam lindungan Tuhan YME.\n\n*JALESVEVA JAYAMAHE!*";
         
         $template = $config ? $config->narasi : $fallback;
 

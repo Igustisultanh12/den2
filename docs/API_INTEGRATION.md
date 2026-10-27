@@ -21,8 +21,8 @@ Authorization: Bearer <TOKEN_SANCTUM>
 ```json
 {
   "status": "success",
-  "app_name": "DENINTEL KODAERAL V",
-  "agency_name": "DENINTEL KODAERAL V",
+  "app_name": "DENINTEL KOARMADA 2",
+  "agency_name": "DENINTEL KOARMADA 2",
   "agency_logo": "https://sisinden.my.id/storage/agency/ROLwRbabZHoAbqiAi3H0VA430SxxYG3idzs7xrlV.png",
   "login_background": "https://sisinden.my.id/storage/backgrounds/wptQOfJpPHnyK9HJ6mb3XnUEUyQW746QYGXvLZ90.jpg",
   "api_base_url": "https://sisinden.my.id",
@@ -95,7 +95,7 @@ Authorization: Bearer <TOKEN_SANCTUM>
       "type": "masuk",
       "letter_number": "B/142/X/2026",
       "sender": "Lantamal V",
-      "recipient": "Dan Denintel Kodaeral V",
+      "recipient": "Dan Denintel Koarmada 2",
       "subject": "Permohonan Dukungan Pengamanan VVIP",
       "date": "2026-10-10",
       "status": "diproses",

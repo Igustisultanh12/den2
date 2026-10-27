@@ -49,7 +49,7 @@ const dashboardSvg = `<svg width="430" height="932" viewBox="0 0 430 932" fill="
   <g transform="translate(24, 68)">
     <text x="0" y="16" font-family="Inter, sans-serif" font-size="13" font-weight="500" fill="#64748B">Selamat Bertugas,</text>
     <text x="0" y="38" font-family="Inter, sans-serif" font-size="19" font-weight="700" fill="#0F172A">Mayor Laut (P) Hendra</text>
-    <text x="0" y="54" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0284C7">DENINTEL KODAERAL V</text>
+    <text x="0" y="54" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0284C7">DENINTEL KOARMADA 2</text>
     
     <!-- Notification Icon Badge -->
     <rect x="338" y="4" width="44" height="44" rx="22" fill="#FFFFFF" filter="url(#softShadow)"/>
@@ -267,7 +267,7 @@ const financialSvg = `<svg width="430" height="932" viewBox="0 0 430 932" fill="
   <g transform="translate(24, 68)">
     <circle cx="20" cy="20" r="20" fill="#FFFFFF" filter="url(#softShadow2)"/>
     <path d="M23 14L17 20L23 26" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="60" y="26" font-family="Inter, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Kas Denintel Kodaeral V</text>
+    <text x="60" y="26" font-family="Inter, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Kas Denintel Koarmada 2</text>
   </g>
 
   <!-- Filter Period Chips -->
@@ -464,7 +464,7 @@ const loginSvg = `<svg width="430" height="932" viewBox="0 0 430 932" fill="none
   </g>
 
   <text x="215" y="200" font-family="Inter, sans-serif" font-size="24" font-weight="800" fill="#FFFFFF" text-anchor="middle">SISINDEN MOBILE</text>
-  <text x="215" y="222" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#94A3B8" text-anchor="middle">Sistem Informasi Denintel Kodaeral V</text>
+  <text x="215" y="222" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#94A3B8" text-anchor="middle">Sistem Informasi Denintel Koarmada 2</text>
 
   <!-- Glassmorphism Login Card -->
   <g transform="translate(24, 252)">
@@ -504,7 +504,7 @@ const loginSvg = `<svg width="430" height="932" viewBox="0 0 430 932" fill="none
     
     <!-- Security Notice -->
     <text x="191" y="460" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#64748B" text-anchor="middle">Enkripsi Kedinasan TLS 1.3 Terverifikasi</text>
-    <text x="191" y="480" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#94A3B8" text-anchor="middle">Komando Daerah Maritim V</text>
+    <text x="191" y="480" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#94A3B8" text-anchor="middle">Komando Armada II</text>
   </g>
 </svg>`;
 

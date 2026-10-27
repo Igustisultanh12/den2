@@ -35,7 +35,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import id.my.sisinden.app.BuildConfig
+import id.my.sisinden.app.R
+import java.util.Calendar
 import id.my.sisinden.app.core.data.SessionStore
 import id.my.sisinden.app.core.notification.NotificationHelper
 import id.my.sisinden.app.core.ui.components.SindenCard
@@ -124,7 +128,14 @@ fun SettingsScreen(repository: SindenRepository, onBack: () -> Unit) {
                 "SISINDEN Android v${BuildConfig.VERSION_NAME} · Denintel Koarmada 2",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = Spacing.lg),
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = Spacing.lg),
+            )
+            Text(
+                stringResource(R.string.app_copyright, Calendar.getInstance().get(Calendar.YEAR)),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(start = Spacing.lg, end = Spacing.lg, bottom = Spacing.lg),
             )
         }
     }

@@ -20,7 +20,7 @@
   </g>
 
   <text x="215" y="200" font-family="Inter, sans-serif" font-size="24" font-weight="800" fill="#FFFFFF" text-anchor="middle">SISINDEN MOBILE</text>
-  <text x="215" y="222" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#94A3B8" text-anchor="middle">Sistem Informasi Denintel Kodaeral V</text>
+  <text x="215" y="222" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#94A3B8" text-anchor="middle">Sistem Informasi Denintel Koarmada 2</text>
 
   <!-- Glassmorphism Login Card -->
   <g transform="translate(24, 252)">
@@ -60,6 +60,6 @@
     
     <!-- Security Notice -->
     <text x="191" y="460" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#64748B" text-anchor="middle">Enkripsi Kedinasan TLS 1.3 Terverifikasi</text>
-    <text x="191" y="480" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#94A3B8" text-anchor="middle">Komando Daerah Maritim V</text>
+    <text x="191" y="480" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#94A3B8" text-anchor="middle">Komando Armada II</text>
   </g>
 </svg>

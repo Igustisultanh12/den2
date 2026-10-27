@@ -325,7 +325,7 @@ const handleFileUpload = (event) => {
         <div style="position: absolute; left: -9999px;">
             <div id="area-laporan-cetak" class="p-10 bg-white text-black" style="width: 790px; font-family: Arial, sans-serif;">
                 <div class="inline-table uppercase mb-10 text-left text-base font-bold">
-                    <p class="leading-none tracking-tight">KOMANDO DAERAH TNI ANGKATAN LAUT</p>
+                    <p class="leading-none tracking-tight">KOMANDO ARMADA II</p>
                     <p class="leading-none tracking-tight text-center mt-1">DETASEMEN INTELIJEN</p>
                     <div class="border-b-[2px] border-black mt-2 w-full"></div>
                 </div>

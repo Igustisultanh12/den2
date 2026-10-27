@@ -1,7 +1,7 @@
 # AUDIT ARSITEKTUR DAN STRUKTUR PROYEK SISINDEN ANDROID
 
 ## 1. Identitas Sistem dan Repository
-- Nama Proyek: SISINDEN (Sistem Informasi dan Surat Intelijen Denintel Kodaeral V)
+- Nama Proyek: SISINDEN (Sistem Informasi dan Surat Intelijen Denintel Koarmada 2)
 - Jenis Aplikasi: Aplikasi Administrasi dan Operasional Kantor Kedinasan
 - Repository GitHub: [https://github.com/Igustisultanh12/kantor.git](https://github.com/Igustisultanh12/kantor.git)
 - Backend & Server Web: Laravel 11 (PHP 8.2), Inertia.js, Vue.js, Tailwind CSS di [https://sisinden.my.id](https://sisinden.my.id)

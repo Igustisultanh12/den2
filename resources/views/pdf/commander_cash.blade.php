@@ -213,7 +213,7 @@
         <tr>
             <td class="kop-left">
                 <div class="kop-instansi">
-                    KOMANDO DAERAH TNI ANGKATAN LAUT V<br>
+                    KOMANDO ARMADA II<br>
                     DETASEMEN INTELIJEN<br>
                     <span style="font-size: 8px; font-weight: normal; color: #475569; text-transform: none;">
                         Sistem Informasi Detasemen Intelijen (SINDEN)

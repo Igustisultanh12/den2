@@ -17,5 +17,9 @@ import { Link } from '@inertiajs/vue3';
         >
             <slot />
         </div>
+
+        <p class="mt-6 mb-4 text-center text-xs font-medium text-gray-400">
+            <AppCopyright />
+        </p>
     </div>
 </template>

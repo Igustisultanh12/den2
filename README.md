@@ -386,3 +386,5 @@ Endpoint API mobile terdaftar secara aman di `/api/mobile/*` dengan otentikasi S
 
 ## 📄 Hak Cipta & Lisensi
 Sistem Informasi dan Surat Intelijen (SISINDEN) dikembangkan secara khusus untuk operasional kedinasan **Detasemen Intelijen Koarmada 2 (Denintel Koarmada 2)**. Seluruh hak cipta dan kepemilikan kode dilindungi undang-undang kedinasan TNI AL.
+
+© 2026 Denintel Kodaeral V cc Letda (KC) I Gusti Sultan, A.Md.Kom

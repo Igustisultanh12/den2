@@ -85,7 +85,7 @@
 <body>
     <div class="kop-container">
         <div class="kop-inner">
-            <p>KOMANDO DAERAH TNI ANGKATAN LAUT</p>
+            <p>KOMANDO ARMADA II</p>
             <p>DETASEMEN INTELIJEN</p>
             <div class="garis-kop"></div>
         </div>

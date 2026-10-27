@@ -1,3 +1,12 @@
+# SISINDEN Android v1.1.2 (versionCode 9)
+
+Rilis penyelarasan identitas satuan.
+
+- Identitas satuan diseragamkan menjadi **Denintel Koarmada 2**; kop surat PDF dari server kini "KOMANDO ARMADA II — DETASEMEN INTELIJEN" (sebelumnya sebagian masih "Komando Daerah TNI Angkatan Laut V").
+- Keterangan hak cipta ditampilkan di layar Masuk dan Pengaturan: © Denintel Kodaeral V cc Letda (KC) I Gusti Sultan, A.Md.Kom.
+
+---
+
 # SISINDEN Android v1.1.1 (versionCode 8)
 
 Rilis pemeliharaan untuk Denintel Koarmada 2.

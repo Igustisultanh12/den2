@@ -73,7 +73,7 @@ class ScSubmission extends Model
         6 => [
             'id' => 6,
             'title' => 'Proses Staf Intelijen',
-            'desc' => 'Pemberkasan dan penyerahan ke Staf Intelijen (Sintel) Komando Daerah Angkatan Laut.',
+            'desc' => 'Pemberkasan dan penyerahan ke Staf Intelijen (Sintel) Komando Armada II.',
             'category' => 'Sintel',
         ],
         7 => [

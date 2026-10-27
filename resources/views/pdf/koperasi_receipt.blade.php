@@ -90,7 +90,7 @@
         <tr>
             <td style="width: 60%; vertical-align: middle;">
                 <div style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; line-height: 1.2;">
-                    KOMANDO DAERAH TNI ANGKATAN LAUT V<br>
+                    KOMANDO ARMADA II<br>
                     DETASEMEN INTELIJEN<br>
                     <span style="color: #0284c7;">UNIT SIMPAN PINJAM (KOPERASI SINDEN)</span>
                 </div>

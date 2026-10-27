@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">SISINDEN</string>
     <string name="app_full_name">Sistem Informasi Detasemen Intelijen Koarmada 2</string>
+    <string name="app_copyright">© %1$d Denintel Kodaeral V cc Letda (KC) I Gusti Sultan, A.Md.Kom</string>
 </resources>

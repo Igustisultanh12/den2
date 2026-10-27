@@ -67,13 +67,13 @@ const formatDateIndo = (dateStr) => {
               {{ appName }} DETASEMEN INTELIJEN
             </h2>
             <p class="text-xs leading-relaxed max-w-md mx-auto text-slate-300 font-medium">
-              Portal Otentikasi & Verifikasi Keabsahan Tanda Tangan Elektronik (TTE) Berkas Naskah Dinas Komando Daerah TNI Angkatan Laut V.
+              Portal Otentikasi & Verifikasi Keabsahan Tanda Tangan Elektronik (TTE) Berkas Naskah Dinas Komando Armada II.
             </p>
           </div>
         </div>
 
         <p class="text-xs text-slate-400 text-center font-medium">
-          © {{ new Date().getFullYear() }} {{ appName }}. Detasemen Intelijen Komando Daerah TNI Angkatan Laut V. All Rights Reserved.
+          <AppCopyright />
         </p>
       </div>
 

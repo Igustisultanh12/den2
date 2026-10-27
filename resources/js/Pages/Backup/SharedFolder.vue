@@ -1488,6 +1488,7 @@ const exitAndLock = () => {
         <!-- FOOTER -->
         <footer class="py-3 sm:py-4 text-center text-[10px] sm:text-[11px] text-slate-400 border-t border-slate-200 bg-white">
             Pusat Cadangan Data & Penyimpanan Terintegrasi &bull; Akses Khusus Personel
+            <div class="mt-1"><AppCopyright /></div>
         </footer>
 
         <!-- MODAL PRATINJAU DOKUMEN / GAMBAR (OPTIMAL DI HP & DESKTOP) -->

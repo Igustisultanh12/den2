@@ -96,7 +96,7 @@
 <body>
 
     <div class="kop-surat">
-        <p>KOMANDO DAERAH TNI ANGKATAN LAUT</p>
+        <p>KOMANDO ARMADA II</p>
         <p>DETASEMEN INTELIJEN</p>
         <div class="garis-kop"></div>
     </div>

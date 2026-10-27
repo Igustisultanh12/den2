@@ -1,7 +1,7 @@
 
 // SISINDEN Mobile UI/UX Generator for Figma
 // Referensi: eCommerce UI Kit Mobile Design (High Quality Modern App)
-// Dibuat otomatis untuk kanvas SISINDEN Denintel Kodaeral V
+// Dibuat otomatis untuk kanvas SISINDEN Denintel Koarmada 2
 
 async function run() {
   await figma.loadFontAsync({ family: "Inter", style: "Regular" });
@@ -177,7 +177,7 @@ async function run() {
   heroFooter.resize(334, 32);
 
   const heroFooterText = figma.createText();
-  heroFooterText.characters = "Denintel Kodaeral V • Real-time Sync";
+  heroFooterText.characters = "Denintel Koarmada 2 • Real-time Sync";
   heroFooterText.fontSize = 11;
   heroFooterText.fontName = { family: "Inter", style: "Regular" };
   heroFooterText.fills = [{ type: "SOLID", color: { r: 0.7, g: 0.78, b: 0.9 } }];

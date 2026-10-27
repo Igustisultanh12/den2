@@ -836,6 +836,10 @@ onUnmounted(() => {
             <!-- Main Scrollable Content -->
             <main class="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
                 <slot />
+
+                <footer class="mt-8 pt-4 border-t border-slate-200 text-center text-[10px] sm:text-[11px] font-medium text-slate-400">
+                    <AppCopyright />
+                </footer>
             </main>
 
         </div>

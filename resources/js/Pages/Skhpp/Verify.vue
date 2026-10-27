@@ -72,7 +72,7 @@ const formatDateIndo = (dateStr) => {
         </div>
 
         <p class="text-xs text-slate-400 text-center font-medium">
-          © {{ new Date().getFullYear() }} {{ appName }}. Detasemen Intelijen KOMANDO ARMADA II. All Rights Reserved.
+          <AppCopyright />
         </p>
       </div>
 

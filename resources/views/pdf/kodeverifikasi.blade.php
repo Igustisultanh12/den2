@@ -31,7 +31,7 @@
 <body>
     {{-- KOP SURAT --}}
     <div style="display: inline-block; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 20px; text-align: center;">
-        <div class="kop-surat">KOMANDO DAERAH TNI ANGKATAN LAUT V</div>
+        <div class="kop-surat">KOMANDO ARMADA II</div>
         <div class="kop-surat">DETASEMEN INTELIJEN</div>
     </div>
 

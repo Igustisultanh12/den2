@@ -469,7 +469,7 @@ const formatDate = (dateStr) => {
             <!-- Footer matching Login.vue -->
             <footer class="border-t border-white/10 bg-slate-950/80 backdrop-blur-md py-6 text-center text-xs text-slate-400 font-medium">
                 <div class="max-w-6xl mx-auto px-4">
-                    © {{ new Date().getFullYear() }} {{ appName }}. Seluruh Hak Cipta Dilindungi Kedinasan.
+                    <AppCopyright />
                 </div>
             </footer>
 

@@ -33,7 +33,7 @@ Berdasarkan audit komparasi antara versi website (https://sisinden.my.id) dan re
     "date": "2026-10-13",
     "time_in": "07:30:00",
     "status": "hadir",
-    "location_name": "Mako Denintel Kodaeral V, Surabaya",
+    "location_name": "Mako Denintel Koarmada 2, Surabaya",
     "latitude": -7.2053,
     "longitude": 112.7358,
     "device_model": "Android Device",

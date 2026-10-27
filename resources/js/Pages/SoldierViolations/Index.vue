@@ -590,7 +590,7 @@ const getFileName = (path) => {
                     <div class="shadow-2xl origin-top scale-[0.8] md:scale-[0.9] lg:scale-100 text-left">
                         <div id="area-cetak-cases" class="p-10 bg-white text-black text-left" style="width: 1080px; font-family: Arial, sans-serif; min-height: 700px;">
                             <div class="uppercase mb-6 text-left text-[11px] font-bold border-b-2 border-black pb-1 w-fit">
-                                <p>KOMANDO DAERAH TNI ANGKATAN LAUT</p>
+                                <p>KOMANDO ARMADA II</p>
                                 <p class="text-center">DETASEMEN INTELIJEN</p>
                             </div>
 

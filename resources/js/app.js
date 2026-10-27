@@ -5,6 +5,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
+import AppCopyright from './Components/AppCopyright.vue';
 
 const appName = import.meta.env.VITE_APP_NAME || 'SI SINDEN - DENINTEL KOARMADA 2';
 
@@ -18,6 +19,7 @@ createInertiaApp({
         return createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue)
+            .component('AppCopyright', AppCopyright)
             .mount(el);
     },
     progress: {

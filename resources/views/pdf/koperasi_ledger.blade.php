@@ -46,7 +46,7 @@
 <body>
 
     <div class="header">
-        <div style="font-size: 10pt; font-weight: bold; text-transform: uppercase;">KOMANDO DAERAH TNI ANGKATAN LAUT V</div>
+        <div style="font-size: 10pt; font-weight: bold; text-transform: uppercase;">KOMANDO ARMADA II</div>
         <div style="font-size: 10pt; font-weight: bold; text-transform: uppercase;">DETASEMEN INTELIJEN - UNIT SIMPAN PINJAM (SINDEN)</div>
         <div style="border-bottom: 2px solid #000; margin: 4px 0 10px 0;"></div>
         <div class="title">LAPORAN MUTASI KAS & REKAP PINJAMAN KOPERASI</div>

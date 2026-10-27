@@ -340,7 +340,7 @@ const handleFileUpload = (event) => {
                 
                 <div style="text-align: left; margin-bottom: 30px;">
                     <div style="display: inline-block; text-align: center;">
-                        <p style="margin: 0; font-size: 14px; font-weight: bold; line-height: 1.2; text-transform: uppercase;">KOMANDO DAERAH TNI ANGKATAN LAUT</p>
+                        <p style="margin: 0; font-size: 14px; font-weight: bold; line-height: 1.2; text-transform: uppercase;">KOMANDO ARMADA II</p>
                         <p style="margin: 0; font-size: 14px; font-weight: bold; line-height: 1.2; text-transform: uppercase;">DETASEMEN INTELIJEN</p>
                         <div style="margin-top: 5px; border-top: 1px solid #000; border-bottom: 3.5px solid #000; height: 2px; width: 320px; margin-left: auto; margin-right: auto;"></div>
                     </div>

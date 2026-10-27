@@ -10,7 +10,7 @@
 
 ### 1.1 Identitas Instansi
 - **Nama Sistem:** SI SINDEN (Sistem Informasi Detasemen Intelijen)
-- **Instansi Pemilik:** Detasemen Intelijen Komando Daerah Maritim / Angkatan Laut (Denintel Kodaeral V)
+- **Instansi Pemilik:** Detasemen Intelijen Komando Armada II (Denintel Koarmada 2)
 - **Karakteristik Operasional:** Kedinasan militer dan intelijen matra laut yang membutuhkan kerahasiaan data berjenjang, kecepatan pelaporan, ketertiban administrasi surat dinas, serta pemantauan operasional lapangan.
 
 ### 1.2 Lingkungan Teknologi Web

@@ -29,7 +29,7 @@ Sistem warna diatur di `id.my.sisinden.app.core.ui.theme.Color.kt`:
 
 ## 2. Implementasi Layar Utama (Beranda Eksekutif)
 1. **Header Kedinasan**:
-   - Memuat identitas satuan "Denintel Kodaeral V", sapaan prajurit terpersonalisasi, lencana dinas, dan tombol notifikasi aktif.
+   - Memuat identitas satuan "Denintel Koarmada 2", sapaan prajurit terpersonalisasi, lencana dinas, dan tombol notifikasi aktif.
 2. **Kartu Saldo Utama Eksekutif**:
    - Tampilan gradient linear 3-layer deep navy dengan kelengkungan sudut 24dp.
    - Dilengkapi badge "Terverifikasi" dan tombol toggle privasi mata (`Icons.Default.Visibility` / `VisibilityOff`) untuk menyembunyikan nominal saldo saat berada di ruang publik.
@@ -91,7 +91,7 @@ Sesuai arahan desain terbaru yang terinspirasi dari referensi Livin' by Mandiri 
 Berdasarkan referensi resmi Figma Elder-Friendly Livin' by Mandiri:
 1. **Header Sky Blue Bergradien**:
    - Latar belakang gradien biru cerah (`LivinSkyBlue` `#0084F4` ke `LivinSkyBlueDark` `#0066CC`).
-   - Penataan identitas satuan SISINDEN Kodaeral V di kiri atas.
+   - Penataan identitas satuan SISINDEN Koarmada 2 di kiri atas.
    - Kolom aksi kanan: Notifikasi kedinasan ("Warta") dan menu "Keluar".
 2. **Floating Executive White Card**:
    - Kartu melayang putih bersih dengan radius lengkungan 26dp dan elevasi halus.
