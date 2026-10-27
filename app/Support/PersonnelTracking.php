@@ -90,7 +90,9 @@ class PersonnelTracking
         $now = now();
 
         return PersonnelLocation::query()
-            ->with('user:id,name,pangkat,nrp,jabatan,role,avatar,is_active')
+            // Jangan membatasi kolom: tabel users produksi tidak punya kolom "jabatan",
+            // dan MySQL menolak kolom yang tidak ada (SQLite di test tidak).
+            ->with('user')
             ->whereHas('user', fn ($q) => $q->where('is_active', true))
             ->orderByDesc('recorded_at')
             ->get()
