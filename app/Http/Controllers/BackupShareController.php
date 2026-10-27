@@ -45,7 +45,7 @@ class BackupShareController extends Controller
         $pc = Pc::findOrFail($validated['pc_id']);
 
         // Verifikasi kepemilikan atau otoritas admin
-        $isAdmin = $user->role === 'admin' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
+        $isAdmin = $user->isAdmin() || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
         if (!$isAdmin && $pc->user_id !== $user->id) {
             return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki hak otoritas membagikan folder ini.'], 403);
         }
@@ -133,7 +133,7 @@ class BackupShareController extends Controller
     {
         $share = BackupShare::findOrFail($id);
         $user = Auth::user();
-        $isAdmin = $user->role === 'admin' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
+        $isAdmin = $user->isAdmin() || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
 
         if (!$isAdmin && $share->created_by !== $user->id && $share->pc->user_id !== $user->id) {
             return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki otoritas.'], 403);
@@ -155,7 +155,7 @@ class BackupShareController extends Controller
     {
         $share = BackupShare::findOrFail($id);
         $user = Auth::user();
-        $isAdmin = $user->role === 'admin' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
+        $isAdmin = $user->isAdmin() || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
 
         if (!$isAdmin && $share->created_by !== $user->id && $share->pc->user_id !== $user->id) {
             return response()->json(['status' => 'error', 'message' => 'Anda tidak memiliki otoritas.'], 403);
@@ -1097,7 +1097,7 @@ class BackupShareController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Unauthenticated.'], 401);
         }
 
-        $isAdmin = $user->role === 'admin' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
+        $isAdmin = $user->isAdmin() || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
         if (!$isAdmin) {
             return response()->json(['status' => 'error', 'message' => 'Otoritas ditolak: Khusus Administrator.'], 403);
         }

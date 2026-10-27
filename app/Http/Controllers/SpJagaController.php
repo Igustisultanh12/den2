@@ -94,7 +94,7 @@ class SpJagaController extends Controller
                     || str_contains(strtolower($user->name), 'roni sumantri')
                     || str_contains(strtolower($user->name), 'sultan');
 
-        $isAdmin = ($user->role === 'admin' || $user->name === 'Suma Nurhasanah' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom');
+        $isAdmin = ($user->isAdmin() || $user->name === 'Suma Nurhasanah' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom');
 
         // 1. Ambil Jadwal Jaga Saya (Bulan Berjalan / Terbaru yang Published)
         $activeSp = SpJaga::with(['perwiras', 'anggotas'])

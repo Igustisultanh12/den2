@@ -166,7 +166,7 @@ class PrintServiceController extends Controller
         $job = PrintJob::findOrFail($id);
 
         // Hanya pemilik atau admin yang dapat melihat berkas
-        if ($job->user_id !== Auth::id() && Auth::user()->role !== 'admin') {
+        if ($job->user_id !== Auth::id() && !Auth::user()->isAdmin()) {
             abort(403, 'Akses tidak diizinkan.');
         }
 
@@ -188,7 +188,7 @@ class PrintServiceController extends Controller
     {
         $job = PrintJob::findOrFail($id);
 
-        if ($job->user_id !== Auth::id() && Auth::user()->role !== 'admin') {
+        if ($job->user_id !== Auth::id() && !Auth::user()->isAdmin()) {
             abort(403, 'Akses tidak diizinkan.');
         }
 
@@ -240,7 +240,7 @@ class PrintServiceController extends Controller
         try {
             $job = PrintJob::findOrFail($id);
 
-            if ($job->user_id !== Auth::id() && Auth::user()->role !== 'admin') {
+            if ($job->user_id !== Auth::id() && !Auth::user()->isAdmin()) {
                 abort(403, 'Akses tidak diizinkan.');
             }
 
@@ -308,7 +308,7 @@ class PrintServiceController extends Controller
      */
     public function testPrinterConnection(Request $request)
     {
-        if (Auth::user()->role !== 'admin') {
+        if (!Auth::user()->isAdmin()) {
             return response()->json(['success' => false, 'message' => 'Otoritas ditolak.'], 403);
         }
 
@@ -325,7 +325,7 @@ class PrintServiceController extends Controller
      */
     public function updatePrinterSettings(Request $request)
     {
-        if (Auth::user()->role !== 'admin') {
+        if (!Auth::user()->isAdmin()) {
             abort(403, 'Otoritas ditolak.');
         }
 

@@ -20,7 +20,7 @@ class GlobalSearchController extends Controller
         $user = auth()->user();
 
         $isAnggotaSintel = false;
-        if ($user && $user->role !== 'admin') {
+        if ($user && !$user->isAdmin()) {
             $r = strtolower(preg_replace('/[\s_-]+/', '', $user->role ?? ''));
             $j = strtolower($user->jabatan ?? '');
             $isAnggotaSintel = ($r === 'anggotasintel' || str_contains($j, 'anggota sintel'));

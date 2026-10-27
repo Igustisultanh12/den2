@@ -12,8 +12,8 @@ const props = defineProps({
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
-const isAdmin = computed(() => user.value.role === 'admin');
-const isCommander = computed(() => user.value.role === 'admin' || user.value.role === 'komandan' || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom');
+const isAdmin = computed(() => Boolean(user.value.is_admin));
+const isCommander = computed(() => Boolean(user.value.is_admin) || user.value.role === 'komandan' || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom');
 
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || 'all');

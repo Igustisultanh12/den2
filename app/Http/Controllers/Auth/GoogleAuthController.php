@@ -356,7 +356,7 @@ class GoogleAuthController extends Controller
                 return redirect()->to($targetRedirect);
             }
 
-            if ($user->role !== 'admin') {
+            if (!$user->isAdmin()) {
                 $r = strtolower(preg_replace('/[\s_-]+/', '', $user->role ?? ''));
                 $j = strtolower($user->jabatan ?? '');
                 if ($r === 'anggotasintel' || str_contains($j, 'anggota sintel')) {

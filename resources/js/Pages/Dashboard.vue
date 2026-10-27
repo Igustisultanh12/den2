@@ -17,7 +17,7 @@ const page = usePage();
 const currentUser = computed(() => page.props.auth.user);
 const isCommanderOrAdmin = computed(() => {
     const role = (currentUser.value?.role || '').toLowerCase();
-    return role === 'admin' || role === 'komandan' || role === 'pasops' || currentUser.value?.name === 'I Gusti Sultan H.A, A.Md.Kom';
+    return Boolean(currentUser.value?.is_admin) || role === 'komandan' || role === 'pasops' || currentUser.value?.name === 'I Gusti Sultan H.A, A.Md.Kom';
 });
 
 // Jam Digital Real-Time Kedinasan

@@ -23,7 +23,7 @@ class SignatureRequestController extends Controller
         $sigQuery = SignatureRequest::with('user');
         $skhppQuery = \App\Models\Skhpp::with(['submitter', 'approver', 'members']);
 
-        if ($user->role !== 'admin' && $user->role !== 'komandan') {
+        if (!$user->isAdmin() && $user->role !== 'komandan') {
             $sigQuery->where('user_id', $user->id);
             $skhppQuery->where('submitted_by', $user->id);
         }
@@ -161,7 +161,7 @@ class SignatureRequestController extends Controller
         }
 
         // 2. LOGIKA PENGESAHAN (KOMANDAN/ADMIN)
-        if ($user->role !== 'admin' && $user->role !== 'komandan') {
+        if (!$user->isAdmin() && $user->role !== 'komandan') {
             return back()->with('error', 'Otoritas Ditolak.');
         }
 
@@ -352,7 +352,7 @@ class SignatureRequestController extends Controller
     }
     
     public function clearAll() {
-        if (auth()->user()->role !== 'admin') {
+        if (!auth()->user()->isAdmin()) {
             return back()->with('error', 'Otoritas Ditolak.');
         }
 

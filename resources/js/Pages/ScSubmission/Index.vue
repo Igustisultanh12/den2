@@ -15,7 +15,7 @@ const props = defineProps({
 });
 
 const page = usePage();
-const isAdmin = computed(() => page.props.auth.user.role === 'admin');
+const isAdmin = computed(() => Boolean(page.props.auth.user.is_admin));
 
 const searchQuery = ref(props.filters?.search || '');
 const selectedStage = ref(props.filters?.stage || 'all');

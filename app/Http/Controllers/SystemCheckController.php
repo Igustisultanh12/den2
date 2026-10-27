@@ -10,13 +10,14 @@ use Inertia\Inertia;
 class SystemCheckController extends Controller
 {
     /**
-     * Pastikan hanya Admin / Otoritas Utama yang dapat mengakses modul pemeriksaan sistem
+     * Cek Sistem khusus Super Admin (selaras dengan middleware role:super_admin pada route).
+     * Sebelumnya hanya role 'admin' yang lolos di sini sehingga Super Admin selalu ditolak.
      */
     protected function authorizeAdmin()
     {
         $user = Auth::user();
-        if (!$user || ($user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom')) {
-            abort(403, 'Akses Ditolak: Modul Cek Sistem & Infrastruktur hanya diizinkan untuk Admin.');
+        if (!$user || !$user->isSuperAdmin()) {
+            abort(403, 'Akses Ditolak: Modul Cek Sistem & Infrastruktur hanya diizinkan untuk Super Admin.');
         }
     }
 

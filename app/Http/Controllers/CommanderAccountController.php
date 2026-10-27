@@ -20,7 +20,7 @@ class CommanderAccountController extends Controller
         $user = Auth::user();
         // Komandan terdeteksi bypass nama khusus atau role khusus
         $isCommander = $user->name === 'I Gusti Sultan H.A, A.Md.Kom' || $user->role === 'komandan';
-        $isAdminOrSuma = in_array($user->role, ['admin', 'user']);
+        $isAdminOrSuma = $user->isAdmin() || $user->role === 'user';
 
         if (!$isCommander && !$isAdminOrSuma) {
             abort(403, 'Anda tidak memiliki otoritas mengakses rekening Komandan.');

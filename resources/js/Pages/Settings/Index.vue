@@ -11,7 +11,6 @@ const props = defineProps({
 
 const form = useForm({
     agency_name: props.settings.agency_name || '',
-    copyright: props.settings.copyright || '',
     start_number: props.settings.start_number || 1,
     wa_notifications_enabled: props.settings.wa_notifications_enabled !== undefined ? String(props.settings.wa_notifications_enabled) : '1',
     mobile_api_base_url: props.settings.mobile_api_base_url || 'https://sisinden.my.id',
@@ -275,11 +274,6 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
                         <div class="space-y-1.5">
                             <label class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider ms-1">Nama Instansi / Aplikasi</label>
                             <input v-model="form.agency_name" type="text" class="w-full rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-blue-500 focus:border-blue-600 uppercase text-xs font-bold px-4 py-3 transition" placeholder="CONTOH: DENINTEL Koarmada 2">
-                        </div>
-
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider ms-1">Teks Copyright</label>
-                            <input v-model="form.copyright" type="text" class="w-full rounded-2xl border-slate-200 bg-slate-50 focus:bg-white focus:ring-blue-500 focus:border-blue-600 text-xs font-semibold px-4 py-3 transition">
                         </div>
 
                         <div class="space-y-1.5">

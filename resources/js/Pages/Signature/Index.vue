@@ -788,14 +788,14 @@ const getStatusClass = (status) => {
                       <span>Salin Link</span>
                     </button>
                     
-                    <template v-if="user.role === 'admin' || user.role === 'komandan'">
+                    <template v-if="user.is_admin || user.role === 'komandan'">
                       <button v-if="skhpp.status === 'pending'" @click="approveSkhpp(skhpp)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase shadow-sm cursor-pointer"> Setujui & TTD
                       </button>
                       <button v-if="skhpp.status === 'pending'" @click="rejectSkhpp(skhpp)" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase cursor-pointer"> Tolak
                       </button>
                     </template>
 
-                    <button v-if="user.role === 'admin' || user.id === skhpp.user_id" @click="deleteSkhpp(skhpp.id)" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase flex items-center justify-center transition cursor-pointer" title="Hapus & Cabut Validasi QR">
+                    <button v-if="user.is_admin || user.id === skhpp.user_id" @click="deleteSkhpp(skhpp.id)" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase flex items-center justify-center transition cursor-pointer" title="Hapus & Cabut Validasi QR">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                   </div>
@@ -892,7 +892,7 @@ const getStatusClass = (status) => {
                     <button v-if="req.status === 'approved'" @click="downloadFile(req.file_path, req.subject)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase shadow-sm cursor-pointer"> Unduh
                     </button>
 
-                    <button v-if="user.role === 'admin' || user.id === req.user_id" @click="deleteRequest(req.id)" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase flex items-center justify-center transition cursor-pointer" title="Hapus Berkas">
+                    <button v-if="user.is_admin || user.id === req.user_id" @click="deleteRequest(req.id)" class="bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase flex items-center justify-center transition cursor-pointer" title="Hapus Berkas">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                   </div>
@@ -952,7 +952,7 @@ const getStatusClass = (status) => {
             <Link :href="`/skhpp/${selectedSkhpp.id}/edit`" class="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase shadow-sm text-center flex items-center justify-center gap-1"> Koreksi
             </Link>
 
-            <template v-if="(user.role === 'admin' || user.role === 'komandan') && selectedSkhpp.status === 'pending'">
+            <template v-if="(user.is_admin || user.role === 'komandan') && selectedSkhpp.status === 'pending'">
               <button @click="approveSkhpp(selectedSkhpp)" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase shadow-md text-center flex items-center justify-center gap-1 cursor-pointer"> Setujui
               </button>
               <button @click="rejectSkhpp(selectedSkhpp)" class="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase shadow-sm text-center flex items-center justify-center gap-1 cursor-pointer"> Tolak
@@ -1121,7 +1121,7 @@ const getStatusClass = (status) => {
           <Link :href="`/skhpp/${selectedSkhpp.id}`" class="text-[11px] sm:text-xs font-bold text-blue-600 hover:underline flex items-center justify-center sm:justify-start gap-1"> Buka Halaman Cetak Lengkap (Dengan Lampiran Jika Ada) 
           </Link>
           <div class="flex gap-2 w-full sm:w-auto">
-            <template v-if="(user.role === 'admin' || user.role === 'komandan') && selectedSkhpp.status === 'pending'">
+            <template v-if="(user.is_admin || user.role === 'komandan') && selectedSkhpp.status === 'pending'">
               <button @click="approveSkhpp(selectedSkhpp)" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-[11px] sm:text-xs font-black uppercase shadow-md text-center"> Setujui & TTD Komandan
               </button>
               <button @click="rejectSkhpp(selectedSkhpp)" class="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2.5 rounded-xl text-[11px] sm:text-xs font-black uppercase shadow-md text-center"> Tolak / Minta Revisi
@@ -1325,7 +1325,7 @@ const getStatusClass = (status) => {
       </div>
 
       <!-- Bottom Confirm / Reject Bar untuk Admin (Mobile Friendly) -->
-      <div v-else-if="user.role === 'admin'" class="bg-white border-t p-3 sm:p-4 flex flex-wrap justify-center items-center gap-2 sm:gap-3 shrink-0 shadow-2xl">
+      <div v-else-if="user.is_admin" class="bg-white border-t p-3 sm:p-4 flex flex-wrap justify-center items-center gap-2 sm:gap-3 shrink-0 shadow-2xl">
         <button v-if="isAdjusting" @click="handlePdfDecision('approved', false)" :disabled="decisionForm.processing" class="flex-1 sm:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs uppercase shadow-lg text-center"> SETUJUI ({{ activePagesList.length }} HAL)
         </button>
         <button v-if="isAdjusting && totalPages > 1" @click="handlePdfDecision('approved', true)" :disabled="decisionForm.processing" class="flex-1 sm:flex-initial bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs uppercase shadow-lg text-center"> SEMUA HAL (1-{{ totalPages }})

@@ -1169,7 +1169,7 @@ onUnmounted(() => {
                                 <div>
                                     <div class="flex items-start justify-between gap-2 mb-2">
                                         <div class="flex items-center gap-2.5">
-                                            <div :class="(detailUser.role === 'admin' || detailUser.role === 'komandan') ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'" class="w-8 h-8 rounded-xl flex items-center justify-center font-bold shrink-0">
+                                            <div :class="(['admin', 'super_admin', 'superadmin'].includes(detailUser.role) || detailUser.role === 'komandan') ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'" class="w-8 h-8 rounded-xl flex items-center justify-center font-bold shrink-0">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
                                             </div>
                                             <div>
@@ -1182,8 +1182,8 @@ onUnmounted(() => {
                                 </div>
                                 <div class="mt-3.5 pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
                                     <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Peran:</span>
-                                    <span :class="(detailUser.role === 'admin' || detailUser.role === 'komandan') ? 'bg-indigo-600 text-white font-black' : 'bg-slate-200 text-slate-700 font-bold'" class="px-2.5 py-1 text-[9px] rounded-lg uppercase tracking-wider">
-                                        {{ (detailUser.role === 'admin' || detailUser.role === 'komandan') ? 'APPROVER TTD' : 'PEMOHON DOKUMEN' }}
+                                    <span :class="(['admin', 'super_admin', 'superadmin'].includes(detailUser.role) || detailUser.role === 'komandan') ? 'bg-indigo-600 text-white font-black' : 'bg-slate-200 text-slate-700 font-bold'" class="px-2.5 py-1 text-[9px] rounded-lg uppercase tracking-wider">
+                                        {{ (['admin', 'super_admin', 'superadmin'].includes(detailUser.role) || detailUser.role === 'komandan') ? 'APPROVER TTD' : 'PEMOHON DOKUMEN' }}
                                     </span>
                                 </div>
                             </div>

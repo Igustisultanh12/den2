@@ -32,7 +32,7 @@ class BackupController extends Controller
     {
         $user = Auth::user();
         // Kalibrasi Nama Komandan agar Bypass Terdeteksi
-        $isAdmin = $user->role === 'admin' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
+        $isAdmin = $user->isAdmin() || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
 
         return Inertia::render('Backup/Index', [
             'myPcs' => Pc::where('user_id', $user->id)->get()->map(fn($pc) => $this->formatPcData($pc)),
@@ -84,7 +84,7 @@ class BackupController extends Controller
      */
     public function approveAccess($id)
     {
-        if (Auth::user()->role !== 'admin' && Auth::user()->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if (!Auth::user()->isAdmin() && Auth::user()->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             return abort(403, 'Anda tidak memiliki otoritas menyetujui.');
         }
 
@@ -280,7 +280,7 @@ class BackupController extends Controller
             'breadcrumbs' => $breadcrumbs,
             'searchQuery' => $search,
             'currentShare' => $currentShareInfo,
-            'isAdmin' => Auth::user()->role === 'admin' || Auth::user()->name === 'I Gusti Sultan H.A, A.Md.Kom',
+            'isAdmin' => Auth::user()->isAdmin() || Auth::user()->name === 'I Gusti Sultan H.A, A.Md.Kom',
         ]);
     }
 
@@ -311,7 +311,7 @@ class BackupController extends Controller
 
         $user = Auth::user();
         $pc = Pc::findOrFail($backup->pc_id);
-        if ($pc->user_id !== $user->id && $user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if ($pc->user_id !== $user->id && !$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             abort(403, 'Akses Ditolak: Anda tidak memiliki otoritas atas berkas PC ini.');
         }
 
@@ -446,7 +446,7 @@ class BackupController extends Controller
 
         $user = Auth::user();
         $pc = Pc::findOrFail($backup->pc_id);
-        if ($pc->user_id !== $user->id && $user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if ($pc->user_id !== $user->id && !$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             abort(403, 'Akses Ditolak: Anda tidak memiliki otoritas atas berkas PC ini.');
         }
 
@@ -480,7 +480,7 @@ class BackupController extends Controller
 
         $user = Auth::user();
         $pc = Pc::findOrFail($backup->pc_id);
-        if ($pc->user_id !== $user->id && $user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if ($pc->user_id !== $user->id && !$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             abort(403, 'Akses Ditolak: Anda tidak memiliki otoritas atas berkas PC ini.');
         }
 
@@ -506,7 +506,7 @@ class BackupController extends Controller
 
         $user = Auth::user();
         $pc = Pc::findOrFail($backup->pc_id);
-        if ($pc->user_id !== $user->id && $user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if ($pc->user_id !== $user->id && !$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             abort(403, 'Akses Ditolak.');
         }
 
@@ -679,7 +679,7 @@ class BackupController extends Controller
         $user = Auth::user();
 
         $pc = Pc::findOrFail($backup->pc_id);
-        if ($pc->user_id !== $user->id && $user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if ($pc->user_id !== $user->id && !$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             abort(403, 'Akses Ditolak: Anda tidak memiliki otoritas atas berkas PC ini.');
         }
 
@@ -787,7 +787,7 @@ class BackupController extends Controller
         $user = Auth::user();
 
         $pc = Pc::findOrFail($backup->pc_id);
-        if ($pc->user_id !== $user->id && $user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if ($pc->user_id !== $user->id && !$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             abort(403, 'Akses Ditolak: Anda tidak memiliki otoritas atas berkas PC ini.');
         }
 
@@ -1339,7 +1339,7 @@ class BackupController extends Controller
     public function revokePc($id)
     {
         $user = Auth::user();
-        if ($user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if (!$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             return abort(403, 'Anda tidak memiliki otoritas menghapus akses PC.');
         }
 
@@ -1505,7 +1505,7 @@ class BackupController extends Controller
     public function createPc(Request $request)
     {
         $user = Auth::user();
-        if ($user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if (!$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             return abort(403, 'Anda tidak memiliki otoritas membuat pangkalan PC.');
         }
 
@@ -1536,7 +1536,7 @@ class BackupController extends Controller
     public function updateQuota(Request $request, $id)
     {
         $user = Auth::user();
-        if ($user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if (!$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             return abort(403, 'Anda tidak memiliki otoritas mengubah kuota pangkalan.');
         }
 
@@ -1585,7 +1585,7 @@ class BackupController extends Controller
 
         $pc = Pc::findOrFail($request->pc_id);
         $user = Auth::user();
-        if ($pc->user_id !== $user->id && $user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if ($pc->user_id !== $user->id && !$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             abort(403, 'Anda tidak memiliki otoritas atas pangkalan PC ini.');
         }
 
@@ -1633,7 +1633,7 @@ class BackupController extends Controller
 
         $pc = Pc::findOrFail($request->pc_id);
         $user = Auth::user();
-        if ($pc->user_id !== $user->id && $user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if ($pc->user_id !== $user->id && !$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             abort(403, 'Anda tidak memiliki otoritas atas pangkalan PC ini.');
         }
 
@@ -1691,7 +1691,7 @@ class BackupController extends Controller
 
         $pc = Pc::findOrFail($request->pc_id);
         $user = Auth::user();
-        if ($pc->user_id !== $user->id && $user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if ($pc->user_id !== $user->id && !$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             abort(403, 'Anda tidak memiliki otoritas atas pangkalan PC ini.');
         }
 
@@ -1725,7 +1725,7 @@ class BackupController extends Controller
 
         $pc = Pc::findOrFail($request->pc_id);
         $user = Auth::user();
-        if ($pc->user_id !== $user->id && $user->role !== 'admin' && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
+        if ($pc->user_id !== $user->id && !$user->isAdmin() && $user->name !== 'I Gusti Sultan H.A, A.Md.Kom') {
             abort(403, 'Akses ditolak.');
         }
 

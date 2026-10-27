@@ -337,7 +337,7 @@ class SkhppController extends Controller
     public function approve(Request $request, $id)
     {
         $user = auth()->user();
-        $isCommander = $user->role === 'admin' || $user->role === 'komandan' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
+        $isCommander = $user->isAdmin() || $user->role === 'komandan' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
 
         if (!$isCommander) {
             return back()->with('error', 'Otoritas ditolak! Hanya Komandan yang berwenang menandatangani SKHPP.');
@@ -518,7 +518,7 @@ class SkhppController extends Controller
     public function reject(Request $request, $id)
     {
         $user = auth()->user();
-        $isCommander = $user->role === 'admin' || $user->role === 'komandan' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
+        $isCommander = $user->isAdmin() || $user->role === 'komandan' || $user->name === 'I Gusti Sultan H.A, A.Md.Kom';
 
         if (!$isCommander) {
             return back()->with('error', 'Otoritas ditolak!');
@@ -743,7 +743,7 @@ class SkhppController extends Controller
     public function updateNumber(Request $request, $id)
     {
         $user = auth()->user();
-        if ($user->role !== 'admin') {
+        if (!$user->isAdmin()) {
             return back()->with('error', 'Hanya Admin yang berwenang mengoperasikan fitur Atur Nomor.');
         }
 
@@ -811,7 +811,7 @@ class SkhppController extends Controller
     public function reSubmitTte($id)
     {
         $user = auth()->user();
-        if ($user->role !== 'admin') {
+        if (!$user->isAdmin()) {
             return back()->with('error', 'Hanya Admin yang berwenang mengoperasikan fitur Ajukan TTE Ulang.');
         }
 

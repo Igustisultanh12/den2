@@ -22,7 +22,7 @@ class MitraPaymentController extends Controller
             'I Gusti Sultan H.A, A.Md.Kom'
         ];
 
-        $canAccess = $user->role === 'admin' 
+        $canAccess = $user->isAdmin() 
             || in_array($user->name, $allowedNames) 
             || (bool)$user->can_access_mitra;
 
@@ -212,7 +212,7 @@ class MitraPaymentController extends Controller
      */
     public function toggleUserAccess(Request $request, $userId)
     {
-        if (auth()->user()->role !== 'admin') {
+        if (!auth()->user()->isAdmin()) {
             return redirect()->back()->with('error', 'Hanya Admin yang dapat mengubah hak akses pengguna.');
         }
 

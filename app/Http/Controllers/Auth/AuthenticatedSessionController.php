@@ -174,7 +174,7 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('profile.edit')->with('info', 'Otoritas Keamanan: Ini adalah login pertama Anda. Mohon perbarui password default Anda segera.');
         }
 
-        if ($user->role !== 'admin') {
+        if (!$user->isAdmin()) {
             $r = strtolower(preg_replace('/[\s_-]+/', '', $user->role ?? ''));
             $j = strtolower($user->jabatan ?? '');
             if ($r === 'anggotasintel' || str_contains($j, 'anggota sintel')) {
@@ -296,7 +296,7 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('profile.edit')->with('info', 'Otoritas Keamanan: Ini adalah login pertama Anda. Mohon perbarui password default Anda segera.');
         }
 
-        if ($user->role !== 'admin') {
+        if (!$user->isAdmin()) {
             $r = strtolower(preg_replace('/[\s_-]+/', '', $user->role ?? ''));
             $j = strtolower($user->jabatan ?? '');
             if ($r === 'anggotasintel' || str_contains($j, 'anggota sintel')) {

@@ -15,7 +15,7 @@ const props = defineProps({
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
-const isAdmin = computed(() => user.value?.role === 'admin');
+const isAdmin = computed(() => Boolean(user.value?.is_admin));
 
 // Status antrean dokumen
 const currentActiveJob = ref(props.activeJob || null);

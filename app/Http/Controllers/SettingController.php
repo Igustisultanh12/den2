@@ -24,7 +24,6 @@ class SettingController extends Controller
         // TAMBAHAN: Validasi untuk 'start_number' dan 'favicon' tanpa menghapus yang lama
         $request->validate([
             'agency_name' => 'required|string|max:255',
-            'copyright' => 'required|string',
             'start_number' => 'required|integer|min:1', // Tambahan validasi nomor urut surat
             'wa_notifications_enabled' => 'nullable|in:0,1',
             'google_client_id' => 'nullable|string|max:500',
@@ -38,9 +37,10 @@ class SettingController extends Controller
             'favicon' => 'nullable|image|mimes:ico,png,jpg,jpeg|max:1024', // Tambahan validasi favicon (Maks 1MB)
         ]);
 
-        // 1. Update pengaturan teks & integrasi (agency_name, copyright, google oauth, mobile api, wa, agora)
+        // 1. Update pengaturan teks & integrasi (agency_name, google oauth, mobile api, wa, agora).
+        // Teks copyright tidak lagi dapat diubah: tetap tertanam di aplikasi (AppCopyright).
         $textFields = [
-            'agency_name', 'copyright', 'start_number', 'wa_notifications_enabled', 
+            'agency_name', 'start_number', 'wa_notifications_enabled',
             'mobile_api_base_url', 'mobile_apk_download_url', 'mobile_api_status', 'mobile_min_version',
             'mobile_theme_mode', 'mobile_primary_color', 'mobile_accent_color', 'mobile_card_radius',
             'mobile_show_balance_card', 'mobile_show_summary_trio', 'mobile_show_quick_actions',
