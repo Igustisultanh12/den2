@@ -1,3 +1,10 @@
+# SISINDEN Android v1.3.1 (versionCode 12)
+
+Rilis pertama yang ditandatangani **kunci rilis resmi SISINDEN Denintel Koarmada 2** (SHA-256 sertifikat `f90157b7e13639cafa1352209f8e4fc5a4d4d9fdf8aa2af2ac8c891dede973ee`). Isi fitur sama dengan v1.3.0.
+
+> ⚠️ **Pasang sekali dengan uninstall:** versi sebelumnya (v1.0–v1.3.0) ditandatangani kunci debug, sehingga Android menolak pembaruan langsung. Uninstall aplikasi SISINDEN lama, lalu pasang APK ini. Setelah itu pembaruan berikutnya (termasuk dari **Pengaturan web → Unggah APK**) terpasang tanpa uninstall.
+
+---
 # SISINDEN Android v1.3.0 (versionCode 11)
 
 Notifikasi push Firebase dan pembaruan aplikasi dari Pengaturan web (diambil dari SISINDEN Kodaeral V).
