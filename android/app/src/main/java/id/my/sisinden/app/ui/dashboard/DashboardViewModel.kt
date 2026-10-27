@@ -68,7 +68,7 @@ class DashboardViewModel(
             NotificationHelper.processNewNotification(
                 context = appContext,
                 notificationId = latest.id,
-                title = latest.title?.ifBlank { null } ?: "Warta Dinas SISINDEN",
+                title = latest.title?.ifBlank { null } ?: "Warta Dinas Sinden 2",
                 message = latest.message?.ifBlank { null } ?: "Terdapat pemberitahuan kedinasan baru.",
                 isRead = latest.isRead,
             )

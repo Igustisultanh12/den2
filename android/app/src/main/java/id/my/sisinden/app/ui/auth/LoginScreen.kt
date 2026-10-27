@@ -113,7 +113,7 @@ fun LoginScreen(
                 }
                 Spacer(Modifier.width(Spacing.md))
                 Column {
-                    Text("SISINDEN", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("SINDEN 2", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text("Denintel Koarmada 2", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -262,7 +262,7 @@ internal fun ServerDialog(current: String, onSave: (String) -> String?, onDismis
             }) { Text("Simpan") }
         },
         dismissButton = {
-            TextButton(onClick = { value = "https://sisinden.my.id"; error = null }) { Text("Bawaan") }
+            TextButton(onClick = { value = "https://sinden2.my.id"; error = null }) { Text("Bawaan") }
         },
     )
 }

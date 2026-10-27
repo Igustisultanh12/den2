@@ -28,7 +28,7 @@ class SindenMessagingService : FirebaseMessagingService() {
             "notification" -> NotificationHelper.showPushedNotification(
                 this,
                 id = d["id"]?.toIntOrNull() ?: (System.currentTimeMillis() / 1000).toInt(),
-                title = d["title"].orEmpty().ifBlank { "Warta Dinas SISINDEN" },
+                title = d["title"].orEmpty().ifBlank { "Warta Dinas Sinden 2" },
                 message = d["body"].orEmpty().ifBlank { "Terdapat pemberitahuan kedinasan baru." },
                 link = d["link"],
             )

@@ -149,7 +149,7 @@ class SignatureRequestController extends Controller
                                 "Mohon izin Komandan, berkas yang sebelumnya ditolak telah diperbaiki oleh staf:\n\n" .
                                 " *Perihal:* {$signatureRequest->subject}\n" .
                                 " *Oleh:* {$user->name}\n\n" .
-                                "Mohon izin untuk memeriksa berkas di : https://sisinden.my.id/signature-request";
+                                "Mohon izin untuk memeriksa berkas di : https://sinden2.my.id/signature-request";
                     WhatsappService::sendMessage($komandan->phone, $pesanRev);
                 }
 

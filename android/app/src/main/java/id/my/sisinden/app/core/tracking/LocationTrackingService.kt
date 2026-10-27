@@ -156,7 +156,7 @@ class LocationTrackingService : Service() {
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(CHANNEL_ID, "Pelacakan Lokasi Dinas", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Menandakan lokasi Anda sedang dibagikan ke pimpinan selama login SISINDEN"
+                description = "Menandakan lokasi Anda sedang dibagikan ke pimpinan selama login Sinden 2"
                 setShowBadge(false)
             }
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
@@ -173,7 +173,7 @@ class LocationTrackingService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_sinden_mark)
             .setContentTitle("Pelacakan lokasi dinas aktif")
-            .setContentText("Lokasi Anda dibagikan ke Admin & Komandan selama login SISINDEN.")
+            .setContentText("Lokasi Anda dibagikan ke Admin & Komandan selama login Sinden 2.")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)

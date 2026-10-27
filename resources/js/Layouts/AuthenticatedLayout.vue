@@ -183,7 +183,7 @@ onUnmounted(() => {
                             <img v-if="appLogo" :src="appLogo" alt="Logo" class="w-8 h-8 object-contain select-none shrink-0" />
                             <div v-else class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-extrabold text-base shadow-sm shrink-0"> S
                             </div>
-                            <div class="text-xl font-extrabold tracking-tight text-slate-900"> SINDEN<span class="text-[#2563EB]">.</span>
+                            <div class="text-xl font-extrabold tracking-tight text-slate-900"> SINDEN 2<span class="text-[#2563EB]">.</span>
                             </div>
                         </Link>
 
@@ -475,7 +475,7 @@ onUnmounted(() => {
                         <img v-if="appLogo" :src="appLogo" alt="Logo" class="w-8 h-8 object-contain select-none shrink-0" />
                         <div v-else class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-extrabold text-base shadow-sm shrink-0"> S
                         </div>
-                        <div class="text-2xl font-extrabold tracking-tight text-slate-900"> SINDEN<span class="text-[#2563EB]">.</span>
+                        <div class="text-2xl font-extrabold tracking-tight text-slate-900"> SINDEN 2<span class="text-[#2563EB]">.</span>
                         </div>
                     </Link>
                     <span class="text-[9px] font-bold tracking-wider text-[#94A3B8] uppercase mt-2 truncate">

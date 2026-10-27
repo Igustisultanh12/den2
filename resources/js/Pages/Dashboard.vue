@@ -486,7 +486,7 @@ const openAttendanceModal = async () => {
             { enableHighAccuracy: true, timeout: 15000 }
         );
     } else {
-        locationStatusText.value = 'Peramban tidak mendukung GPS. Gunakan peramban lain atau aplikasi SISINDEN Android.';
+        locationStatusText.value = 'Peramban tidak mendukung GPS. Gunakan peramban lain atau aplikasi Sinden 2 Android.';
         isDetectingLocation.value = false;
     }
 };

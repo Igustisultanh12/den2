@@ -58,14 +58,14 @@ sealed interface UpdateState {
     data class Available(val info: ReleaseInfo) : UpdateState
     data class Downloading(val version: String, val percent: Int) : UpdateState
     data class Installing(val version: String) : UpdateState
-    /** Izin "Instal aplikasi tidak dikenal" untuk SISINDEN belum diberikan. */
+    /** Izin "Instal aplikasi tidak dikenal" untuk Sinden 2 belum diberikan. */
     data class NeedsInstallPermission(val info: ReleaseInfo) : UpdateState
     data class Failed(val message: String, val info: ReleaseInfo? = null) : UpdateState
 }
 
 /**
  * Pembaruan dari dalam aplikasi. Sumbernya APK yang diunggah Admin di
- * Pengaturan web (server SISINDEN): cek /api/mobile/app-update, unduh APK,
+ * Pengaturan web (server Sinden 2): cek /api/mobile/app-update, unduh APK,
  * cocokkan SHA-256 & tanda tangan dengan aplikasi terpasang, lalu pasang lewat
  * PackageInstaller. Di Android 12+ pembaruan berikutnya dapat terpasang tanpa
  * konfirmasi (setelah sekali dipasang dari aplikasi ini); selain itu Android
@@ -91,7 +91,7 @@ object AppUpdater {
             .build()
     }
 
-    /** Alamat server SISINDEN aktif (diperbarui dari pengaturan aplikasi). */
+    /** Alamat server Sinden 2 aktif (diperbarui dari pengaturan aplikasi). */
     @Volatile
     var serverBaseUrl: String = SessionStore.DEFAULT_BASE_URL
 
@@ -128,7 +128,7 @@ object AppUpdater {
 
     /**
      * Baca respons /api/mobile/app-update. Unduhan hanya diizinkan dari server
-     * SISINDEN sendiri (HTTPS) dan wajib disertai SHA-256.
+     * Sinden 2 sendiri (HTTPS) dan wajib disertai SHA-256.
      */
     fun parseServer(json: String, base: String = SessionStore.DEFAULT_BASE_URL): ReleaseInfo? {
         val obj = JsonParser.parseString(json).asJsonObject
@@ -148,7 +148,7 @@ object AppUpdater {
             version = version,
             versionCode = obj.get("version_code")?.takeIf { !it.isJsonNull }?.asInt ?: 0,
             apkUrl = url,
-            apkName = "SISINDEN-$version.apk",
+            apkName = "Sinden2-$version.apk",
             apkSize = obj.get("size")?.takeIf { !it.isJsonNull }?.asLong ?: 0L,
             sha256 = sha,
             notes = obj.get("notes")?.takeIf { !it.isJsonNull }?.asString.orEmpty(),
@@ -159,7 +159,7 @@ object AppUpdater {
     suspend fun fetchLatest(): ReleaseInfo? = withContext(Dispatchers.IO) {
         val req = Request.Builder().url(baseUrl + INFO_PATH)
             .header("Accept", "application/json")
-            .header("User-Agent", "SISINDEN-Android/${BuildConfig.VERSION_NAME}")
+            .header("User-Agent", "Sinden2-Android/${BuildConfig.VERSION_NAME}")
             .build()
         http.newCall(req).execute().use { res ->
             if (res.code == 429) throw UpdateException("Terlalu sering memeriksa. Coba lagi sebentar lagi.")
@@ -229,7 +229,7 @@ object AppUpdater {
         }
         _state.value = result
         if (result is UpdateState.NeedsInstallPermission && !AppVisibility.appForeground) {
-            notify(app, "Pembaruan SISINDEN ${info.version} siap dipasang", "Buka Pengaturan → Pembaruan aplikasi untuk mengizinkan pemasangan.", openIntent(app, "settings"))
+            notify(app, "Pembaruan Sinden 2 ${info.version} siap dipasang", "Buka Pengaturan → Pembaruan aplikasi untuk mengizinkan pemasangan.", openIntent(app, "settings"))
         }
         return result
     }
@@ -261,7 +261,7 @@ object AppUpdater {
         if (!force && p.getString(K_NOTIFIED, null) == info.version) return
         p.edit().putString(K_NOTIFIED, info.version).apply()
         val text = info.notes.ifBlank { "Ketuk untuk mengunduh dan memasang versi terbaru." }
-        notify(context, "Pembaruan SISINDEN ${info.version} tersedia", text, openIntent(context, "settings"))
+        notify(context, "Pembaruan Sinden 2 ${info.version} tersedia", text, openIntent(context, "settings"))
     }
 
     /** Push "app_update" dari server (Admin baru mengunggah APK). */
@@ -269,7 +269,7 @@ object AppUpdater {
         val app = context.applicationContext
         if (version.isNotBlank() && compareVersions(version, BuildConfig.VERSION_NAME) <= 0) return
         prefs(app).edit().putString(K_NOTIFIED, version).apply()
-        notify(app, title.ifBlank { "Pembaruan SISINDEN $version tersedia" }, body.ifBlank { "Ketuk untuk mengunduh dan memasang versi terbaru." }, openIntent(app, "settings"))
+        notify(app, title.ifBlank { "Pembaruan Sinden 2 $version tersedia" }, body.ifBlank { "Ketuk untuk mengunduh dan memasang versi terbaru." }, openIntent(app, "settings"))
         if (isAutoEnabled(app) && !BuildConfig.DEBUG) {
             // Unduh otomatis lewat Wi-Fi tanpa menunggu jadwal 6 jam.
             val req = OneTimeWorkRequestBuilder<UpdateWorker>()
@@ -283,7 +283,7 @@ object AppUpdater {
 
     /** Penjelasan singkat penyebab kegagalan untuk pengguna. */
     internal fun reason(e: Throwable): String = when (e) {
-        is java.net.UnknownHostException -> "tidak ada koneksi internet ke server SISINDEN"
+        is java.net.UnknownHostException -> "tidak ada koneksi internet ke server Sinden 2"
         is java.net.SocketTimeoutException -> "koneksi terlalu lama"
         is javax.net.ssl.SSLException -> "koneksi aman (HTTPS) gagal — periksa tanggal & jam HP"
         is SecurityException -> "izin pemasangan ditolak Android"
@@ -291,7 +291,7 @@ object AppUpdater {
         else -> e.javaClass.simpleName + (e.message?.let { ": $it" } ?: "")
     }
 
-    /** Buka layar izin "Instal aplikasi tidak dikenal" untuk SISINDEN. */
+    /** Buka layar izin "Instal aplikasi tidak dikenal" untuk Sinden 2. */
     fun installPermissionIntent(context: Context): Intent =
         Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:${context.packageName}"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -309,7 +309,7 @@ object AppUpdater {
 
     private fun openIntent(context: Context, route: String): PendingIntent = PendingIntent.getActivity(
         context, NOTIFICATION_ID,
-        Intent(Intent.ACTION_VIEW, android.net.Uri.parse("sisinden://app/$route"), context, MainActivity::class.java)
+        Intent(Intent.ACTION_VIEW, android.net.Uri.parse("sinden2://app/$route"), context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
@@ -322,7 +322,7 @@ object AppUpdater {
             return@withContext target // sudah diunduh sebelumnya & utuh
         }
         val part = File(dir, info.apkName + ".part")
-        val req = Request.Builder().url(info.apkUrl).header("User-Agent", "SISINDEN-Android/${BuildConfig.VERSION_NAME}").build()
+        val req = Request.Builder().url(info.apkUrl).header("User-Agent", "Sinden2-Android/${BuildConfig.VERSION_NAME}").build()
         http.newCall(req).execute().use { res ->
             if (res.code == 404) throw UpdateException("APK pembaruan sudah tidak ada di server. Periksa ulang beberapa saat lagi.")
             if (!res.isSuccessful) throw UpdateException("Unduhan pembaruan gagal (HTTP ${res.code}).")
@@ -366,7 +366,7 @@ object AppUpdater {
         if (installed != null && signerDigests(archive).intersect(signerDigests(installed)).isEmpty()) {
             apk.delete()
             throw UpdateException(
-                "APK v${info.version} di server ditandatangani kunci yang berbeda dengan aplikasi ini, sehingga tidak dapat dipasang sebagai pembaruan. Hubungi Admin agar mengunggah APK rilis resmi SISINDEN."
+                "APK v${info.version} di server ditandatangani kunci yang berbeda dengan aplikasi ini, sehingga tidak dapat dipasang sebagai pembaruan. Hubungi Admin agar mengunggah APK rilis resmi Sinden 2."
             )
         }
     }
@@ -484,7 +484,7 @@ object AppUpdater {
     fun onPackageReplaced(context: Context) {
         File(context.cacheDir, "updates").listFiles()?.forEach { it.delete() }
         _state.value = UpdateState.Idle
-        notify(context, "SISINDEN diperbarui", "Versi ${BuildConfig.VERSION_NAME} sudah terpasang. Ketuk untuk membuka.", openIntent(context, "home"))
+        notify(context, "Sinden 2 diperbarui", "Versi ${BuildConfig.VERSION_NAME} sudah terpasang. Ketuk untuk membuka.", openIntent(context, "home"))
     }
 }
 
@@ -520,7 +520,7 @@ class UpdateInstallReceiver : BroadcastReceiver() {
                     }
                 }
                 val pi = PendingIntent.getActivity(context, AppUpdater.NOTIFICATION_ID, confirm, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-                AppUpdater.notify(context, "Pembaruan SISINDEN $version siap", "Ketuk untuk memasang pembaruan.", pi)
+                AppUpdater.notify(context, "Pembaruan Sinden 2 $version siap", "Ketuk untuk memasang pembaruan.", pi)
             }
             PackageInstaller.STATUS_SUCCESS -> AppUpdater.setState(UpdateState.UpToDate(version))
             else -> {
@@ -535,7 +535,7 @@ class UpdateInstallReceiver : BroadcastReceiver() {
                 }
                 AppUpdater.setState(UpdateState.Failed(text))
                 if (!AppVisibility.appForeground && status != PackageInstaller.STATUS_FAILURE_ABORTED) {
-                    AppUpdater.notify(context, "Pembaruan SISINDEN gagal", text, null)
+                    AppUpdater.notify(context, "Pembaruan Sinden 2 gagal", text, null)
                 }
             }
         }

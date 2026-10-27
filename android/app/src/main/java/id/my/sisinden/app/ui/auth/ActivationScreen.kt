@@ -36,7 +36,7 @@ fun ActivationScreen(
     val vm: ActivationViewModel = viewModel { ActivationViewModel(repository) }
     val s by vm.state.collectAsStateWithLifecycle()
 
-    SindenScaffold(title = "Aktivasi Akun", subtitle = "Gunakan token dari Admin SISINDEN", onBack = onBack) { padding ->
+    SindenScaffold(title = "Aktivasi Akun", subtitle = "Gunakan token dari Admin Sinden 2", onBack = onBack) { padding ->
         Column(
             Modifier
                 .fillMaxSize()

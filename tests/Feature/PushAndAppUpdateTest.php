@@ -63,7 +63,7 @@ class PushAndAppUpdateTest extends TestCase
         $cfg = PushNotifier::parseGoogleServices(json_encode([
             'project_info' => ['project_number' => '123456789', 'project_id' => 'sisinden-test'],
             'client' => [[
-                'client_info' => ['mobilesdk_app_id' => '1:123456789:android:abc', 'android_client_info' => ['package_name' => 'id.my.sisinden.app']],
+                'client_info' => ['mobilesdk_app_id' => '1:123456789:android:abc', 'android_client_info' => ['package_name' => 'id.my.sinden2.app']],
                 'api_key' => [['current_key' => 'AIzaPUBLICKEY']],
             ]],
         ]));
@@ -116,7 +116,7 @@ class PushAndAppUpdateTest extends TestCase
     {
         $pem = $this->rsaPrivateKeyPem();
         $gs = json_encode(['project_info' => ['project_number' => '42', 'project_id' => 'koarmada2'], 'client' => [[
-            'client_info' => ['mobilesdk_app_id' => '1:42:android:x', 'android_client_info' => ['package_name' => 'id.my.sisinden.app']],
+            'client_info' => ['mobilesdk_app_id' => '1:42:android:x', 'android_client_info' => ['package_name' => 'id.my.sinden2.app']],
             'api_key' => [['current_key' => 'AIzaX']],
         ]]]);
         $sa = json_encode(['type' => 'service_account', 'project_id' => 'koarmada2', 'client_email' => 'a@koarmada2.iam.gserviceaccount.com', 'private_key' => $pem]);
@@ -212,20 +212,20 @@ class PushAndAppUpdateTest extends TestCase
     public function test_apk_uploaded_in_settings_is_served_to_app(): void
     {
         Storage::fake('local');
-        $manifest = file_get_contents(base_path('tests/Fixtures/AndroidManifest-1.5.0.bin'));
-        $this->assertSame(['package' => 'id.my.sisinden.app', 'version_name' => '1.5.0', 'version_code' => 13], ApkInspector::parseManifest($manifest));
+        $manifest = file_get_contents(base_path('tests/Fixtures/AndroidManifest-sinden2-1.4.0.bin'));
+        $this->assertSame(['package' => 'id.my.sinden2.app', 'version_name' => '1.4.0', 'version_code' => 13], ApkInspector::parseManifest($manifest));
 
         $this->getJson('/api/mobile/app-update')->assertOk()->assertJsonPath('available', false);
         $this->get('/api/mobile/app-update/download')->assertStatus(404);
 
         $dir = sys_get_temp_dir() . '/apk-' . uniqid();
         mkdir($dir);
-        $apk = $this->fakeApk($dir, 'SISINDEN-1.5.0.apk', $manifest);
+        $apk = $this->fakeApk($dir, 'Sinden2-1.4.0.apk', $manifest);
         $upload = fn ($path, $name) => new UploadedFile($path, $name, 'application/vnd.android.package-archive', null, true);
 
         // Hanya Super Admin (grup Pengaturan) yang boleh mengunggah.
-        $this->actingAs($this->user('personel'))->post('/settings/app-update', ['apk' => $upload($apk, 'SISINDEN-1.5.0.apk')])->assertForbidden();
-        $this->actingAs($this->user('admin'))->post('/settings/app-update', ['apk' => $upload($apk, 'SISINDEN-1.5.0.apk')])->assertForbidden();
+        $this->actingAs($this->user('personel'))->post('/settings/app-update', ['apk' => $upload($apk, 'Sinden2-1.4.0.apk')])->assertForbidden();
+        $this->actingAs($this->user('admin'))->post('/settings/app-update', ['apk' => $upload($apk, 'Sinden2-1.4.0.apk')])->assertForbidden();
 
         $super = $this->user('super_admin');
         $this->configurePush();
@@ -234,12 +234,12 @@ class PushAndAppUpdateTest extends TestCase
         // Bukan APK SISINDEN → ditolak.
         $this->actingAs($super)->post('/settings/app-update', ['apk' => $upload($this->fakeApk($dir, 'lain.apk', null), 'lain.apk')])
             ->assertSessionHas('error');
-        $this->actingAs($super)->post('/settings/app-update', ['apk' => $upload($apk, 'SISINDEN-1.5.0.apk'), 'notes' => 'Pelacakan lokasi lebih hemat', 'notify' => '1'])
+        $this->actingAs($super)->post('/settings/app-update', ['apk' => $upload($apk, 'Sinden2-1.4.0.apk'), 'notes' => 'Pelacakan lokasi lebih hemat', 'notify' => '1'])
             ->assertSessionHas('success');
 
         $meta = $this->getJson('/api/mobile/app-update')->assertOk()
             ->assertJsonPath('available', true)
-            ->assertJsonPath('version', '1.5.0')
+            ->assertJsonPath('version', '1.4.0')
             ->assertJsonPath('version_code', 13)
             ->assertJsonPath('notes', 'Pelacakan lokasi lebih hemat')
             ->json();
@@ -251,16 +251,18 @@ class PushAndAppUpdateTest extends TestCase
 
         $push = collect($this->pushesSent())->firstWhere('data.type', 'app_update');
         $this->assertNotNull($push);
-        $this->assertSame('1.5.0', $push['data']['version']);
+        $this->assertSame('1.4.0', $push['data']['version']);
 
         // Halaman Pengaturan menampilkan ringkasan; metadata tidak dibagikan ke halaman lain.
         $this->assertArrayNotHasKey('app_update_meta', HandleInertiaRequests::publicSettings(Setting::pluck('value', 'key')->toArray()));
 
         // Versi lebih lama ditolak.
-        $old = str_replace(mb_convert_encoding('1.5.0', 'UTF-16LE'), mb_convert_encoding('1.4.0', 'UTF-16LE'), $manifest);
+        // String pool manifest bisa UTF-8 atau UTF-16: ganti versi dengan panjang sama di keduanya.
+        $old = str_replace(['1.4.0', mb_convert_encoding('1.4.0', 'UTF-16LE')], ['1.3.9', mb_convert_encoding('1.3.9', 'UTF-16LE')], $manifest);
+        $this->assertSame('1.3.9', ApkInspector::parseManifest($old)['version_name']);
         $this->actingAs($super)->post('/settings/app-update', ['apk' => $upload($this->fakeApk($dir, 'old.apk', $old), 'old.apk')])
             ->assertSessionHas('error');
-        $this->getJson('/api/mobile/app-update')->assertJsonPath('version', '1.5.0');
+        $this->getJson('/api/mobile/app-update')->assertJsonPath('version', '1.4.0');
 
         $this->actingAs($super)->delete('/settings/app-update')->assertSessionHas('success');
         $this->getJson('/api/mobile/app-update')->assertJsonPath('available', false);

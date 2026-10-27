@@ -125,13 +125,13 @@ object NotificationHelper {
         notificationId: Int,
         title: String,
         message: String,
-        /** Rute aplikasi (deep link sisinden://app/<route>); null = buka aplikasi saja. */
+        /** Rute aplikasi (deep link sinden2://app/<route>); null = buka aplikasi saja. */
         route: String? = null,
     ) {
         createNotificationChannel(context)
 
         val intent = (if (route != null) {
-            Intent(Intent.ACTION_VIEW, android.net.Uri.parse("sisinden://app/$route"), context, MainActivity::class.java)
+            Intent(Intent.ACTION_VIEW, android.net.Uri.parse("sinden2://app/$route"), context, MainActivity::class.java)
         } else {
             Intent(context, MainActivity::class.java)
         }).apply {

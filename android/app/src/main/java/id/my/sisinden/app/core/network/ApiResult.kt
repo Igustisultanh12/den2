@@ -61,7 +61,7 @@ object ApiErrors {
         is SSLException -> ApiError(ErrorKind.NETWORK, "Koneksi aman (HTTPS) ke server gagal diverifikasi.")
         is IOException -> ApiError(ErrorKind.NETWORK, "Gagal terhubung ke server. Periksa koneksi Anda.")
         is com.google.gson.JsonParseException, is IllegalStateException ->
-            ApiError(ErrorKind.SERVER, "Format respons server tidak sesuai. Pastikan server SISINDEN sudah diperbarui.")
+            ApiError(ErrorKind.SERVER, "Format respons server tidak sesuai. Pastikan server Sinden 2 sudah diperbarui.")
         else -> ApiError(ErrorKind.UNKNOWN, "Terjadi kesalahan tak terduga.")
     }
 

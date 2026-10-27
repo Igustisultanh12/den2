@@ -68,7 +68,7 @@ fun SplashScreen() {
                 Image(painterResource(R.drawable.ic_sinden_mark), contentDescription = null, modifier = Modifier.size(64.dp))
             }
             Spacer(Modifier.height(20.dp))
-            Text("SISINDEN", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
+            Text("SINDEN 2", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
             Spacer(Modifier.height(4.dp))
             Text("Denintel Koarmada 2", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
         }

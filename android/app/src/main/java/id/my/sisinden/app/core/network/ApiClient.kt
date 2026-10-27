@@ -13,7 +13,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 /**
- * Pembuat klien HTTP. Token hanya dilampirkan ke host server SISINDEN yang
+ * Pembuat klien HTTP. Token hanya dilampirkan ke host server Sinden 2 yang
  * dikonfigurasi (tidak pernah ke host lain), dan tidak pernah dicatat ke log.
  */
 class ApiClient(
@@ -32,7 +32,7 @@ class ApiClient(
 
             val builder = original.newBuilder()
                 .header("Accept", "application/json")
-                .header("User-Agent", "SISINDEN-Android/${BuildConfig.VERSION_NAME}")
+                .header("User-Agent", "Sinden2-Android/${BuildConfig.VERSION_NAME}")
             val attachToken = sameHost && !token.isNullOrBlank()
             if (attachToken) builder.header("Authorization", "Bearer $token")
 

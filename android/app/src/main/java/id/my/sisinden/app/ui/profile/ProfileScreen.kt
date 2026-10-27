@@ -90,7 +90,7 @@ fun ProfileScreen(
             SindenCard(Modifier.fillMaxWidth()) {
                 Text("Hak akses Anda", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "Diatur oleh Admin SISINDEN dan diperbarui setiap kali aplikasi tersinkron dengan server.",
+                    "Diatur oleh Admin Sinden 2 dan diperbarui setiap kali aplikasi tersinkron dengan server.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -131,7 +131,7 @@ fun ProfileScreen(
                 onClick = { confirmLogout = true },
             )
             Text(
-                "SISINDEN Android v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                "Sinden 2 Android v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = Spacing.lg),
@@ -141,7 +141,7 @@ fun ProfileScreen(
 
     if (confirmLogout) {
         ConfirmDialog(
-            title = "Keluar dari SISINDEN?",
+            title = "Keluar dari Sinden 2?",
             message = "Token sesi di perangkat ini akan dicabut. Anda perlu masuk kembali untuk mengakses data.",
             confirmLabel = "Keluar",
             destructive = true,

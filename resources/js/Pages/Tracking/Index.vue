@@ -186,7 +186,7 @@ onBeforeUnmount(() => {
                 <div>
                     <h1 class="text-xl font-extrabold text-slate-800">Pantau Personel</h1>
                     <p class="text-xs text-slate-500">
-                        Posisi realtime dari aplikasi SISINDEN Android · diperbarui otomatis setiap {{ POLL_MS / 1000 }} detik
+                        Posisi realtime dari aplikasi Sinden 2 Android · diperbarui otomatis setiap {{ POLL_MS / 1000 }} detik
                     </p>
                 </div>
                 <div class="flex items-center gap-2 text-xs">

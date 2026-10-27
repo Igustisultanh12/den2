@@ -143,7 +143,7 @@ fun TrackingScreen(repository: SindenRepository, onBack: () -> Unit) {
                             item {
                                 EmptyState(
                                     title = "Belum ada data",
-                                    message = "Posisi muncul setelah personel login di aplikasi SISINDEN Android.",
+                                    message = "Posisi muncul setelah personel login di aplikasi Sinden 2 Android.",
                                     icon = Icons.Outlined.PersonPinCircle,
                                 )
                             }

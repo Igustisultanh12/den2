@@ -82,7 +82,7 @@ fun ViolationFormScreen(repository: SindenRepository, onBack: () -> Unit, onSubm
             verticalArrangement = Arrangement.spacedBy(Spacing.xs),
         ) {
             Text(
-                "Lampiran berkas & dokumen putusan diunggah melalui web SISINDEN.",
+                "Lampiran berkas & dokumen putusan diunggah melalui web Sinden 2.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

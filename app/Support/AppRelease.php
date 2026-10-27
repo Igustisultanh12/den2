@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Storage;
  */
 class AppRelease
 {
-    public const PACKAGE = 'id.my.sisinden.app';
+    public const PACKAGE = 'id.my.sinden2.app';
     public const DISK = 'local';
     public const DIR = 'app-updates';
     public const KEY = 'app_update_meta';
@@ -51,7 +51,7 @@ class AppRelease
             'notes' => (string) ($m['notes'] ?? ''),
             'size' => (int) ($m['size'] ?? 0),
             'sha256' => (string) ($m['sha256'] ?? ''),
-            'file_name' => 'SISINDEN-' . $m['version'] . '.apk',
+            'file_name' => 'Sinden2-' . $m['version'] . '.apk',
             'uploaded_at' => (string) ($m['uploaded_at'] ?? ''),
             'download_url' => url('/api/mobile/app-update/download') . '?v=' . rawurlencode((string) $m['version']),
         ];
@@ -92,7 +92,7 @@ class AppRelease
             return 'Berkas bukan APK Android yang valid.';
         }
         if ($info['package'] !== self::PACKAGE) {
-            return 'APK ini bukan aplikasi SiNDEN (paket ' . $info['package'] . ').';
+            return 'APK ini bukan aplikasi Sinden 2 (paket ' . $info['package'] . ').';
         }
         $version = $info['version_name'] !== '' ? $info['version_name'] : trim((string) $manualVersion);
         if (!preg_match('/^\d+(\.\d+){1,3}$/', $version)) {
@@ -105,7 +105,7 @@ class AppRelease
 
         $sha = hash_file('sha256', $tmp);
         $size = (int) filesize($tmp);
-        $path = self::DIR . '/SISINDEN-' . $version . '-' . substr($sha, 0, 8) . '.apk';
+        $path = self::DIR . '/Sinden2-' . $version . '-' . substr($sha, 0, 8) . '.apk';
         $stored = Storage::disk(self::DISK)->putFileAs(self::DIR, $file, basename($path));
         if (!$stored) {
             return 'APK gagal disimpan di server (periksa izin folder storage).';

@@ -12,7 +12,7 @@
             $faviconUrl = $faviconPath ? asset('storage/' . $faviconPath) : asset('favicon.ico');
         @endphp
 
-        <title inertia>{{ config('app.name', 'SI SINDEN - ' . $agencyName) }}</title>
+        <title inertia>{{ config('app.name', 'SINDEN 2 - ' . $agencyName) }}</title>
 
         <!-- Dynamic Favicon Web Instansi -->
         <link rel="icon" type="image/x-icon" href="{{ $faviconUrl }}">

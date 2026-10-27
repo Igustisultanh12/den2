@@ -64,7 +64,7 @@ class PushNotifier
      * Ambil konfigurasi klien dari isi google-services.json untuk paket aplikasi.
      * @return array|string array konfigurasi, atau pesan kesalahan.
      */
-    public static function parseGoogleServices(string $json, string $package = 'id.my.sisinden.app')
+    public static function parseGoogleServices(string $json, string $package = 'id.my.sinden2.app')
     {
         $data = json_decode($json, true);
         if (!is_array($data) || empty($data['project_info']) || empty($data['client'])) {
@@ -249,7 +249,7 @@ class PushNotifier
         self::queue($ids, [
             'type' => 'app_update',
             'version' => $version,
-            'title' => "Pembaruan SiNDEN {$version} tersedia",
+            'title' => "Pembaruan Sinden 2 {$version} tersedia",
             'body' => mb_substr(trim($notes) !== '' ? trim($notes) : 'Ketuk untuk mengunduh dan memasang versi terbaru.', 0, 240),
         ], 7 * 86400);
         return count($ids);

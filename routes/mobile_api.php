@@ -187,13 +187,13 @@ Route::get('/api/mobile/config', function () {
 
     return response()->json([
         'status' => 'success',
-        'app_name' => $settings['agency_name'] ?? 'SI SINDEN',
+        'app_name' => $settings['agency_name'] ?? 'SINDEN 2',
         'agency_name' => $settings['agency_name'] ?? 'DETASEMEN INTELIJEN KOARMADA 2',
         'agency_logo' => $logoUrl,
         'login_background' => $bgUrl,
-        'api_base_url' => $settings['mobile_api_base_url'] ?? config('app.url', 'https://sisinden.my.id'),
+        'api_base_url' => $settings['mobile_api_base_url'] ?? config('app.url', 'https://sinden2.my.id'),
         'api_login_endpoint' => '/api/mobile/login',
-        'apk_download_url' => $settings['mobile_apk_download_url'] ?? 'https://sisinden.my.id/download/sinden-mobile.apk',
+        'apk_download_url' => $settings['mobile_apk_download_url'] ?? 'https://sinden2.my.id/download/sinden-mobile.apk',
         'api_status' => $settings['mobile_api_status'] ?? 'AKTIF',
         'min_version' => $settings['mobile_min_version'] ?? '1.0.0',
         'mobile_theme_mode' => $settings['mobile_theme_mode'] ?? 'system',
@@ -1171,7 +1171,7 @@ Route::post('/api/mobile/attendances', function (Request $request) {
             'status' => $data['status'],
             'ip_address' => $request->ip(),
             'device' => $data['device_model'] ?? 'Android Mobile',
-            'user_agent' => $request->userAgent() ?: 'SISINDEN Android App',
+            'user_agent' => $request->userAgent() ?: 'Sinden 2 Android App',
             'latitude' => $lat,
             'longitude' => $lng,
             'location_name' => $locName,
@@ -1311,7 +1311,7 @@ Route::post('/api/mobile/push/test', function (Request $request) {
     $sent = \App\Support\PushNotifier::sendNow([$user->id], [
         'type' => 'notification',
         'id' => (string) (900000000 + random_int(1, 99999999)),
-        'title' => 'Uji notifikasi SiNDEN',
+        'title' => 'Uji notifikasi Sinden 2',
         'body' => 'Notifikasi push berhasil diterima di HP ini.',
         'link' => '/notifications',
     ], 300);

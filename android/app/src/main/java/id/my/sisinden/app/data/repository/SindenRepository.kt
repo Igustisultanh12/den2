@@ -51,7 +51,7 @@ class SindenRepository(
     // ------------------------------------------------------------- Sesi
 
     suspend fun login(username: String, password: String): ApiResult<UserProfile> {
-        val device = "SISINDEN Android (${Build.MANUFACTURER} ${Build.MODEL})".take(100)
+        val device = "Sinden 2 Android (${Build.MANUFACTURER} ${Build.MODEL})".take(100)
         return when (val res = call { login(LoginRequest(username.trim(), password, device)) }) {
             is ApiResult.Success -> {
                 val token = res.data.token

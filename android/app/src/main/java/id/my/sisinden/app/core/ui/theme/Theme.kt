@@ -98,7 +98,7 @@ private val DarkColors = darkColorScheme(
 private val LocalStatusColors = staticCompositionLocalOf { LightStatusColors }
 private val LocalIsDark = staticCompositionLocalOf { false }
 
-/** Akses cepat token desain SISINDEN yang tidak tersedia di MaterialTheme. */
+/** Akses cepat token desain Sinden 2 yang tidak tersedia di MaterialTheme. */
 object SindenTheme {
     val status: StatusColors
         @Composable @ReadOnlyComposable get() = LocalStatusColors.current

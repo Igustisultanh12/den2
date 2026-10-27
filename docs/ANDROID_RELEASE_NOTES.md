@@ -1,3 +1,19 @@
+# Sinden 2 Android v1.4.0 (versionCode 13)
+
+Aplikasi kini berdiri sendiri sebagai **Sinden 2** (Denintel Koarmada 2), terpisah dari SISINDEN Kodaeral V, dan terhubung ke server **https://sinden2.my.id**.
+
+> ⚠️ **Aplikasi baru:** package berubah menjadi `id.my.sinden2.app` (sebelumnya `id.my.sisinden.app`, sama dengan SISINDEN Kodaeral V). Pasang APK ini sebagai aplikasi baru; aplikasi lama "SISINDEN" Koarmada 2 dapat di-uninstall. Sinden 2 dan SISINDEN Kodaeral V kini bisa terpasang berdampingan di satu HP tanpa bentrok.
+>
+> **Firebase:** daftarkan aplikasi Android dengan package `id.my.sinden2.app` di Firebase Console, lalu unggah ulang `google-services.json` di Pengaturan web.
+
+## Perubahan
+
+- Nama aplikasi **Sinden 2** di HP, layar pembuka, login, notifikasi, dan pembaruan; berkas APK pembaruan bernama `Sinden2-x.y.z.apk`.
+- Package `id.my.sinden2.app` dan tautan dalam `sinden2://app/...` (tidak lagi bertabrakan dengan SISINDEN Kodaeral V).
+- Alamat server bawaan `https://sinden2.my.id`; tautan di pesan WhatsApp (aktivasi, SKHPP, tanda tangan) mengarah ke domain ini.
+- Ditandatangani kunci rilis resmi (SHA-256 sertifikat `f90157b7e13639cafa1352209f8e4fc5a4d4d9fdf8aa2af2ac8c891dede973ee`).
+
+---
 # SISINDEN Android v1.3.1 (versionCode 12)
 
 Rilis pertama yang ditandatangani **kunci rilis resmi SISINDEN Denintel Koarmada 2** (SHA-256 sertifikat `f90157b7e13639cafa1352209f8e4fc5a4d4d9fdf8aa2af2ac8c891dede973ee`). Isi fitur sama dengan v1.3.0.

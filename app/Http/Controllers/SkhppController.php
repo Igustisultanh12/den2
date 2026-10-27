@@ -493,7 +493,7 @@ class SkhppController extends Controller
                              " *Nama:* {$skhpp->nama}\n" .
                              " *Nomor SKHPP:* {$formattedNo}\n" .
                              " *Kategori:* {$katName}\n\n" .
-                             "Dokumen resmi & QR Code TTD sudah terbit dan dapat diunduh di Laman : https://sisinden.my.id/skhpp";
+                             "Dokumen resmi & QR Code TTD sudah terbit dan dapat diunduh di Laman : https://sinden2.my.id/skhpp";
 
             AppNotification::notify(
                 $skhpp->submitted_by,
@@ -541,7 +541,7 @@ class SkhppController extends Controller
                            "Laporan untuk Operator/Pengaju, pengajuan SKHPP dikembalikan Komandan untuk direvisi:\n\n" .
                            " *Nama:* {$skhpp->nama}\n" .
                            " *Catatan Revisi Komandan:* {$request->catatan_revisi}\n\n" .
-                           "Silakan lakukan perbaikan data pada Laman : https://sisinden.my.id/skhpp";
+                           "Silakan lakukan perbaikan data pada Laman : https://sinden2.my.id/skhpp";
 
             AppNotification::notify(
                 $skhpp->submitted_by,
@@ -786,7 +786,7 @@ class SkhppController extends Controller
                             " *Peruntukan:* {$skhpp->peruntukan}\n" .
                             " *Status Berkas:* Pending TTD Komandan\n" .
                             " *Diatur Oleh Admin:* {$user->name}\n\n" .
-                            "Dokumen dapat dipantau di Laman : https://sisinden.my.id/skhpp";
+                            "Dokumen dapat dipantau di Laman : https://sinden2.my.id/skhpp";
 
             AppNotification::notify(
                 $skhpp->submitted_by,

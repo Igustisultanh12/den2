@@ -26,14 +26,14 @@ class UpdateAndPushTest {
 
     @Test
     fun `info pembaruan dari Pengaturan web`() {
-        val r = AppUpdater.parseServer(fixture("app_update"), "https://sisinden.my.id")
+        val r = AppUpdater.parseServer(fixture("app_update"), "https://sinden2.my.id")
         assertNotNull(r)
         assertEquals("1.7.0", r!!.version)
         assertEquals(16, r.versionCode)
-        assertEquals("SISINDEN-1.7.0.apk", r.apkName)
+        assertEquals("Sinden2-1.7.0.apk", r.apkName)
         assertEquals(14_800_000L, r.apkSize)
         assertEquals("ab".repeat(32), r.sha256)
-        assertEquals("https://sisinden.my.id/api/mobile/app-update/download?v=1.7.0", r.apkUrl)
+        assertEquals("https://sinden2.my.id/api/mobile/app-update/download?v=1.7.0", r.apkUrl)
         assertTrue(r.notes.contains("Ibu Beti"))
 
         // Belum ada APK di server.
@@ -41,8 +41,8 @@ class UpdateAndPushTest {
     }
 
     @Test
-    fun `unduhan hanya dari server SISINDEN dan wajib SHA-256`() {
-        val base = "https://sisinden.my.id"
+    fun `unduhan hanya dari server Sinden 2 dan wajib SHA-256`() {
+        val base = "https://sinden2.my.id"
         val sha = "c".repeat(64)
         // URL server lain diabaikan → dipaksa ke endpoint server sendiri.
         val foreign = AppUpdater.parseServer("""{"available":true,"version":"1.8.0","sha256":"$sha","download_url":"https://contoh.lain/x.apk"}""", base)
@@ -52,7 +52,7 @@ class UpdateAndPushTest {
         // Tanpa SHA-256 / versi tidak valid → ditolak.
         assertNull(AppUpdater.parseServer("""{"available":true,"version":"1.8.0","sha256":""}""", base))
         assertNull(AppUpdater.parseServer("""{"available":true,"version":"terbaru","sha256":"$sha"}""", base))
-        assertTrue(AppUpdater.reason(java.net.UnknownHostException("sisinden.my.id")).contains("internet"))
+        assertTrue(AppUpdater.reason(java.net.UnknownHostException("sinden2.my.id")).contains("internet"))
     }
 
     @Test

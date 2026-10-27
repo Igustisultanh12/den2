@@ -13,8 +13,8 @@ const form = useForm({
     agency_name: props.settings.agency_name || '',
     start_number: props.settings.start_number || 1,
     wa_notifications_enabled: props.settings.wa_notifications_enabled !== undefined ? String(props.settings.wa_notifications_enabled) : '1',
-    mobile_api_base_url: props.settings.mobile_api_base_url || 'https://sisinden.my.id',
-    mobile_apk_download_url: props.settings.mobile_apk_download_url || 'https://sisinden.my.id/download/sinden-mobile.apk',
+    mobile_api_base_url: props.settings.mobile_api_base_url || 'https://sinden2.my.id',
+    mobile_apk_download_url: props.settings.mobile_apk_download_url || 'https://sinden2.my.id/download/sinden-mobile.apk',
     mobile_api_status: props.settings.mobile_api_status || 'AKTIF',
     mobile_min_version: props.settings.mobile_min_version || '1.0.0',
     mobile_theme_mode: props.settings.mobile_theme_mode || 'system',
@@ -95,7 +95,7 @@ const callbackUrl = computed(() => {
     if (typeof window !== 'undefined') {
         return `${window.location.origin}/auth/google/callback`;
     }
-    return 'https://sisinden.my.id/auth/google/callback';
+    return 'https://sinden2.my.id/auth/google/callback';
 });
 
 const copyCallbackUrl = async () => {
@@ -367,7 +367,7 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-50/40 p-6 rounded-3xl border border-indigo-100">
                             <div class="space-y-1.5">
                                 <label class="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider ms-1">Base URL Endpoint API Mobile</label>
-                                <input v-model="form.mobile_api_base_url" type="text" class="w-full rounded-2xl border-indigo-200 bg-white focus:ring-indigo-500 focus:border-indigo-600 font-mono text-xs font-bold px-4 py-3 text-slate-800" placeholder="https://sisinden.my.id">
+                                <input v-model="form.mobile_api_base_url" type="text" class="w-full rounded-2xl border-indigo-200 bg-white focus:ring-indigo-500 focus:border-indigo-600 font-mono text-xs font-bold px-4 py-3 text-slate-800" placeholder="https://sinden2.my.id">
                                 <p class="text-[9px] text-indigo-500 font-bold ms-1">Domain utama tempat API HP terhubung.</p>
                             </div>
 
@@ -382,7 +382,7 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
 
                             <div class="space-y-1.5">
                                 <label class="text-[10px] font-extrabold text-indigo-900 uppercase tracking-wider ms-1">Link Unduh Installer APK Resmi</label>
-                                <input v-model="form.mobile_apk_download_url" type="text" class="w-full rounded-2xl border-indigo-200 bg-white focus:ring-indigo-500 focus:border-indigo-600 font-mono text-xs font-bold px-4 py-3 text-slate-800" placeholder="https://sisinden.my.id/download/sinden-mobile.apk">
+                                <input v-model="form.mobile_apk_download_url" type="text" class="w-full rounded-2xl border-indigo-200 bg-white focus:ring-indigo-500 focus:border-indigo-600 font-mono text-xs font-bold px-4 py-3 text-slate-800" placeholder="https://sinden2.my.id/download/sinden-mobile.apk">
                                 <p class="text-[9px] text-indigo-500 font-bold ms-1">URL langsung untuk mendownload APK terbaru.</p>
                             </div>
 
@@ -719,7 +719,7 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
                                 <p class="font-bold text-amber-900 text-xs">Panduan Firebase (gratis):</p>
                                 <ul class="list-disc list-inside space-y-1 text-[10px] text-slate-600 font-medium pl-1">
                                     <li>Buka <b>console.firebase.google.com</b> &rarr; <b>Add project</b> (Google Analytics boleh dimatikan).</li>
-                                    <li>Tambahkan aplikasi <b>Android</b> dengan package <b>id.my.sisinden.app</b> &rarr; unduh <b>google-services.json</b> &rarr; pilih di kolom 1.</li>
+                                    <li>Tambahkan aplikasi <b>Android</b> dengan package <b>id.my.sinden2.app</b> &rarr; unduh <b>google-services.json</b> &rarr; pilih di kolom 1.</li>
                                     <li><b>Project settings &rarr; Service accounts &rarr; Generate new private key</b> &rarr; pilih berkas JSON itu di kolom 2.</li>
                                     <li>Simpan. Aplikasi otomatis mendaftar notifikasi saat dibuka berikutnya &mdash; tanpa memperbarui APK.</li>
                                 </ul>
@@ -746,7 +746,7 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
                     <div class="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black">&#8593;</div>
                     <div>
                         <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">PEMBARUAN APLIKASI ANDROID (UNGGAH APK)</h3>
-                        <p class="text-[10px] text-slate-500 font-semibold">APK yang diunggah di sini menjadi sumber pembaruan di aplikasi SISINDEN. Personel menerima pemberitahuan dan dapat langsung mengunduh &amp; memasangnya.</p>
+                        <p class="text-[10px] text-slate-500 font-semibold">APK yang diunggah di sini menjadi sumber pembaruan di aplikasi Sinden 2. Personel menerima pemberitahuan dan dapat langsung mengunduh &amp; memasangnya.</p>
                     </div>
                 </div>
 
@@ -763,7 +763,7 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
 
                 <form @submit.prevent="uploadApk" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="space-y-1.5">
-                        <label class="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider ms-1">Berkas APK (SISINDEN-x.y.z.apk)</label>
+                        <label class="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider ms-1">Berkas APK (Sinden2-x.y.z.apk)</label>
                         <input ref="apkInput" type="file" accept=".apk,application/vnd.android.package-archive" @change="pickApk"
                                class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-emerald-600 file:px-4 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-emerald-700" />
                         <p class="text-[9px] text-slate-500 font-bold ms-1">Nomor versi dibaca otomatis dari APK. Batas unggah server: {{ uploadLimitLabel }}.</p>
@@ -785,7 +785,7 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
                     </div>
                     <p v-if="apkError" class="md:col-span-2 text-[11px] font-bold text-rose-600">{{ apkError }}</p>
                 </form>
-                <p class="text-[9px] text-slate-400 font-semibold">APK harus ditandatangani kunci resmi SISINDEN (hasil rilis GitHub Actions). HP menolak APK dengan tanda tangan berbeda.</p>
+                <p class="text-[9px] text-slate-400 font-semibold">APK harus ditandatangani kunci resmi Sinden 2 (hasil rilis GitHub Actions). HP menolak APK dengan tanda tangan berbeda.</p>
             </div>
 
             <!-- Quick Link Stamp Setting -->

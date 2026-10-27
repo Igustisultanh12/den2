@@ -43,12 +43,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Deep link internal: sisinden://app/<modul>. Tetap dijaga permission di NavHost. -->
+            <!-- Deep link internal: sinden2://app/<modul>. Tetap dijaga permission di NavHost. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="sisinden" android:host="app" />
+                <data android:scheme="sinden2" android:host="app" />
             </intent-filter>
         </activity>
 

@@ -38,7 +38,7 @@ class SessionStore(private val context: Context) {
     }
 
     companion object {
-        const val DEFAULT_BASE_URL = "https://sisinden.my.id"
+        const val DEFAULT_BASE_URL = "https://sinden2.my.id"
 
         /** Normalisasi & validasi URL server. Hanya HTTPS yang diizinkan. */
         fun normalizeBaseUrl(input: String): String? {

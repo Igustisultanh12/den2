@@ -113,7 +113,7 @@ private fun LocationRequiredScreen(readiness: LocationReadiness, onChanged: () -
             Text("Akses lokasi wajib", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(Spacing.sm))
             Text(
-                "SISINDEN memakai GPS untuk presensi dan pemantauan posisi personel secara realtime oleh Admin & Komandan " +
+                "Sinden 2 memakai GPS untuk presensi dan pemantauan posisi personel secara realtime oleh Admin & Komandan " +
                     "selama Anda login. Lokasi dikirim berkala ke server satuan dan ditandai dengan notifikasi permanen.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

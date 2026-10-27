@@ -159,7 +159,7 @@ fun SkhppFormScreen(repository: SindenRepository, onBack: () -> Unit, onSubmitte
         picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
-    SindenScaffold(title = "Pengajuan SKHPP", subtitle = "Data mengikuti formulir web SISINDEN", onBack = onBack, snackbarHostState = snackbar) { padding ->
+    SindenScaffold(title = "Pengajuan SKHPP", subtitle = "Data mengikuti formulir web Sinden 2", onBack = onBack, snackbarHostState = snackbar) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).imePadding().padding(horizontal = Spacing.screen),
             verticalArrangement = Arrangement.spacedBy(Spacing.xs),

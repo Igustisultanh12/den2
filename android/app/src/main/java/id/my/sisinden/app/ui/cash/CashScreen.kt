@@ -130,7 +130,7 @@ fun CashScreen(
                 Icon(if (hide) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, contentDescription = if (hide) "Tampilkan nominal" else "Sembunyikan nominal")
             }
             if (canPdf) {
-                IconButton(onClick = { onOpenPdf("api/mobile/pdf/cash", "Laporan Buku Kas", "BUKU_KAS_SISINDEN_${LocalDate.now()}.pdf") }) {
+                IconButton(onClick = { onOpenPdf("api/mobile/pdf/cash", "Laporan Buku Kas", "BUKU_KAS_SINDEN2_${LocalDate.now()}.pdf") }) {
                     Icon(Icons.Outlined.PictureAsPdf, contentDescription = "Laporan PDF")
                 }
             }

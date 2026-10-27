@@ -220,7 +220,7 @@ const formattedRecipient = computed(() => {
 const generatedPreviewMessage = computed(() => {
     const stats = currentNotifyStats.value;
     const recipient = formattedRecipient.value;
-    const trackingUrl = typeof window !== 'undefined' ? (window.location.origin + '/sc-submissions') : 'https://sisinden.my.id/sc-submissions';
+    const trackingUrl = typeof window !== 'undefined' ? (window.location.origin + '/sc-submissions') : 'https://sinden2.my.id/sc-submissions';
     
     let msg = `*PEMBERITAHUAN BERKAS SECURITY CLEARANCE (SC)*\n*DETASEMEN INTELIJEN Koarmada 2*\n\n${recipient}\n\nDisampaikan informasi bahwa saat ini terdapat berkas pengajuan Security Clearance (SC) yang perlu ditindaklanjuti dan diperbarui oleh Staf Intelijen:\n\n- Berkas Dinas: ${stats.dinas} berkas\n- Berkas Perusahaan: ${stats.perusahaan} berkas\n- Total Berkas: ${stats.total} berkas\n\n`;
     

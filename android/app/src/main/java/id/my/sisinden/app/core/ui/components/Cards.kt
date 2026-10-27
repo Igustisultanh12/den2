@@ -51,7 +51,7 @@ fun Modifier.pressScale(interaction: MutableInteractionSource): Modifier {
     return this.graphicsLayer { scaleX = scale; scaleY = scale }
 }
 
-/** Kartu dasar SISINDEN: permukaan putih, garis tipis, radius sedang, tanpa bayangan berat. */
+/** Kartu dasar Sinden 2: permukaan putih, garis tipis, radius sedang, tanpa bayangan berat. */
 @Composable
 fun SindenCard(
     modifier: Modifier = Modifier,

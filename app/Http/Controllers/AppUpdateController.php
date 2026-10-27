@@ -59,12 +59,12 @@ class AppUpdateController extends Controller
             'user_id' => $request->user()->id,
             'admin_name' => $request->user()->name,
             'action' => 'UNGGAH PEMBARUAN APLIKASI ANDROID',
-            'target_personnel' => 'Aplikasi Android SiNDEN',
+            'target_personnel' => 'Aplikasi Android Sinden 2',
             'description' => "Mengunggah APK versi {$result['version']} (" . round($result['size'] / 1048576, 1) . ' MB)',
             'ip_address' => $request->ip(),
         ]);
 
-        $msg = "APK SiNDEN versi {$result['version']} berhasil diunggah.";
+        $msg = "APK Sinden 2 versi {$result['version']} berhasil diunggah.";
         $msg .= $notified > 0
             ? " Pemberitahuan pembaruan dikirim ke {$notified} personel."
             : ($request->boolean('notify', true) ? ' Notifikasi push belum aktif; HP akan menemukan pembaruan saat aplikasi dibuka.' : '');
@@ -81,7 +81,7 @@ class AppUpdateController extends Controller
                 'user_id' => $request->user()->id,
                 'admin_name' => $request->user()->name,
                 'action' => 'HAPUS PEMBARUAN APLIKASI ANDROID',
-                'target_personnel' => 'Aplikasi Android SiNDEN',
+                'target_personnel' => 'Aplikasi Android Sinden 2',
                 'description' => "Menghapus APK versi {$prev['version']} dari server",
                 'ip_address' => $request->ip(),
             ]);
@@ -122,7 +122,7 @@ class AppUpdateController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Belum ada pembaruan aplikasi di server.'], 404);
         }
         $path = Storage::disk(AppRelease::DISK)->path($m['path']);
-        return response()->download($path, 'SISINDEN-' . $m['version'] . '.apk', [
+        return response()->download($path, 'Sinden2-' . $m['version'] . '.apk', [
             'Content-Type' => 'application/vnd.android.package-archive',
             'Cache-Control' => 'no-store',
             'X-Content-SHA256' => (string) $m['sha256'],

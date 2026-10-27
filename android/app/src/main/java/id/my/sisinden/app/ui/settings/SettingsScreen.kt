@@ -128,7 +128,7 @@ fun SettingsScreen(repository: SindenRepository, onBack: () -> Unit) {
             }
 
             Text(
-                "SISINDEN Android v${BuildConfig.VERSION_NAME} · Denintel Koarmada 2",
+                "Sinden 2 Android v${BuildConfig.VERSION_NAME} · Denintel Koarmada 2",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = Spacing.lg),

@@ -347,7 +347,7 @@ private fun ReportSheet(
 
     FormSheet(title = "Rekap agenda surat (PDF)", onDismiss = onDismiss) {
         Text(
-            "Dokumen dibuat oleh server dengan format resmi yang sama seperti di web SISINDEN.",
+            "Dokumen dibuat oleh server dengan format resmi yang sama seperti di web Sinden 2.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

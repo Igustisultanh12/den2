@@ -53,7 +53,7 @@ const agencyName = computed(() => props.settings?.agency_name || 'Denintel Koarm
             </div>
 
             <h1 class="text-6xl md:text-8xl font-black tracking-tighter uppercase leading-none mb-6"> SELAMAT DATANG <br>
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-fuchsia-400 italic"> SI SINDEN
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-fuchsia-400 italic"> SINDEN 2
                 </span>
             </h1>
 

@@ -98,7 +98,7 @@ fun UsersScreen(repository: SindenRepository, permissions: PermissionSet, onBack
 
     SindenScaffold(
         title = "Kelola Pengguna",
-        subtitle = "Akun personel SISINDEN",
+        subtitle = "Akun personel Sinden 2",
         onBack = onBack,
         snackbarHostState = snackbar,
         floatingActionButton = {
@@ -169,7 +169,7 @@ fun UsersScreen(repository: SindenRepository, permissions: PermissionSet, onBack
             InfoRow("Telepon", u.phone)
             InfoRow("Role", u.role)
             Text(
-                "Pengaturan hak akses lanjutan (akses mitra, kas unit teknis, dll.) dilakukan melalui web SISINDEN.",
+                "Pengaturan hak akses lanjutan (akses mitra, kas unit teknis, dll.) dilakukan melalui web Sinden 2.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = Spacing.sm),

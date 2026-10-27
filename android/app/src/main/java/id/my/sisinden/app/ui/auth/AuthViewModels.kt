@@ -54,7 +54,7 @@ class LoginViewModel(private val repository: SindenRepository) : ViewModel() {
     /** @return pesan error, atau null bila tersimpan. */
     fun saveBaseUrl(input: String): String? {
         val normalized = SessionStore.normalizeBaseUrl(input)
-            ?: return "Alamat server tidak valid. Gunakan alamat HTTPS, mis. https://sisinden.my.id"
+            ?: return "Alamat server tidak valid. Gunakan alamat HTTPS, mis. https://sinden2.my.id"
         viewModelScope.launch { repository.setBaseUrl(normalized) }
         return null
     }

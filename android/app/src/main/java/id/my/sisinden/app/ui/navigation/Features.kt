@@ -94,7 +94,7 @@ object Routes {
     fun pdf(apiPath: String, title: String, fileName: String) =
         "pdf?path=${Uri.encode(apiPath)}&title=${Uri.encode(title)}&file=${Uri.encode(fileName)}"
 
-    const val DEEP_LINK_PREFIX = "sisinden://app/"
+    const val DEEP_LINK_PREFIX = "sinden2://app/"
 
     val tabs = listOf(HOME, DUTY, ATTENDANCE, MENU, PROFILE)
 }

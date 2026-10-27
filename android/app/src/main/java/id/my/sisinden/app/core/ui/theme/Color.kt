@@ -4,11 +4,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 /*
- * Palet "Samudra" SISINDEN v1.1.0
+ * Palet "Samudra" Sinden 2 v1.1.0
  *
  * Evaluasi palet lama: aplikasi sebelumnya mencampur teal (#00A884/#0D9488),
  * biru navy, dan beberapa palet "Livin" sekaligus sehingga identitasnya kabur.
- * Web SISINDEN dan konfigurasi server (`mobile_primary_color` = #1E3A8A)
+ * Web Sinden 2 dan konfigurasi server (`mobile_primary_color` = #1E3A8A)
  * memakai biru angkatan laut. Palet baru menjadikan biru samudra sebagai warna
  * utama, mempertahankan teal lama sebagai aksen sekunder (kesinambungan
  * identitas), dan amber sebagai aksen peringatan/komando.

@@ -98,7 +98,7 @@
     <div class="instruction-box">
         <strong>PETUNJUK PENGGUNAAN KODE VERIFIKASI:</strong>
         <ol>
-            <li>Buka halaman <strong>https://sisinden.my.id/aktivasi</strong> dan masukkan NRP / NIP. atau Email Anda.</li>
+            <li>Buka halaman <strong>https://sinden2.my.id/aktivasi</strong> dan masukkan NRP / NIP. atau Email Anda.</li>
             <li>Setelah mengisi formulir, masukkan <strong>Kode Verifikasi</strong> (Token) sesuai nama Anda pada tabel di atas.</li>
             <li>Buat Kata Sandi (Password) baru minimal 8 karakter lalu konfirmasi.</li>
             <li>Klik tombol <strong>Aktifkan Otoritas Akun</strong>. Akun Anda akan langsung aktif.</li>

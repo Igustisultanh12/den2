@@ -7,7 +7,7 @@ import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import AppCopyright from './Components/AppCopyright.vue';
 
-const appName = import.meta.env.VITE_APP_NAME || 'SI SINDEN - DENINTEL KOARMADA 2';
+const appName = import.meta.env.VITE_APP_NAME || 'SINDEN 2 - DENINTEL KOARMADA 2';
 
 createInertiaApp({
     title: (title) => title ? `${title} - ${appName}` : appName,

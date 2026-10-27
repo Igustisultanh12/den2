@@ -192,7 +192,7 @@ class UserController extends Controller
                            "- Email: *{$user->email}*\n" .
                            "- Token: *{$activationToken}*\n\n" .
                            "Silakan aktivasi akun dan buat password Anda di:\n" .
-                           "https://sisinden.my.id/aktivasi\n\n" .
+                           "https://sinden2.my.id/aktivasi\n\n" .
                            "_Harap segera lakukan aktivasi demi keamanan data._";
 
                 WhatsappService::sendMessage($targetPhone, $pesanWA);
@@ -259,7 +259,7 @@ class UserController extends Controller
                            "- NRP: *{$user->nrp}*\n" .
                            "- Email: *{$user->email}*\n\n" .
                            "Silakan login ke sistem menggunakan Email (*{$user->email}*) dan Password yang telah Anda buat di:\n" .
-                           "https://sisinden.my.id/login\n\n" .
+                           "https://sinden2.my.id/login\n\n" .
                            "_Tetap jaga kerahasiaan kredensial akun Anda._";
 
                 WhatsappService::sendMessage($targetPhone, $pesanWA);
@@ -355,7 +355,7 @@ class UserController extends Controller
                                    "- Email: *{$user->email}*\n" .
                                    "- Token: *{$activationToken}*\n\n" .
                                    "Silakan aktivasi akun dan buat password Anda di:\n" .
-                                   "https://sisinden.my.id/aktivasi\n\n" .
+                                   "https://sinden2.my.id/aktivasi\n\n" .
                                    "_Harap segera lakukan aktivasi demi kelancaran kedinasan._";
 
                         WhatsappService::sendMessage($targetPhone, $pesanWA);

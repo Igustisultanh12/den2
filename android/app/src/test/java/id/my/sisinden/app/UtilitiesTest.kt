@@ -53,9 +53,9 @@ class UtilitiesTest {
 
     @Test
     fun serverUrlMustBeHttps() {
-        assertEquals("https://sisinden.my.id", SessionStore.normalizeBaseUrl("sisinden.my.id/"))
+        assertEquals("https://sinden2.my.id", SessionStore.normalizeBaseUrl("sinden2.my.id/"))
         assertEquals("https://mirror.example.go.id/sinden", SessionStore.normalizeBaseUrl(" https://mirror.example.go.id/sinden/ "))
-        assertNull("HTTP polos ditolak", SessionStore.normalizeBaseUrl("http://sisinden.my.id"))
+        assertNull("HTTP polos ditolak", SessionStore.normalizeBaseUrl("http://sinden2.my.id"))
         assertNull(SessionStore.normalizeBaseUrl("bukan url"))
         assertNull(SessionStore.normalizeBaseUrl(""))
     }

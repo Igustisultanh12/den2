@@ -51,7 +51,7 @@ private fun pendingInfo(state: UpdateState): ReleaseInfo? = when (state) {
     else -> null
 }
 
-/** Kartu "Pembaruan aplikasi": versi terpasang, cek manual, unduh & pasang dari server SISINDEN. */
+/** Kartu "Pembaruan aplikasi": versi terpasang, cek manual, unduh & pasang dari server Sinden 2. */
 @Composable
 internal fun UpdateCard() {
     val context = LocalContext.current
@@ -75,13 +75,13 @@ internal fun UpdateCard() {
         }
         Spacer(Modifier.height(Spacing.sm))
         val status = when (val s = state) {
-            UpdateState.Idle -> "Pembaruan disediakan Admin melalui Pengaturan web SISINDEN."
+            UpdateState.Idle -> "Pembaruan disediakan Admin melalui Pengaturan web Sinden 2."
             UpdateState.Checking -> "Memeriksa pembaruan…"
             is UpdateState.UpToDate -> "Aplikasi sudah versi terbaru (v${s.version})."
             is UpdateState.Available -> "Versi ${s.info.version} tersedia" + sizeLabel(s.info.apkSize).let { if (it.isEmpty()) "." else " ($it)." }
             is UpdateState.Downloading -> "Mengunduh v${s.version}… ${s.percent}%"
             is UpdateState.Installing -> "Memasang v${s.version}… Jika diminta, ketuk \"Perbarui\"."
-            is UpdateState.NeedsInstallPermission -> "Versi ${s.info.version} sudah diunduh. Izinkan \"Instal aplikasi tidak dikenal\" untuk SISINDEN, lalu ketuk \"Pasang sekarang\"."
+            is UpdateState.NeedsInstallPermission -> "Versi ${s.info.version} sudah diunduh. Izinkan \"Instal aplikasi tidak dikenal\" untuk Sinden 2, lalu ketuk \"Pasang sekarang\"."
             is UpdateState.Failed -> s.message
         }
         Text(
@@ -161,7 +161,7 @@ fun UpdatePromptHost() {
                     is UpdateState.Downloading -> "Mengunduh pembaruan"
                     is UpdateState.Installing -> "Memasang pembaruan"
                     is UpdateState.Failed -> "Pembaruan gagal"
-                    else -> "Pembaruan SISINDEN tersedia"
+                    else -> "Pembaruan Sinden 2 tersedia"
                 },
             )
         },
@@ -181,7 +181,7 @@ fun UpdatePromptHost() {
                         LinearProgressIndicator(progress = { s.percent / 100f }, modifier = Modifier.fillMaxWidth())
                     }
                     is UpdateState.Installing -> Text("Jika Android meminta konfirmasi, ketuk \"Perbarui\". Aplikasi akan dimulai ulang.")
-                    is UpdateState.NeedsInstallPermission -> Text("Izinkan \"Instal aplikasi tidak dikenal\" untuk SISINDEN, lalu kembali dan ketuk \"Pasang sekarang\".")
+                    is UpdateState.NeedsInstallPermission -> Text("Izinkan \"Instal aplikasi tidak dikenal\" untuk Sinden 2, lalu kembali dan ketuk \"Pasang sekarang\".")
                     is UpdateState.Failed -> Text(s.message, color = MaterialTheme.colorScheme.error)
                     else -> Unit
                 }
