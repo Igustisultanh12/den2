@@ -48,6 +48,13 @@ interface SindenApiService {
     @POST("api/mobile/attendances")
     suspend fun recordAttendance(@Body request: CreateAttendanceRequest): Response<AttendanceActionResponse>
 
+    // ------------------------------------------------------ Pelacakan Lokasi
+    @POST("api/mobile/location")
+    suspend fun reportLocation(@Body request: LocationBatchRequest): Response<LocationReportResponse>
+
+    @GET("api/mobile/tracking")
+    suspend fun tracking(): Response<TrackingResponse>
+
     // ------------------------------------------------------ Notifikasi
     @GET("api/mobile/notifications")
     suspend fun notifications(): Response<NotificationResponse>

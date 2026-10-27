@@ -1,10 +1,8 @@
 package id.my.sisinden.app.ui.attendance
 
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,10 +22,12 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Business
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -39,15 +39,20 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import id.my.sisinden.app.core.ui.components.IconBadge
@@ -93,14 +98,15 @@ fun AttendanceScreen(repository: SindenRepository, canSubmit: Boolean) {
     val snackbar = remember { SnackbarHostState() }
     CollectMessages(vm.messages, snackbar)
 
-    val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        if (result.values.any { it }) vm.fetchLocation()
-    }
-    val requestLocation = {
-        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        if (granted) vm.fetchLocation()
-        else locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+    var showCamera by rememberSaveable { mutableStateOf(false) }
+    if (showCamera) {
+        SmileCameraDialog(
+            onCaptured = { photo ->
+                vm.setPhoto(photo)
+                showCamera = false
+            },
+            onDismiss = { showCamera = false },
+        )
     }
 
     SindenScaffold(title = "Presensi", subtitle = Fmt.fullDate(LocalDate.now()), snackbarHostState = snackbar) { padding ->
@@ -145,17 +151,31 @@ fun AttendanceScreen(repository: SindenRepository, canSubmit: Boolean) {
                                     minLines = 2,
                                 )
                                 Spacer(Modifier.height(Spacing.sm))
-                                LocationRow(
-                                    form = form,
-                                    onRequest = requestLocation,
-                                    onClear = vm::clearLocation,
+                                LocationRow(form = form, onRetry = vm::fetchLocation)
+                                Spacer(Modifier.height(Spacing.md))
+                                SmilePhotoRow(
+                                    photo = form.photo,
+                                    onCapture = { showCamera = true },
+                                    onRetake = {
+                                        vm.setPhoto(null)
+                                        showCamera = true
+                                    },
                                 )
                                 Spacer(Modifier.height(Spacing.lg))
                                 PrimaryButton(
                                     text = if (data.todayAttendance == null) "Kirim presensi" else "Perbarui presensi",
                                     onClick = vm::submit,
                                     loading = form.submitting,
+                                    enabled = form.canSubmit,
                                 )
+                                if (!form.canSubmit && !form.submitting) {
+                                    Text(
+                                        "Lokasi GPS dan foto senyum wajib sebelum presensi dikirim.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = Spacing.sm),
+                                    )
+                                }
                             }
                         }
                     }
@@ -245,16 +265,16 @@ private fun StatusOption(status: AttendanceStatus, selected: Boolean, onSelect: 
 }
 
 @Composable
-private fun LocationRow(form: AttendanceForm, onRequest: () -> Unit, onClear: () -> Unit) {
+private fun LocationRow(form: AttendanceForm, onRetry: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(Spacing.sm))
         Column(Modifier.weight(1f)) {
             val loc = form.location
             when {
-                form.locating -> Text("Mengambil lokasi…", style = MaterialTheme.typography.bodyMedium)
+                form.locating -> Text("Mengambil lokasi GPS…", style = MaterialTheme.typography.bodyMedium)
                 loc != null -> {
-                    Text("Lokasi terlampir", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Lokasi GPS terlampir", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                     Text(
                         String.format(java.util.Locale.US, "%.5f, %.5f", loc.latitude, loc.longitude) + (loc.accuracyMeters?.let { " (±${it.toInt()} m)" } ?: ""),
                         style = MaterialTheme.typography.bodySmall,
@@ -262,9 +282,9 @@ private fun LocationRow(form: AttendanceForm, onRequest: () -> Unit, onClear: ()
                     )
                 }
                 else -> {
-                    Text("Tanpa lokasi", style = MaterialTheme.typography.bodyMedium)
+                    Text("Lokasi GPS wajib", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                     Text(
-                        form.locationError ?: "Lampirkan lokasi GPS bila diminta satuan.",
+                        form.locationError ?: "Menunggu lokasi dari GPS perangkat.",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (form.locationError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -273,8 +293,47 @@ private fun LocationRow(form: AttendanceForm, onRequest: () -> Unit, onClear: ()
         }
         when {
             form.locating -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-            form.location != null -> IconButton(onClick = onClear) { Icon(Icons.Outlined.Close, contentDescription = "Hapus lokasi") }
-            else -> OutlinedButton(onClick = onRequest) { Text("Ambil") }
+            form.location != null -> IconButton(onClick = onRetry) { Icon(Icons.Outlined.Refresh, contentDescription = "Perbarui lokasi") }
+            else -> OutlinedButton(onClick = onRetry) { Text("Coba lagi") }
+        }
+    }
+}
+
+@Composable
+private fun SmilePhotoRow(photo: SmilePhoto?, onCapture: () -> Unit, onRetake: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (photo != null) {
+            Image(
+                bitmap = photo.preview.asImageBitmap(),
+                contentDescription = "Foto verifikasi senyum",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(56.dp).clip(CircleShape),
+            )
+        } else {
+            Icon(Icons.Outlined.Face, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.width(Spacing.sm))
+        Column(Modifier.weight(1f)) {
+            if (photo != null) {
+                Text("Senyum OK · ${photo.smileScore}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text("Foto verifikasi siap dikirim", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Text("Foto senyum wajib", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Kamera depan otomatis memotret saat senyum ≥ $SMILE_THRESHOLD%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (photo != null) {
+            OutlinedButton(onClick = onRetake) { Text("Ulangi") }
+        } else {
+            OutlinedButton(onClick = onCapture) {
+                Icon(Icons.Outlined.PhotoCamera, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(Spacing.xs))
+                Text("Ambil")
+            }
         }
     }
 }
@@ -283,7 +342,11 @@ private fun LocationRow(form: AttendanceForm, onRequest: () -> Unit, onClear: ()
 private fun HistoryRow(item: AttendanceDto) {
     ListRowCard(
         title = Fmt.parseDate(item.dateOnly)?.let { Fmt.fullDate(it) } ?: (item.dateOnly ?: "-"),
-        subtitle = listOfNotNull(item.timeShort?.let { "$it WIB" }, item.locationName?.takeIf { it.isNotBlank() }).joinToString(" · "),
+        subtitle = listOfNotNull(
+            item.timeShort?.let { "$it WIB" },
+            item.smileScore?.let { "Senyum $it%" },
+            item.locationName?.takeIf { it.isNotBlank() },
+        ).joinToString(" · "),
         supporting = item.notes,
         trailing = { StatusChip(item.statusLabel, statusTone(item.status)) },
     )

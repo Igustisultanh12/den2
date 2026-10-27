@@ -15,6 +15,9 @@ object Perm {
     const val ATTENDANCE_VIEW = "attendance.view"
     const val ATTENDANCE_CREATE = "attendance.create"
 
+    const val LOCATION_REPORT = "location.report"
+    const val TRACKING_VIEW = "tracking.view"
+
     const val DUTY_VIEW = "duty_roster.view"
     const val DUTY_PDF = "duty_roster.pdf"
 

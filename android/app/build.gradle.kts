@@ -26,10 +26,15 @@ android {
         applicationId = "id.my.sisinden.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "1.1.2"
+        versionCode = 10
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Library native ML Kit (deteksi senyum) hanya untuk HP ARM agar APK tetap ramping.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -112,6 +117,13 @@ dependencies {
 
     // Asynchronous Coroutines
     implementation(libs.kotlinx.coroutines.android)
+
+    // Kamera presensi + deteksi senyum on-device (model ML Kit dibundel, tanpa Play Services)
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.face.detection)
 
     // Testing
     testImplementation(libs.junit)

@@ -30,6 +30,7 @@ use App\Http\Controllers\SkhppController;
 use App\Http\Controllers\DocVerificationController;
 use App\Http\Controllers\SpJagaController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\PersonnelTrackingController;
 use App\Http\Controllers\PublicTrackingController;
 use App\Http\Controllers\ScSubmissionController;
 use App\Http\Controllers\SystemCheckController;
@@ -235,8 +236,13 @@ Route::middleware('auth')->group(function () {
     // Fitur GPS Lokasi Personel
     Route::post('/update-location', [LocationController::class, 'update'])->name('location.update');
 
-    // Fitur Presensi Kehadiran Personel (Opsional)
+    // Fitur Presensi Kehadiran Personel (wajib GPS & foto senyum)
     Route::post('/attendances', [AttendanceController::class, 'store'])->name('attendances.store');
+
+    // Pantau Personel: posisi realtime dari aplikasi Android (Admin, Super Admin, Komandan)
+    Route::get('/pantau-personel', [PersonnelTrackingController::class, 'index'])->name('tracking.index');
+    Route::get('/pantau-personel/data', [PersonnelTrackingController::class, 'data'])->name('tracking.data');
+    Route::get('/pantau-personel/{userId}/jejak', [PersonnelTrackingController::class, 'history'])->whereNumber('userId')->name('tracking.history');
 
     // --- FITUR MANAJEMEN PENGAJUAN SECURITY CLEARANCE (SC) ---
     Route::get('sc-submissions/export-pdf', [ScSubmissionController::class, 'exportPdf'])->name('sc-submissions.pdf');

@@ -480,15 +480,35 @@ const openAttendanceModal = async () => {
                 isDetectingLocation.value = false;
             },
             (err) => {
-                locationStatusText.value = 'Akses koordinat GPS belum diizinkan. Lokasi diperkirakan via IP pangkalan.';
+                locationStatusText.value = 'Akses lokasi GPS wajib. Izinkan akses lokasi pada browser, lalu tekan "Coba lagi".';
                 isDetectingLocation.value = false;
             },
-            { enableHighAccuracy: true, timeout: 8000 }
+            { enableHighAccuracy: true, timeout: 15000 }
         );
     } else {
-        locationStatusText.value = 'Peramban tidak mendukung GPS. Lokasi ditentukan via IP jaringan.';
+        locationStatusText.value = 'Peramban tidak mendukung GPS. Gunakan peramban lain atau aplikasi SISINDEN Android.';
         isDetectingLocation.value = false;
     }
+};
+
+const retryLocation = () => {
+    attendanceForm.value.latitude = null;
+    attendanceForm.value.longitude = null;
+    isDetectingLocation.value = true;
+    locationStatusText.value = 'Mendeteksi titik koordinat GPS...';
+    navigator.geolocation?.getCurrentPosition(
+        (pos) => {
+            attendanceForm.value.latitude = pos.coords.latitude;
+            attendanceForm.value.longitude = pos.coords.longitude;
+            locationStatusText.value = `Koordinat: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+            isDetectingLocation.value = false;
+        },
+        () => {
+            locationStatusText.value = 'Akses lokasi GPS wajib. Izinkan akses lokasi pada browser, lalu tekan "Coba lagi".';
+            isDetectingLocation.value = false;
+        },
+        { enableHighAccuracy: true, timeout: 15000 }
+    );
 };
 
 const closeAttendanceModal = () => {
@@ -501,9 +521,13 @@ const submitAttendance = () => {
         alert('Perhatian: Harap lakukan pemotretan wajah dengan tersenyum terlebih dahulu sebelum menyimpan presensi kehadiran.');
         return;
     }
+    if (attendanceForm.value.latitude === null || attendanceForm.value.longitude === null) {
+        alert('Perhatian: Lokasi GPS wajib. Izinkan akses lokasi pada browser lalu tekan "Coba lagi".');
+        return;
+    }
 
     isSubmittingAttendance.value = true;
-    router.post(route('attendances.store'), attendanceForm.value, {
+    router.post(route('attendances.store'), { ...attendanceForm.value, smile_score: capturedSmileScore.value }, {
         preserveScroll: true,
         onSuccess: () => {
             closeAttendanceModal();
@@ -1146,6 +1170,12 @@ onUnmounted(() => {
                                     <span class="font-bold text-slate-800 truncate">{{ locationStatusText }}</span>
                                 </div>
                                 <span v-if="attendanceForm.latitude" class="text-[10px] font-mono font-bold text-blue-600 shrink-0">GPS Aktif</span>
+                                <button
+                                    v-else-if="!isDetectingLocation"
+                                    type="button"
+                                    class="text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-2.5 py-1 shrink-0"
+                                    @click="retryLocation"
+                                >Coba lagi</button>
                             </div>
                         </div>
 

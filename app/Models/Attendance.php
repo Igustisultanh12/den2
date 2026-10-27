@@ -22,12 +22,14 @@ class Attendance extends Model
         'location_name',
         'notes',
         'photo',
+        'smile_score',
     ];
 
     protected $casts = [
         'attendance_date' => 'date:Y-m-d', // hindari pergeseran tanggal akibat konversi UTC saat serialisasi JSON
         'latitude' => 'double',
         'longitude' => 'double',
+        'smile_score' => 'integer',
     ];
 
     protected $appends = [

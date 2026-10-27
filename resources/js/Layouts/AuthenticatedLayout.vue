@@ -27,6 +27,8 @@ const isAdmin = computed(() => {
     return isSuperAdmin.value || r === 'admin' || Boolean(page.props.auth.user?.is_admin);
 });
 const user = computed(() => page.props.auth.user);
+// Selaras dengan MobileAccess::canViewTracking (Admin, Super Admin, Komandan).
+const canViewTracking = computed(() => isAdmin.value || (page.props.auth.user?.role || '').toLowerCase() === 'komandan');
 
 const commandPaletteRef = ref(null);
 
@@ -389,8 +391,18 @@ onUnmounted(() => {
                         <!-- SISTEM -->
                         <div v-if="!isAnggotaSintel" class="space-y-1 pb-6">
                             <p class="px-4 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Sistem</p>
-                            
-                            <Link 
+
+                            <Link
+                                v-if="canViewTracking"
+                                :href="route('tracking.index')"
+                                @click="isMobileMenuOpen = false"
+                                :class="route().current('tracking.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'" class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
+                            >
+                                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                <span>Pantau Personel</span>
+                            </Link>
+
+                            <Link
                                 v-if="isAdmin"
                                 :href="route('users.index')" 
                                 @click="isMobileMenuOpen = false"
@@ -655,8 +667,17 @@ onUnmounted(() => {
                     <!-- PENGATURAN & AKSES -->
                     <div v-if="!isAnggotaSintel" class="space-y-1 pb-6">
                         <p class="px-5 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Sistem</p>
-                        
-                        <Link 
+
+                        <Link
+                            v-if="canViewTracking"
+                            :href="route('tracking.index')"
+                            :class="route().current('tracking.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'" class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
+                        >
+                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <span>Pantau Personel</span>
+                        </Link>
+
+                        <Link
                             v-if="isAdmin"
                             :href="route('users.index')" 
                             :class="route().current('users.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"

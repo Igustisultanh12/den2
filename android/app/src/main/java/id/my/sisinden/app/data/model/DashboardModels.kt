@@ -41,6 +41,7 @@ data class AttendanceDto(
     @SerializedName("device") val device: String? = null,
     @SerializedName("notes") val notes: String? = null,
     @SerializedName("photo_url") val photoUrl: String? = null,
+    @SerializedName("smile_score") val smileScore: Int? = null,
 ) {
     /** "2026-10-13T00:00:00.000000Z" → "2026-10-13" */
     val dateOnly: String? get() = attendanceDate?.take(10)
@@ -71,10 +72,14 @@ data class AttendanceResponse(
 
 data class CreateAttendanceRequest(
     @SerializedName("status") val status: String,
-    @SerializedName("latitude") val latitude: Double? = null,
-    @SerializedName("longitude") val longitude: Double? = null,
+    @SerializedName("latitude") val latitude: Double,
+    @SerializedName("longitude") val longitude: Double,
+    @SerializedName("accuracy") val accuracy: Float? = null,
     @SerializedName("device_model") val deviceModel: String? = null,
     @SerializedName("notes") val notes: String? = null,
+    /** data:image/jpeg;base64,… hasil foto verifikasi senyum. */
+    @SerializedName("photo") val photo: String,
+    @SerializedName("smile_score") val smileScore: Int? = null,
 )
 
 data class AttendanceActionResponse(

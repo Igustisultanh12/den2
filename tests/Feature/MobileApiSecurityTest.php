@@ -8,6 +8,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -18,6 +19,9 @@ use Tests\TestCase;
  */
 class MobileApiSecurityTest extends TestCase
 {
+    /** PNG 1x1 valid sebagai pengganti foto senyum dari kamera. */
+    private const SMILE_PHOTO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -74,7 +78,34 @@ class MobileApiSecurityTest extends TestCase
             $t->string('location_name')->nullable();
             $t->text('notes')->nullable();
             $t->string('photo')->nullable();
+            $t->unsignedTinyInteger('smile_score')->nullable();
             $t->timestamps();
+        });
+        Schema::create('personnel_locations', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('user_id')->unique();
+            $t->decimal('latitude', 10, 7);
+            $t->decimal('longitude', 10, 7);
+            $t->float('accuracy')->nullable();
+            $t->float('speed')->nullable();
+            $t->float('heading')->nullable();
+            $t->unsignedTinyInteger('battery')->nullable();
+            $t->boolean('is_charging')->nullable();
+            $t->string('provider')->nullable();
+            $t->string('device')->nullable();
+            $t->timestamp('recorded_at');
+            $t->timestamps();
+        });
+        Schema::create('personnel_location_histories', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('user_id');
+            $t->decimal('latitude', 10, 7);
+            $t->decimal('longitude', 10, 7);
+            $t->float('accuracy')->nullable();
+            $t->float('speed')->nullable();
+            $t->unsignedTinyInteger('battery')->nullable();
+            $t->timestamp('recorded_at');
+            $t->timestamp('created_at')->nullable();
         });
         Schema::create('app_notifications', function (Blueprint $t) {
             $t->id();
@@ -279,13 +310,19 @@ class MobileApiSecurityTest extends TestCase
 
     public function test_attendance_is_recorded_for_token_owner_only(): void
     {
+        Storage::fake('public');
         $victim = $this->makeUser();
         $actor = $this->makeUser();
 
         $this->withToken($this->tokenFor($actor))
             ->withHeaders(['X-User-Id' => (string) $victim->id])
-            ->postJson('/api/mobile/attendances', ['status' => 'hadir', 'user_id' => $victim->id])
-            ->assertOk();
+            ->postJson('/api/mobile/attendances', [
+                'status' => 'hadir', 'user_id' => $victim->id,
+                'latitude' => -7.2575, 'longitude' => 112.7521,
+                'photo' => self::SMILE_PHOTO, 'smile_score' => 87,
+            ])
+            ->assertOk()
+            ->assertJsonPath('attendance.smile_score', 87);
 
         $this->assertSame(1, DB::table('attendances')->where('user_id', $actor->id)->count());
         $this->assertSame(0, DB::table('attendances')->where('user_id', $victim->id)->count());
@@ -294,6 +331,72 @@ class MobileApiSecurityTest extends TestCase
         $this->withToken($this->tokenFor($actor))->getJson('/api/mobile/attendances')
             ->assertOk()
             ->assertJsonPath('today_attendance.attendance_date', now()->toDateString());
+
+        // Titik presensi ikut memperbarui posisi personel di peta pemantauan.
+        $this->assertSame(1, DB::table('personnel_locations')->where('user_id', $actor->id)->count());
+    }
+
+    public function test_attendance_requires_gps_and_smile_photo(): void
+    {
+        Storage::fake('public');
+        $token = $this->tokenFor($this->makeUser());
+
+        $this->withToken($token)->postJson('/api/mobile/attendances', ['status' => 'hadir', 'photo' => self::SMILE_PHOTO])
+            ->assertStatus(422)->assertJsonValidationErrors(['latitude', 'longitude']);
+        $this->withToken($token)->postJson('/api/mobile/attendances', ['status' => 'hadir', 'latitude' => -7.25, 'longitude' => 112.75])
+            ->assertStatus(422)->assertJsonValidationErrors(['photo']);
+        $this->withToken($token)->postJson('/api/mobile/attendances', [
+            'status' => 'hadir', 'latitude' => -7.25, 'longitude' => 112.75, 'photo' => 'data:image/jpeg;base64,bukan-gambar',
+        ])->assertStatus(422)->assertJsonValidationErrors(['photo']);
+
+        $this->assertSame(0, DB::table('attendances')->count());
+    }
+
+    public function test_location_report_and_tracking_visibility_by_role(): void
+    {
+        $personel = $this->makeUser(['name' => 'Budi', 'role' => 'personel']);
+        $this->withToken($this->tokenFor($personel))->postJson('/api/mobile/location', [
+            'device_model' => 'Samsung A54',
+            'points' => [
+                ['latitude' => -7.20, 'longitude' => 112.70, 'battery' => 80, 'recorded_at' => now()->subMinutes(2)->toIso8601String()],
+                ['latitude' => -7.21, 'longitude' => 112.71, 'battery' => 79, 'accuracy' => 8, 'recorded_at' => now()->subMinute()->toIso8601String()],
+            ],
+        ])->assertOk()->assertJsonPath('accepted', 2);
+
+        // Titik lama yang datang belakangan tidak boleh menimpa posisi terakhir.
+        $this->withToken($this->tokenFor($personel))->postJson('/api/mobile/location', [
+            'latitude' => -7.99, 'longitude' => 112.99, 'recorded_at' => now()->subHour()->toIso8601String(),
+        ])->assertOk();
+
+        $this->assertSame(3, DB::table('personnel_location_histories')->where('user_id', $personel->id)->count());
+
+        // Personel biasa tidak boleh melihat posisi orang lain.
+        $this->withToken($this->tokenFor($personel))->getJson('/api/mobile/tracking')
+            ->assertStatus(403)->assertJsonPath('required_permission', 'tracking.view');
+        $this->assertNotContains('tracking.view', $this->withToken($this->tokenFor($personel))->getJson('/api/mobile/me')->json('user.permissions'));
+
+        foreach (['admin', 'super_admin', 'komandan'] as $role) {
+            $viewer = $this->makeUser(['role' => $role]);
+            $res = $this->withToken($this->tokenFor($viewer))->getJson('/api/mobile/tracking')->assertOk();
+            $budi = collect($res->json('personnel'))->firstWhere('user_id', $personel->id);
+            $this->assertEqualsWithDelta(-7.21, $budi['latitude'], 0.00001, "role {$role}");
+            $this->assertSame(79, $budi['battery']);
+            $this->assertSame('Samsung A54', $budi['device']);
+            $this->assertTrue($budi['is_online']);
+
+            $trail = $this->withToken($this->tokenFor($viewer))->getJson("/api/mobile/tracking/{$personel->id}/history?hours=24")
+                ->assertOk()->json('points');
+            $this->assertCount(3, $trail);
+        }
+    }
+
+    public function test_location_report_rejects_invalid_coordinates_and_requires_token(): void
+    {
+        $this->postJson('/api/mobile/location', ['latitude' => -7.2, 'longitude' => 112.7])->assertStatus(401);
+
+        $token = $this->tokenFor($this->makeUser());
+        $this->withToken($token)->postJson('/api/mobile/location', ['latitude' => 120, 'longitude' => 112.7])->assertStatus(422);
+        $this->withToken($token)->postJson('/api/mobile/location', ['points' => []])->assertStatus(422);
     }
 
     public function test_activation_requires_valid_token(): void

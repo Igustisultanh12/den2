@@ -32,8 +32,12 @@ data class AttendanceForm(
     val location: GeoPoint? = null,
     val locating: Boolean = false,
     val locationError: String? = null,
+    /** Foto verifikasi senyum (wajib), sama seperti presensi di web. */
+    val photo: SmilePhoto? = null,
     val submitting: Boolean = false,
-)
+) {
+    val canSubmit: Boolean get() = location != null && photo != null && !submitting
+}
 
 class AttendanceViewModel(
     private val repository: SindenRepository,
@@ -53,6 +57,7 @@ class AttendanceViewModel(
 
     init {
         load()
+        fetchLocation()
     }
 
     fun load(pullToRefresh: Boolean = false) {
@@ -74,9 +79,9 @@ class AttendanceViewModel(
 
     fun setStatus(status: AttendanceStatus) = _form.update { it.copy(status = status) }
     fun setNotes(notes: String) = _form.update { it.copy(notes = notes.take(1000)) }
-    fun clearLocation() = _form.update { it.copy(location = null, locationError = null) }
+    fun setPhoto(photo: SmilePhoto?) = _form.update { it.copy(photo = photo) }
 
-    /** Dipanggil setelah izin lokasi diberikan pengguna. */
+    /** Lokasi wajib; LocationGate memastikan izin sudah diberikan sebelum layar ini tampil. */
     @SuppressLint("MissingPermission")
     fun fetchLocation() {
         if (_form.value.locating) return
@@ -85,7 +90,7 @@ class AttendanceViewModel(
             val point = runCatching { currentLocation() }.getOrNull()
             _form.update {
                 if (point != null) it.copy(locating = false, location = point)
-                else it.copy(locating = false, locationError = "Lokasi belum didapat. Pastikan GPS aktif lalu coba lagi, atau kirim tanpa lokasi.")
+                else it.copy(locating = false, locationError = "Lokasi belum didapat. Pastikan GPS aktif dan Anda di area terbuka, lalu coba lagi.")
             }
         }
     }
@@ -122,19 +127,32 @@ class AttendanceViewModel(
     fun submit() {
         val f = _form.value
         if (f.submitting) return
+        val location = f.location
+        val photo = f.photo
+        if (location == null) {
+            messages.post("Lokasi GPS wajib. Tunggu hingga lokasi didapat.")
+            return
+        }
+        if (photo == null) {
+            messages.post("Ambil foto verifikasi senyum terlebih dahulu.")
+            return
+        }
         _form.update { it.copy(submitting = true) }
         viewModelScope.launch {
             val res = repository.recordAttendance(
                 status = f.status.code,
-                lat = f.location?.latitude,
-                lng = f.location?.longitude,
+                lat = location.latitude,
+                lng = location.longitude,
+                accuracy = location.accuracyMeters,
                 notes = f.notes,
+                photoDataUrl = photo.dataUrl,
+                smileScore = photo.smileScore,
             )
             _form.update { it.copy(submitting = false) }
             when (res) {
                 is ApiResult.Success -> {
                     messages.post(res.data.message ?: "Presensi tercatat.")
-                    _form.update { it.copy(notes = "") }
+                    _form.update { it.copy(notes = "", photo = null) }
                     load()
                 }
                 is ApiResult.Failure -> messages.post(res.error.message)

@@ -66,6 +66,7 @@ import id.my.sisinden.app.ui.settings.SettingsScreen
 import id.my.sisinden.app.ui.signature.SignatureScreen
 import id.my.sisinden.app.ui.skhpp.SkhppFormScreen
 import id.my.sisinden.app.ui.skhpp.SkhppScreen
+import id.my.sisinden.app.ui.tracking.TrackingScreen
 import id.my.sisinden.app.ui.users.UsersScreen
 import id.my.sisinden.app.ui.violations.ViolationFormScreen
 import id.my.sisinden.app.ui.violations.ViolationsScreen
@@ -293,6 +294,9 @@ fun MainNavigation(
             }
             composable(Routes.USERS, deepLinks = appDeepLink("users")) {
                 Guard(currentPerms(), Perm.USERS_VIEW, back) { UsersScreen(repository, currentPerms(), onBack = back) }
+            }
+            composable(Routes.TRACKING, deepLinks = appDeepLink("tracking")) {
+                Guard(currentPerms(), Perm.TRACKING_VIEW, back) { TrackingScreen(repository, onBack = back) }
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(repository, onBack = back)

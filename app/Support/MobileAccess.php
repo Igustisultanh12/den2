@@ -70,6 +70,12 @@ class MobileAccess
         return self::normalizedRole($user) === 'komandan';
     }
 
+    /** Admin, Super Admin, dan Komandan boleh memantau posisi realtime personel. */
+    public static function canViewTracking(User $user): bool
+    {
+        return self::isAdmin($user) || self::isKomandan($user);
+    }
+
     public static function isPasops(User $user): bool
     {
         $name = strtolower((string) $user->name);
@@ -110,6 +116,10 @@ class MobileAccess
             'attendance.view' => true,
             'attendance.create' => true,
             'attendance.view_all' => in_array(self::normalizedRole($user), ['superadmin', 'super_admin', 'admin', 'komandan', 'pasops'], true),
+
+            // Pelacakan lokasi realtime: semua personel melapor, hanya pimpinan yang memantau.
+            'location.report' => true,
+            'tracking.view' => self::canViewTracking($user),
 
             'duty_roster.view' => true,
             'duty_roster.view_unpublished' => $spJagaAdmin || self::isPasops($user),

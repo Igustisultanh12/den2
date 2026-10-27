@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
+use App\Support\PersonnelTracking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
@@ -19,13 +20,19 @@ class AttendanceController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
+            // Lokasi GPS & foto senyum wajib (selaras dengan aplikasi Android).
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
             'location_name' => 'nullable|string|max:255',
             'device_model' => 'nullable|string|max:255',
             'status' => 'nullable|string|in:hadir,dinas_luar,piket,izin',
             'notes' => 'nullable|string|max:500',
-            'photo' => 'nullable|string',
+            'photo' => 'required|string',
+            'smile_score' => 'nullable|integer|between:0,100',
+        ], [
+            'latitude.required' => 'Lokasi GPS wajib. Izinkan akses lokasi pada browser lalu coba lagi.',
+            'longitude.required' => 'Lokasi GPS wajib. Izinkan akses lokasi pada browser lalu coba lagi.',
+            'photo.required' => 'Foto verifikasi senyum wajib diambil sebelum presensi.',
         ]);
 
         $user = Auth::user();
@@ -112,6 +119,9 @@ class AttendanceController extends Controller
         if ($photoPath) {
             $saveData['photo'] = $photoPath;
         }
+        if ($request->filled('smile_score')) {
+            $saveData['smile_score'] = (int) $request->smile_score;
+        }
 
         // Simpan / Perbarui Presensi Kehadiran Hari Ini
         $attendance = Attendance::updateOrCreate(
@@ -121,6 +131,13 @@ class AttendanceController extends Controller
             ],
             $saveData
         );
+
+        // Titik presensi sekaligus memperbarui posisi personel di peta pemantauan.
+        PersonnelTracking::record($user, [[
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'provider' => 'attendance',
+        ]], $deviceInfo);
 
         return redirect()->back()->with('success', "Lapor! Presensi kehadiran mandiri berhasil dicatat pada pukul {$timeNow} WIB.");
     }

@@ -5,11 +5,18 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Lokasi hanya diminta saat pengguna menekan "Gunakan lokasi saya" pada Presensi -->
+    <!-- Lokasi wajib: presensi + pelacakan realtime personel selama login (lihat LocationGate) -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Kamera depan untuk foto verifikasi senyum saat presensi -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
 
     <application
         android:name=".SindenApplication"
@@ -42,6 +49,12 @@
                 <data android:scheme="sisinden" android:host="app" />
             </intent-filter>
         </activity>
+
+        <!-- Pelacakan lokasi realtime selama personel login (notifikasi permanen) -->
+        <service
+            android:name=".core.tracking.LocationTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <!-- Berbagi berkas PDF hasil unduhan tanpa izin penyimpanan luas -->
         <provider

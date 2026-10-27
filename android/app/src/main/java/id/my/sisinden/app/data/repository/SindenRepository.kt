@@ -105,17 +105,40 @@ class SindenRepository(
 
     suspend fun attendances() = call { attendances() }
 
-    suspend fun recordAttendance(status: String, lat: Double?, lng: Double?, notes: String?) = call {
+    /** Lokasi GPS & foto senyum wajib (ditegakkan juga oleh server). */
+    suspend fun recordAttendance(
+        status: String,
+        lat: Double,
+        lng: Double,
+        accuracy: Float?,
+        notes: String?,
+        photoDataUrl: String,
+        smileScore: Int?,
+    ) = call {
         recordAttendance(
             CreateAttendanceRequest(
                 status = status,
                 latitude = lat,
                 longitude = lng,
-                deviceModel = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})".take(150),
+                accuracy = accuracy,
+                deviceModel = deviceModel,
                 notes = notes?.takeIf { it.isNotBlank() },
+                photo = photoDataUrl,
+                smileScore = smileScore,
             )
         )
     }
+
+    // ------------------------------------------------ Pelacakan Lokasi
+
+    suspend fun reportLocation(points: List<LocationPoint>) = call {
+        reportLocation(LocationBatchRequest(points = points, deviceModel = deviceModel))
+    }
+
+    suspend fun tracking() = call { tracking() }
+
+    private val deviceModel: String
+        get() = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})".take(150)
 
     // ----------------------------------------------------- Notifikasi
 

@@ -21,3 +21,8 @@ Schedule::call(function () {
             'guest_expires_at' => null,
         ]);
 })->hourly()->name('cleanup-expired-guest-shares');
+
+// Jadwal Rutin Otomatis: Bersihkan jejak lokasi personel yang lebih tua dari 30 hari
+Schedule::call(fn () => \App\Support\PersonnelTracking::pruneHistory())
+    ->dailyAt('02:00')
+    ->name('prune-personnel-location-history');

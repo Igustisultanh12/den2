@@ -1,3 +1,28 @@
+# SISINDEN Android v1.2.0 (versionCode 10)
+
+Rilis fitur pelacakan lokasi realtime dan presensi foto senyum.
+
+> ⚠️ **Wajib sebelum dipakai:** perbarui server SISINDEN ke `main` terbaru lalu jalankan `php artisan migrate --force` (tabel `personnel_locations`, `personnel_location_histories`, kolom `attendances.smile_score`). Pastikan scheduler Laravel (`php artisan schedule:run` tiap menit) aktif agar jejak lokasi > 30 hari dibersihkan otomatis.
+
+## Yang baru
+
+- **Akses lokasi wajib** — aplikasi tidak dapat dipakai sebelum izin lokasi presisi, izin **"Izinkan sepanjang waktu"**, dan GPS perangkat aktif. Layar panduan menunjukkan langkah yang belum terpenuhi.
+- **Pelacakan lokasi realtime** — selama login, posisi personel dikirim ke server sekitar tiap 30 detik (tetap berjalan saat aplikasi di latar, ditandai notifikasi permanen "Pelacakan lokasi dinas aktif"). Titik yang gagal terkirim saat sinyal buruk dikirim ulang otomatis. Pelacakan berhenti saat logout.
+- **Pantau Personel** (Admin, Super Admin, Komandan) — daftar posisi terakhir seluruh personel dengan status online/offline, waktu pembaruan, akurasi, dan baterai; ketuk untuk membuka di aplikasi peta. Di web tersedia peta realtime (menu **Sistem → Pantau Personel**) lengkap dengan jejak 1–24 jam.
+- **Presensi foto senyum** — sama seperti di web: kamera depan memotret otomatis setelah senyum ≥ 50% terdeteksi (deteksi on-device, tanpa internet). Lokasi GPS dan foto senyum **wajib**; skor senyum tersimpan di riwayat.
+
+## Perubahan server
+
+- Presensi web & aplikasi kini menolak pengiriman tanpa koordinat GPS atau tanpa foto senyum yang valid.
+- Endpoint baru: `POST /api/mobile/location`, `GET /api/mobile/tracking`, `GET /api/mobile/tracking/{id}/history`.
+
+## Catatan
+
+- APK hanya untuk HP berprosesor ARM (hampir semua ponsel Android).
+- Ukuran APK ±32 MB karena model deteksi wajah dibundel agar berjalan tanpa Google Play Services.
+
+---
+
 # SISINDEN Android v1.1.2 (versionCode 9)
 
 Rilis penyelarasan identitas satuan.

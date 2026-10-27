@@ -10,8 +10,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.ui.platform.LocalContext
 import id.my.sisinden.app.core.data.SessionState
+import id.my.sisinden.app.core.tracking.LocationTrackingService
 import id.my.sisinden.app.data.repository.SindenRepository
+import id.my.sisinden.app.ui.tracking.LocationGate
 import id.my.sisinden.app.ui.auth.ActivationScreen
 import id.my.sisinden.app.ui.auth.LoginScreen
 import id.my.sisinden.app.ui.splash.SplashScreen
@@ -42,6 +45,12 @@ fun SindenRoot(
         is SessionState.LoggedIn -> 2
     }
 
+    // Pelacakan lokasi hanya berjalan selama login; dimulai oleh LocationGate.
+    val context = LocalContext.current
+    LaunchedEffect(stage) {
+        if (stage == 1) LocationTrackingService.stop(context.applicationContext)
+    }
+
     Crossfade(targetState = stage, animationSpec = tween(350), label = "rootStage") { s ->
         when (s) {
             0 -> SplashScreen()
@@ -49,12 +58,14 @@ fun SindenRoot(
             else -> {
                 val loggedIn = session as? SessionState.LoggedIn
                 if (loggedIn != null) {
-                    MainNavigation(
-                        repository = repository,
-                        session = loggedIn,
-                        newIntent = newIntent,
-                        onIntentHandled = onIntentHandled,
-                    )
+                    LocationGate {
+                        MainNavigation(
+                            repository = repository,
+                            session = loggedIn,
+                            newIntent = newIntent,
+                            onIntentHandled = onIntentHandled,
+                        )
+                    }
                 } else {
                     SplashScreen()
                 }

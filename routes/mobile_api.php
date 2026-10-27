@@ -1119,26 +1119,33 @@ Route::post('/api/mobile/attendances', function (Request $request) {
         $data = mobile_payload($request);
         $v = Validator::make($data, [
             'status' => 'required|in:hadir,dinas_luar,piket,izin',
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
+            // Lokasi GPS & foto senyum wajib, sama seperti presensi di web.
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+            'accuracy' => 'nullable|numeric|min:0',
             'location_name' => 'nullable|string|max:255',
             'device_model' => 'nullable|string|max:150',
             'notes' => 'nullable|string|max:1000',
-            'photo' => 'nullable|string',
+            'photo' => 'required|string',
+            'smile_score' => 'nullable|integer|between:0,100',
+        ], [
+            'latitude.required' => 'Lokasi GPS wajib. Aktifkan GPS dan izinkan akses lokasi.',
+            'longitude.required' => 'Lokasi GPS wajib. Aktifkan GPS dan izinkan akses lokasi.',
+            'photo.required' => 'Foto verifikasi senyum wajib diambil sebelum presensi.',
         ]);
         if ($v->fails()) return mobile_validation_error($v);
 
         $today = now()->toDateString();
         $timeNow = now()->format('H:i:s');
-        $lat = isset($data['latitude']) ? (float) $data['latitude'] : null;
-        $lng = isset($data['longitude']) ? (float) $data['longitude'] : null;
+        $lat = (float) $data['latitude'];
+        $lng = (float) $data['longitude'];
         $locName = $data['location_name'] ?? null;
-        if (empty($locName) && $lat !== null && $lng !== null) {
+        if (empty($locName)) {
             $locName = "GPS: {$lat}, {$lng}";
         }
 
         $photoPath = null;
-        if (!empty($data['photo']) && str_starts_with($data['photo'], 'data:image/')) {
+        if (str_starts_with($data['photo'], 'data:image/')) {
             $parts = explode(',', $data['photo'], 2);
             $decoded = count($parts) === 2 ? base64_decode($parts[1], true) : false;
             if ($decoded !== false && strlen($decoded) <= 5 * 1024 * 1024 && @getimagesizefromstring($decoded)) {
@@ -1146,6 +1153,13 @@ Route::post('/api/mobile/attendances', function (Request $request) {
                 \Illuminate\Support\Facades\Storage::disk('public')->put($filename, $decoded);
                 $photoPath = $filename;
             }
+        }
+        if ($photoPath === null) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Foto verifikasi senyum tidak valid. Silakan ambil ulang foto.',
+                'errors' => ['photo' => ['Foto verifikasi senyum tidak valid.']],
+            ], 422);
         }
 
         $saveData = [
@@ -1158,15 +1172,22 @@ Route::post('/api/mobile/attendances', function (Request $request) {
             'longitude' => $lng,
             'location_name' => $locName,
             'notes' => $data['notes'] ?? null,
+            'photo' => $photoPath,
+            'smile_score' => isset($data['smile_score']) ? (int) $data['smile_score'] : null,
         ];
-        if ($photoPath) {
-            $saveData['photo'] = $photoPath;
-        }
 
         $attendance = \App\Models\Attendance::updateOrCreate(
             ['user_id' => $user->id, 'attendance_date' => $today],
             $saveData
         );
+
+        // Titik presensi sekaligus memperbarui posisi personel di peta pemantauan.
+        \App\Support\PersonnelTracking::record($user, [[
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'accuracy' => $data['accuracy'] ?? null,
+            'provider' => 'attendance',
+        ]], $data['device_model'] ?? null);
 
         return response()->json([
             'status' => 'success',
@@ -1177,3 +1198,66 @@ Route::post('/api/mobile/attendances', function (Request $request) {
         return mobile_error($e, 'Gagal mencatat presensi.');
     }
 })->middleware(['mobile.auth:attendance.create', 'throttle:20,1']);
+
+// =====================================================================
+// 16. PELACAKAN LOKASI REALTIME PERSONEL
+// =====================================================================
+// Aplikasi mengirim titik lokasi berkala (atau sekumpulan titik yang tertunda
+// saat offline). Identitas personel HANYA dari token.
+Route::post('/api/mobile/location', function (Request $request) {
+    try {
+        $data = mobile_payload($request);
+        $points = isset($data['points']) && is_array($data['points']) ? $data['points'] : [$data];
+        $v = Validator::make(['points' => $points, 'device_model' => $data['device_model'] ?? null], [
+            'points' => 'required|array|min:1|max:200',
+            'points.*.latitude' => 'required|numeric|between:-90,90',
+            'points.*.longitude' => 'required|numeric|between:-180,180',
+            'points.*.accuracy' => 'nullable|numeric|min:0',
+            'points.*.speed' => 'nullable|numeric|min:0',
+            'points.*.heading' => 'nullable|numeric|between:0,360',
+            'points.*.battery' => 'nullable|integer|between:0,100',
+            'points.*.is_charging' => 'nullable|boolean',
+            'points.*.provider' => 'nullable|string|max:30',
+            'points.*.recorded_at' => 'nullable|date',
+            'device_model' => 'nullable|string|max:150',
+        ]);
+        if ($v->fails()) return mobile_validation_error($v);
+
+        $location = \App\Support\PersonnelTracking::record($request->user(), $points, $data['device_model'] ?? null);
+
+        return response()->json([
+            'status' => 'success',
+            'accepted' => count($points),
+            'recorded_at' => $location?->recorded_at?->toIso8601String(),
+        ]);
+    } catch (\Throwable $e) {
+        return mobile_error($e, 'Gagal menyimpan lokasi.');
+    }
+})->middleware(['mobile.auth:location.report', 'throttle:60,1']);
+
+Route::get('/api/mobile/tracking', function () {
+    try {
+        $personnel = \App\Support\PersonnelTracking::snapshot();
+        return response()->json([
+            'status' => 'success',
+            'server_time' => now()->toIso8601String(),
+            'online_threshold_seconds' => \App\Support\PersonnelTracking::ONLINE_SECONDS,
+            'total_online' => count(array_filter($personnel, fn ($p) => $p['is_online'])),
+            'personnel' => $personnel,
+        ]);
+    } catch (\Throwable $e) {
+        return mobile_error($e, 'Gagal memuat posisi personel.');
+    }
+})->middleware('mobile.auth:tracking.view');
+
+Route::get('/api/mobile/tracking/{userId}/history', function (Request $request, int $userId) {
+    try {
+        return response()->json([
+            'status' => 'success',
+            'user_id' => $userId,
+            'points' => \App\Support\PersonnelTracking::history($userId, (int) $request->query('hours', 12)),
+        ]);
+    } catch (\Throwable $e) {
+        return mobile_error($e, 'Gagal memuat jejak lokasi.');
+    }
+})->whereNumber('userId')->middleware('mobile.auth:tracking.view');

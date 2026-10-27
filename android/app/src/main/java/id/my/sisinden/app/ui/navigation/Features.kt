@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.PersonPinCircle
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.ui.graphics.vector.ImageVector
 import id.my.sisinden.app.core.security.Perm
@@ -48,6 +49,7 @@ enum class Feature(
     SIGNATURE(Routes.SIGNATURE, "Tanda Tangan", "Antrean TTE Komandan", Icons.Outlined.Create, Perm.SIGNATURE_VIEW, FeatureGroup.ADMINISTRASI, Tone.WARNING),
     COMMANDER(Routes.COMMANDER, "Rekening Komandan", "Mutasi rekening komandan", Icons.Outlined.AccountBalance, Perm.COMMANDER_VIEW, FeatureGroup.KEUANGAN, Tone.NEUTRAL),
     MITRA(Routes.MITRA, "Mitra", "Pembayaran mitra bulanan", Icons.Outlined.People, Perm.MITRA_VIEW, FeatureGroup.KEUANGAN, Tone.WARNING),
+    TRACKING(Routes.TRACKING, "Pantau Personel", "Posisi realtime personel", Icons.Outlined.PersonPinCircle, Perm.TRACKING_VIEW, FeatureGroup.PERSONEL, Tone.INFO),
     VIOLATIONS(Routes.VIOLATIONS, "Pelanggaran", "Catatan disiplin prajurit", Icons.Outlined.Gavel, Perm.VIOLATIONS_VIEW, FeatureGroup.PERSONEL, Tone.DANGER),
     USERS(Routes.USERS, "Kelola Pengguna", "Akun & status personel", Icons.Outlined.Group, Perm.USERS_VIEW, FeatureGroup.PERSONEL, Tone.NEUTRAL);
 
@@ -81,6 +83,7 @@ object Routes {
     const val VIOLATIONS = "violations"
     const val VIOLATION_FORM = "violation_form"
     const val USERS = "users"
+    const val TRACKING = "tracking"
     const val SETTINGS = "settings"
 
     // Berparameter
