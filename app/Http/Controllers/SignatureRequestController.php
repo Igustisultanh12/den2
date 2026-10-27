@@ -185,24 +185,19 @@ class SignatureRequestController extends Controller
                     $signatureRequest->verification_code = 'TTE-DOC-' . date('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(6));
                 }
 
-                $originalPath = storage_path('app/public/' . $signatureRequest->file_path);
+                $originalPath = Storage::disk('public')->path($signatureRequest->file_path);
                 
                 // Otomatisasi Normalisasi PDF Versi Tinggi (PDF 1.5+ Compressed Object Streams) ke PDF 1.4 Kompatibel
                 $sourcePdfPath = $this->normalizePdfForFpdi($originalPath);
 
-                // Generate QR Code TTD Image
+                // Generate QR Code TTD Image (dua layanan cadangan; tidak lagi diganti
+                // gambar tanda tangan yang tidak persegi sehingga posisi/ukuran tetap pas).
                 $verifyUrl = route('doc.verify', $signatureRequest->verification_code);
-                $qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($verifyUrl);
-                $qrImageContent = @file_get_contents($qrApiUrl);
-
-                $tempQrPath = storage_path('app/public/temp_qr_' . time() . '_' . $signatureRequest->id . '.png');
-                if ($qrImageContent) {
-                    file_put_contents($tempQrPath, $qrImageContent);
-                    $signatureImg = $tempQrPath;
-                } else {
-                    $signatureKey = Setting::where('key', 'commander_signature')->first();
-                    $signatureImg = storage_path('app/public/' . ($signatureKey->value ?? 'signatures/komandan_ttd.png'));
+                $tempQrPath = self::makeQrImage($verifyUrl, 'temp_qr_' . time() . '_' . $signatureRequest->id);
+                if (!$tempQrPath) {
+                    throw new \Exception('QR Code TTE tidak dapat dibuat (layanan QR tidak terjangkau dari server). Coba beberapa saat lagi.');
                 }
+                $signatureImg = $tempQrPath;
 
                 Log::info("Path PDF Asli: " . $originalPath);
                 Log::info("Path PDF Source FPDI: " . $sourcePdfPath);
@@ -228,12 +223,15 @@ class SignatureRequestController extends Controller
                 $xRatio = (float)($request->x ?? $signatureRequest->x);
                 $yRatio = (float)($request->y ?? $signatureRequest->y);
                 $wRatio = (float)($request->width ?? $signatureRequest->width);
-                $targetPage = (int)($request->target_page ?? $pageCount);
+                // Halaman & posisi mengikuti pilihan pengaju bila pengesah tidak mengirimnya
+                // (mis. pengesahan dari aplikasi Android) — sebelumnya jatuh ke halaman terakhir.
+                $targetPage = (int)($request->target_page ?? $signatureRequest->target_page ?? $pageCount);
                 $applyToAll = !empty($request->apply_to_all);
 
+                $rawPages = !empty($request->pages_data) ? $request->pages_data : $signatureRequest->pages_data;
                 $pagesData = null;
-                if (!empty($request->pages_data)) {
-                    $pagesData = is_string($request->pages_data) ? json_decode($request->pages_data, true) : $request->pages_data;
+                if (!empty($rawPages)) {
+                    $pagesData = is_string($rawPages) ? json_decode($rawPages, true) : $rawPages;
                 }
 
                 Log::info("Data Diterima -> X: $xRatio, Y: $yRatio, Width: $wRatio, Target Hal: $targetPage, Apply All: " . ($applyToAll ? 'YES' : 'NO') . ", PagesData: " . json_encode($pagesData));
@@ -273,7 +271,7 @@ class SignatureRequestController extends Controller
 
                 $newFileName = 'signed_' . time() . '_' . basename($signatureRequest->file_path);
                 $newPath = 'signature_reqs/' . $newFileName;
-                $pdf->Output(storage_path('app/public/' . $newPath), 'F');
+                $pdf->Output(Storage::disk('public')->path($newPath), 'F');
                 Log::info("Output PDF Signed Berhasil: " . $newPath);
 
                 if (file_exists($tempQrPath)) {
@@ -293,7 +291,7 @@ class SignatureRequestController extends Controller
                 $signatureRequest->y = $yRatio;
                 $signatureRequest->width = $wRatio;
                 $signatureRequest->target_page = $targetPage;
-                $signatureRequest->pages_data = is_array($request->pages_data) ? json_encode($request->pages_data) : $request->pages_data;
+                $signatureRequest->pages_data = is_array($pagesData) ? json_encode($pagesData) : $rawPages;
             }
 
             $signatureRequest->status = $request->status;
@@ -370,6 +368,89 @@ class SignatureRequestController extends Controller
             return back()->with('error', 'Gagal membersihkan data.');
         }
     }
+
+    /**
+     * Buat gambar QR (PNG) untuk $data. Mengembalikan path berkas sementara atau null.
+     */
+    public static function makeQrImage(string $data, string $name): ?string
+    {
+        $sources = [
+            'https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=0&data=' . urlencode($data),
+            'https://quickchart.io/qr?size=300&margin=0&text=' . urlencode($data),
+        ];
+        foreach ($sources as $url) {
+            try {
+                $res = \Illuminate\Support\Facades\Http::timeout(8)->get($url);
+                $body = $res->successful() ? $res->body() : '';
+                if (strlen($body) > 100 && str_starts_with($body, "\x89PNG")) {
+                    $path = Storage::disk('public')->path($name . '.png');
+                    file_put_contents($path, $body);
+                    return $path;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('[TTE] Layanan QR gagal: ' . parse_url($url, PHP_URL_HOST));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * PDF pratinjau: dokumen asli dengan QR TTE di posisi yang dipilih pengaju
+     * (sama persis dengan hasil pengesahan), tanpa menyimpan apa pun.
+     * @return string isi PDF
+     */
+    public static function renderPreview(SignatureRequest $sr): string
+    {
+        $self = app(self::class);
+        $original = Storage::disk('public')->path($sr->file_path);
+        $source = $self->normalizePdfForFpdi($original);
+        $qr = self::makeQrImage(route('doc.verify', $sr->verification_code ?: 'PRATINJAU'), 'preview_qr_' . $sr->id . '_' . uniqid());
+        try {
+            $pdf = new Fpdi();
+            $pageCount = $pdf->setSourceFile($source);
+            $pagesData = $sr->pages_data ? (is_string($sr->pages_data) ? json_decode($sr->pages_data, true) : $sr->pages_data) : null;
+            $targetPage = (int) ($sr->target_page ?: 1);
+            for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                $tpl = $pdf->importPage($pageNo);
+                $size = $pdf->getTemplateSize($tpl);
+                $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                $pdf->useTemplate($tpl);
+                $p = null;
+                if (is_array($pagesData) && $pagesData) {
+                    $p = $pagesData[$pageNo] ?? $pagesData[(string) $pageNo] ?? null;
+                } elseif ($pageNo === $targetPage) {
+                    $p = ['x' => $sr->x ?? 0.58, 'y' => $sr->y ?? 0.72, 'width' => $sr->width ?? 0.15];
+                }
+                if ($p === null) {
+                    continue;
+                }
+                $x = (float) ($p['x'] ?? 0.58) * $size['width'];
+                $y = (float) ($p['y'] ?? 0.72) * $size['height'];
+                $w = (float) ($p['width'] ?? 0.15) * $size['width'];
+                if ($qr) {
+                    $pdf->Image($qr, $x, $y, $w, $w, 'PNG');
+                } else {
+                    // Tanpa akses layanan QR: tandai area QR dengan kotak.
+                    $pdf->SetDrawColor(5, 150, 105);
+                    $pdf->SetLineWidth(0.6);
+                    $pdf->Rect($x, $y, $w, $w);
+                }
+                $pdf->SetFont('Helvetica', 'B', 6);
+                $pdf->SetTextColor(5, 150, 105);
+                $pdf->SetXY($x, $y + $w + 0.5);
+                $pdf->Cell($w, 3, 'PRATINJAU TTE', 0, 0, 'C');
+            }
+            return $pdf->Output('S');
+        } finally {
+            if ($qr && file_exists($qr)) {
+                @unlink($qr);
+            }
+            if ($source !== $original && file_exists($source)) {
+                @unlink($source);
+            }
+        }
+    }
+
 
     /**
      * Helper Otomatis: Mengonversi PDF versi tinggi (PDF 1.5+ / Compressed Object Streams)

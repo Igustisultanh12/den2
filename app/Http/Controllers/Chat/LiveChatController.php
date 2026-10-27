@@ -700,12 +700,15 @@ class LiveChatController extends Controller
             'created_at' => now()->timestamp,
             'started_at' => null,
             'ended_at' => null,
+            'callee_user_id' => $calleeUserId,
         ];
 
         Cache::put("live_chat:call:{$thread->uuid}", $callData, now()->addMinutes(10));
 
         if ($calleeUserId) {
             Cache::put("live_chat:user_call:{$calleeUserId}", $callData, now()->addSeconds(45));
+            // Dering di HP penerima walau aplikasi tertutup (FCM).
+            \App\Support\PushNotifier::incomingCall((int) $calleeUserId, $callData);
         }
 
         return response()->json([
@@ -759,6 +762,8 @@ class LiveChatController extends Controller
             }
         }
 
+        $previousStatus = $callData['status'] ?? null;
+
         // 1. Perbarui status panggilan jika ada
         if ($newStatus) {
             $callData['status'] = $newStatus;
@@ -798,6 +803,14 @@ class LiveChatController extends Controller
             if (!empty($callData['callee']['id'])) {
                 Cache::forget("live_chat:user_call:{$callData['callee']['id']}");
             }
+            if ($previousStatus === 'RINGING') {
+                $calleeId = $callData['callee_user_id'] ?? $callData['callee']['id'] ?? null;
+                if ($calleeId) {
+                    Cache::forget("live_chat:user_call:{$calleeId}");
+                }
+                // Hentikan dering di HP lain milik penerima (mis. dijawab dari web).
+                \App\Support\PushNotifier::callEnded($calleeId ? (int) $calleeId : null, $callData);
+            }
         }
 
         return response()->json([
@@ -826,6 +839,11 @@ class LiveChatController extends Controller
             if (!empty($callData['callee']['id'])) {
                 Cache::forget("live_chat:user_call:{$callData['callee']['id']}");
             }
+            $calleeId = $callData['callee_user_id'] ?? $callData['callee']['id'] ?? null;
+            if ($calleeId) {
+                Cache::forget("live_chat:user_call:{$calleeId}");
+            }
+            \App\Support\PushNotifier::callEnded($calleeId ? (int) $calleeId : null, $callData);
         }
 
         $thread = LiveChatThread::where('uuid', $uuid)->first();

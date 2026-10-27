@@ -113,6 +113,10 @@ class MobileAccess
             'profile.view' => true,
             'notifications.view' => true,
 
+            // LiveChatController: semua personel; operator (admin/developer) mengelola utas.
+            'chat.view' => true,
+            'chat.manage' => $admin || $dev,
+
             'attendance.view' => true,
             'attendance.create' => true,
             'attendance.view_all' => in_array(self::normalizedRole($user), ['superadmin', 'super_admin', 'admin', 'komandan', 'pasops'], true),
@@ -124,6 +128,8 @@ class MobileAccess
             'duty_roster.view' => true,
             'duty_roster.view_unpublished' => $spJagaAdmin || self::isPasops($user),
             'duty_roster.pdf' => true,
+            // SpJagaController@index ($isPasops): penandatangan TTE SP Jaga.
+            'duty_roster.sign' => self::isPasops($user),
 
             'letter_logs.view' => $regular,
             'letter_logs.create' => $regular,

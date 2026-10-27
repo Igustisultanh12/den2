@@ -315,6 +315,7 @@ class SpJagaController extends Controller
 
         // Jika TTE, kirim notifikasi ke Pasops
         if ($spJaga->ttd_type === 'tte') {
+            \App\Support\SpJagaNotifier::pendingSignature($spJaga, $user);
             try {
                 $pasops = User::where('role', 'pasops')->whereNotNull('phone')->first()
                        ?? User::where('name', 'like', '%Roni Sumantri%')->first()
@@ -488,6 +489,9 @@ class SpJagaController extends Controller
             'penandatangan_pangkat_nrp' => trim("{$pRank} {$pNrp}"),
             'penandatangan_jabatan' => 'Pasiops',
         ]);
+
+        // Notifikasi in-app (web + aplikasi Android) untuk seluruh personel
+        \App\Support\SpJagaNotifier::published($spJaga);
 
         // Kirim Broadcast Notifikasi WhatsApp ke Semua Personel Terdaftar
         $this->sendBroadcastWa($spJaga);

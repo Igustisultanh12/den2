@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -25,6 +26,9 @@ class MobileApiSecurityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Turnstile nonaktif secara default di test (diaktifkan per-test bila perlu).
+        config(['services.turnstile.site_key' => 'SITE-KEY-UJI', 'services.turnstile.secret_key' => null]);
 
         Schema::create('users', function (Blueprint $t) {
             $t->id();
@@ -170,6 +174,45 @@ class MobileApiSecurityTest extends TestCase
             $t->json('anggota_items')->nullable();
             $t->timestamps();
         });
+        Schema::create('live_chat_threads', function (Blueprint $t) {
+            $t->id();
+            $t->uuid('uuid')->unique();
+            $t->foreignId('user_id');
+            $t->foreignId('operator_id')->nullable();
+            $t->string('subject')->default('Pusat Komunikasi Dinas');
+            $t->string('status')->default('OPEN');
+            $t->dateTime('last_message_at')->nullable();
+            $t->unsignedInteger('unread_admin')->default(0);
+            $t->unsignedInteger('unread_user')->default(0);
+            $t->timestamps();
+        });
+        Schema::create('live_chat_messages', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('thread_id');
+            $t->string('sender_type');
+            $t->unsignedBigInteger('sender_id')->nullable();
+            $t->string('sender_name')->default('Operator Dinas');
+            $t->text('message')->nullable();
+            $t->json('attachments')->nullable();
+            $t->boolean('is_read')->default(false);
+            $t->timestamps();
+        });
+        Schema::create('signature_requests', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('user_id');
+            $t->string('subject')->nullable();
+            $t->string('file_path')->nullable();
+            $t->string('status')->default('pending');
+            $t->text('note')->nullable();
+            $t->timestamps();
+        });
+        (require database_path('migrations/2026_10_28_110000_create_device_tokens_table.php'))->up();
+    }
+
+    public function call($method, $uri, $parameters = [], $cookies = [], $files = [], $server = [], $content = null)
+    {
+        $this->app['auth']->forgetGuards();
+        return parent::call($method, $uri, $parameters, $cookies, $files, $server, $content);
     }
 
     /**
@@ -488,9 +531,6 @@ class MobileApiSecurityTest extends TestCase
         Schema::create('skhpps', function (Blueprint $t) {
             $t->id(); $t->string('status')->default('pending'); $t->foreignId('submitted_by')->nullable(); $t->timestamps();
         });
-        Schema::create('signature_requests', function (Blueprint $t) {
-            $t->id(); $t->foreignId('user_id')->nullable(); $t->string('status')->default('pending'); $t->timestamps();
-        });
         $personel = $this->makeUser(['role' => 'personel']);
         $summary = $this->withToken($this->tokenFor($personel))->getJson('/api/mobile/dashboard')
             ->assertOk()->json('summary');
@@ -500,7 +540,7 @@ class MobileApiSecurityTest extends TestCase
         $this->assertArrayHasKey('letter_logs_total', $summary);
 
         $admin = $this->makeUser(['role' => 'admin']);
-        DB::table('signature_requests')->insert(['status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('signature_requests')->insert(['user_id' => $personel->id, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
         $adminSummary = $this->withToken($this->tokenFor($admin))->getJson('/api/mobile/dashboard')
             ->assertOk()->json('summary');
         $this->assertEquals(1, $adminSummary['signature_pending']);
@@ -517,5 +557,342 @@ class MobileApiSecurityTest extends TestCase
     public function test_laravel_log_viewer_is_no_longer_public(): void
     {
         $this->get('/admin/laravel-logs')->assertRedirect();
+    }
+
+    // ================================================ Chat, Turnstile, TTE (dari kantor v1.7.1)
+
+    public function test_login_requires_valid_turnstile_when_secret_configured(): void
+    {
+        config(['services.turnstile.secret_key' => 'test-secret']);
+        $this->makeUser(['nrp' => '4242']);
+        Http::fake(['challenges.cloudflare.com/*' => Http::response(['success' => false, 'error-codes' => ['invalid-input-response']])]);
+
+        // Tanpa token → ditolak sebelum kredensial diperiksa.
+        $this->postJson('/api/mobile/login', ['username' => '4242', 'password' => 'rahasia123'])
+            ->assertStatus(422)->assertJsonPath('code', 'turnstile_failed')->assertJsonMissing(['token']);
+
+        // Token ditolak Cloudflare → tetap gagal.
+        $this->postJson('/api/mobile/login', ['username' => '4242', 'password' => 'rahasia123', 'cf_turnstile_token' => 'palsu'])
+            ->assertStatus(422)->assertJsonPath('code', 'turnstile_failed');
+    }
+
+    public function test_login_and_activation_pass_with_valid_turnstile(): void
+    {
+        config(['services.turnstile.secret_key' => 'test-secret']);
+        $this->makeUser(['nrp' => '5151']);
+        $u = $this->makeUser(['nrp' => '6161', 'is_active' => false, 'activation_token' => 'TOK-1']);
+
+        Http::fake(function ($request) {
+            $action = str_contains((string) $request->body(), 'act-token') ? 'activate' : 'login';
+            return Http::response(['success' => true, 'action' => $action]);
+        });
+
+        $this->postJson('/api/mobile/login', ['username' => '5151', 'password' => 'rahasia123', 'cf_turnstile_token' => 'login-token'])
+            ->assertOk()->assertJsonPath('status', 'success');
+
+        // Token untuk action "login" tidak boleh dipakai untuk aktivasi.
+        $this->postJson('/api/mobile/activate', ['nrp' => '6161', 'token' => 'TOK-1', 'password' => 'barubaru123', 'cf_turnstile_token' => 'login-token'])
+            ->assertStatus(422)->assertJsonPath('code', 'turnstile_failed');
+        $this->postJson('/api/mobile/activate', ['nrp' => '6161', 'token' => 'TOK-1', 'password' => 'barubaru123', 'cf_turnstile_token' => 'act-token'])
+            ->assertOk();
+        $this->assertTrue($u->fresh()->is_active);
+
+        Http::assertSent(fn ($r) => $r->url() === 'https://challenges.cloudflare.com/turnstile/v0/siteverify' && $r['secret'] === 'test-secret');
+    }
+
+    public function test_turnstile_widget_page_and_config_expose_only_site_key(): void
+    {
+        config(['services.turnstile.site_key' => 'SITE-KEY-PUBLIK', 'services.turnstile.secret_key' => 'RAHASIA-JANGAN-BOCOR']);
+
+        $page = $this->get('/mobile/turnstile?action=activate')->assertOk();
+        $page->assertSee('SITE-KEY-PUBLIK', false)->assertSee('"activate"', false)->assertDontSee('RAHASIA-JANGAN-BOCOR', false);
+
+        $cfg = $this->getJson('/api/mobile/config')->assertOk()
+            ->assertJsonPath('turnstile_site_key', 'SITE-KEY-PUBLIK')
+            ->assertJsonPath('turnstile_enabled', true);
+        $this->assertStringNotContainsString('RAHASIA-JANGAN-BOCOR', $cfg->getContent());
+    }
+
+    public function test_turnstile_keys_come_from_admin_settings_and_secret_is_encrypted_and_never_shared(): void
+    {
+        \App\Models\Setting::updateOrCreate(['key' => 'turnstile_site_key'], ['value' => 'SITE-DARI-ADMIN']);
+        \App\Models\Setting::updateOrCreate(['key' => 'turnstile_enabled'], ['value' => '1']);
+        \App\Support\Turnstile::storeSecret('RAHASIA-ADMIN');
+        \App\Models\Setting::updateOrCreate(['key' => 'google_client_secret'], ['value' => 'GOOGLE-RAHASIA']);
+        \App\Models\Setting::updateOrCreate(['key' => 'agora_app_certificate'], ['value' => 'AGORA-RAHASIA']);
+
+        $stored = \App\Models\Setting::where('key', 'turnstile_secret_key')->value('value');
+        $this->assertNotSame('RAHASIA-ADMIN', $stored, 'secret harus terenkripsi di database');
+        $this->assertSame('RAHASIA-ADMIN', \App\Support\Turnstile::secretKey());
+        $this->assertTrue(\App\Support\Turnstile::enabled());
+
+        $cfg = $this->getJson('/api/mobile/config')->assertOk()
+            ->assertJsonPath('turnstile_site_key', 'SITE-DARI-ADMIN')
+            ->assertJsonPath('turnstile_enabled', true);
+        $this->assertStringNotContainsString('RAHASIA', $cfg->getContent());
+
+        // Props Inertia yang dibagikan ke semua halaman web tidak memuat kredensial.
+        $public = \App\Http\Middleware\HandleInertiaRequests::publicSettings(\App\Models\Setting::pluck('value', 'key')->toArray());
+        $this->assertArrayHasKey('turnstile_site_key', $public);
+        foreach (['turnstile_secret_key', 'google_client_secret', 'agora_app_certificate'] as $k) {
+            $this->assertArrayNotHasKey($k, $public);
+        }
+
+        // Login wajib token Turnstile saat Admin mengaktifkannya.
+        $this->makeUser(['nrp' => '7373']);
+        Http::fake(['challenges.cloudflare.com/*' => Http::response(['success' => true, 'action' => 'login'])]);
+        $this->postJson('/api/mobile/login', ['username' => '7373', 'password' => 'rahasia123'])->assertStatus(422)->assertJsonPath('code', 'turnstile_failed');
+        $this->postJson('/api/mobile/login', ['username' => '7373', 'password' => 'rahasia123', 'cf_turnstile_token' => 'tok'])->assertOk();
+        Http::assertSent(fn ($r) => $r['secret'] === 'RAHASIA-ADMIN');
+
+        // Admin mematikan → login berjalan tanpa token.
+        \App\Models\Setting::updateOrCreate(['key' => 'turnstile_enabled'], ['value' => '0']);
+        $this->assertFalse(\App\Support\Turnstile::enabled());
+        $this->postJson('/api/mobile/login', ['username' => '7373', 'password' => 'rahasia123'])->assertOk();
+    }
+
+    public function test_chat_personel_gets_own_thread_and_cannot_touch_other_threads(): void
+    {
+        $a = $this->makeUser(['name' => 'Pers A']);
+        $b = $this->makeUser(['name' => 'Pers B']);
+        $admin = $this->makeUser(['role' => 'admin', 'name' => 'Operator']);
+        $tokA = $this->tokenFor($a);
+        $tokB = $this->tokenFor($b);
+
+        $uuid = $this->withToken($tokA)->getJson('/api/mobile/chat')->assertOk()
+            ->assertJsonPath('is_operator', false)->json('thread.uuid');
+        $this->assertNotEmpty($uuid);
+
+        $this->withToken($tokA)->postJson("/api/mobile/chat/{$uuid}/send", ['message' => 'Izin lapor'])->assertOk()->assertJsonPath('success', true);
+
+        $this->withToken($tokB)->getJson("/api/mobile/chat/{$uuid}/messages")->assertStatus(403);
+        $this->withToken($tokB)->postJson("/api/mobile/chat/{$uuid}/send", ['message' => 'nyelonong'])->assertStatus(403);
+        $this->withToken($tokB)->getJson("/api/mobile/chat/sync?uuid={$uuid}")->assertStatus(403);
+        $this->withToken($tokB)->getJson('/api/mobile/chat/users?q=Pers')->assertStatus(403);
+        $this->withToken($tokB)->postJson("/api/mobile/chat/{$uuid}/status")->assertStatus(403);
+
+        $tokAdmin = $this->tokenFor($admin);
+        $res = $this->withToken($tokAdmin)->getJson('/api/mobile/chat')->assertOk()->assertJsonPath('is_operator', true);
+        $thread = collect($res->json('threads'))->firstWhere('uuid', $uuid);
+        $this->assertSame(1, $thread['unread_admin']);
+        $this->assertSame(1, $this->withToken($tokAdmin)->getJson('/api/mobile/chat/unread')->json('unread'));
+
+        $this->withToken($tokAdmin)->postJson("/api/mobile/chat/{$uuid}/send", ['message' => 'Siap, diterima'])->assertOk();
+        $this->assertSame(1, $this->withToken($tokA)->getJson('/api/mobile/chat/unread')->json('unread'));
+        $msgs = $this->withToken($tokA)->getJson("/api/mobile/chat/{$uuid}/messages")->assertOk()->json('messages');
+        $this->assertSame(['USER', 'ADMIN'], array_column($msgs, 'sender_type'));
+
+        // Operator menutup utas lama lalu membuka utas baru: sync personel
+        // mengikuti utas yang diminta (bukan utas pertama).
+        $this->withToken($tokAdmin)->postJson("/api/mobile/chat/{$uuid}/status")->assertOk()->assertJsonPath('status', 'CLOSED');
+        $newUuid = $this->withToken($tokAdmin)->postJson('/api/mobile/chat/start', ['user_id' => $a->id])->assertOk()->json('uuid');
+        $this->assertNotSame($uuid, $newUuid);
+        $this->withToken($tokAdmin)->postJson("/api/mobile/chat/{$newUuid}/send", ['message' => 'Utas baru'])->assertOk();
+        $sync = $this->withToken($tokA)->getJson("/api/mobile/chat/sync?uuid={$newUuid}")->assertOk();
+        $sync->assertJsonPath('thread.uuid', $newUuid);
+        $this->assertSame(['Utas baru'], array_column($sync->json('messages'), 'message'));
+        $this->withToken($tokA)->getJson('/api/mobile/chat')->assertOk()->assertJsonPath('thread.uuid', $newUuid);
+    }
+
+    public function test_video_call_signaling_reaches_operator_and_is_logged(): void
+    {
+        $a = $this->makeUser(['name' => 'Pemanggil']);
+        $admin = $this->makeUser(['role' => 'admin', 'name' => 'Operator']);
+        $tokA = $this->tokenFor($a);
+        $tokAdmin = $this->tokenFor($admin);
+        $uuid = $this->withToken($tokA)->getJson('/api/mobile/chat')->json('thread.uuid');
+
+        $this->withToken($tokA)->postJson("/api/mobile/chat/{$uuid}/call/initiate", ['call_type' => 'video'])
+            ->assertOk()->assertJsonPath('call.status', 'RINGING');
+
+        $incoming = $this->withToken($tokAdmin)->getJson('/api/mobile/chat/incoming-call')->assertOk()->json('call');
+        $this->assertSame($uuid, $incoming['thread_uuid']);
+        $this->assertSame('video', $incoming['call_type']);
+
+        $this->withToken($tokAdmin)->postJson("/api/mobile/chat/{$uuid}/call/signal", ['action' => 'accept'])
+            ->assertOk()->assertJsonPath('call.status', 'ACCEPTED');
+        $this->withToken($tokA)->getJson("/api/mobile/chat/{$uuid}/call/signal")->assertJsonPath('call.status', 'ACCEPTED');
+
+        $this->withToken($tokA)->postJson("/api/mobile/chat/{$uuid}/call/end", ['reason' => 'ended', 'duration_seconds' => 65])->assertOk();
+        $log = \App\Models\LiveChatMessage::where('sender_type', 'SYSTEM')->latest('id')->value('message');
+        $this->assertStringContainsString('01:05', $log);
+
+        $other = $this->makeUser();
+        $this->withToken($this->tokenFor($other))->postJson("/api/mobile/chat/{$uuid}/call/initiate")->assertStatus(403);
+    }
+
+    public function test_signature_document_preview_only_for_approver_or_requester(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        \Illuminate\Support\Facades\Storage::disk('public')->put('signature_reqs/dok.pdf', "%PDF-1.4\n% dokumen uji\n");
+        $owner = $this->makeUser();
+        $other = $this->makeUser();
+        $komandan = $this->makeUser(['role' => 'komandan']);
+        $sr = \App\Models\SignatureRequest::forceCreate(['user_id' => $owner->id, 'subject' => 'Laporan', 'file_path' => 'signature_reqs/dok.pdf', 'status' => 'pending']);
+
+        $res = $this->withToken($this->tokenFor($owner))->get("/api/mobile/pdf/signature/{$sr->id}");
+        $res->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $res->getContent());
+        $this->withToken($this->tokenFor($komandan))->get("/api/mobile/pdf/signature/{$sr->id}")->assertOk();
+        $this->withToken($this->tokenFor($other))->getJson("/api/mobile/pdf/signature/{$sr->id}")->assertStatus(403);
+    }
+
+    public function test_sp_jaga_submission_notifies_pasops_who_can_sign_from_app(): void
+    {
+        Http::fake();
+        $creator = $this->makeUser(['role' => 'admin']);
+        $pasops = $this->makeUser(['role' => 'pasops', 'name' => 'Pasops Uji']);
+        $personel = $this->makeUser(['role' => 'personel']);
+        $sp = SpJaga::forceCreate(['bulan' => 10, 'tahun' => 2026, 'nomor_sprin' => 'Sprin/9/X/2026', 'status' => 'pending_signature', 'created_by' => $creator->id]);
+
+        \App\Support\SpJagaNotifier::pendingSignature($sp, $creator);
+
+        $tokP = $this->tokenFor($pasops);
+        $tokU = $this->tokenFor($personel);
+        $titles = collect($this->withToken($tokP)->getJson('/api/mobile/notifications')->json('notifications'))->pluck('title');
+        $this->assertContains('Pengajuan TTE SP Jaga', $titles);
+        $titlesU = collect($this->withToken($tokU)->getJson('/api/mobile/notifications')->json('notifications'))->pluck('title');
+        $this->assertNotContains('Pengajuan TTE SP Jaga', $titlesU);
+
+        $this->withToken($tokU)->getJson('/api/mobile/duty-roster/pending')->assertStatus(403);
+        $this->withToken($tokU)->postJson("/api/mobile/duty-roster/{$sp->id}/approve")->assertStatus(403);
+        $this->assertContains('duty_roster.sign', $this->withToken($tokP)->getJson('/api/mobile/me')->json('user.permissions'));
+
+        $pending = $this->withToken($tokP)->getJson('/api/mobile/duty-roster/pending')->assertOk()->json('data');
+        $this->assertSame($sp->id, $pending[0]['id']);
+
+        $this->withToken($tokP)->postJson("/api/mobile/duty-roster/{$sp->id}/approve")->assertOk()->assertJsonPath('status', 'success');
+        $this->assertSame('published', $sp->fresh()->status);
+        $this->withToken($tokP)->postJson("/api/mobile/duty-roster/{$sp->id}/approve")->assertStatus(422);
+
+        $titlesU = collect($this->withToken($tokU)->getJson('/api/mobile/notifications')->json('notifications'))->pluck('title');
+        $this->assertContains('Jadwal jaga terbit', $titlesU);
+    }
+
+    private function realPdf(int $pages = 2): string
+    {
+        $pdf = new \setasign\Fpdi\Fpdi();
+        for ($i = 1; $i <= $pages; $i++) {
+            $pdf->AddPage('P', 'A4');
+            $pdf->SetFont('Helvetica', '', 12);
+            $pdf->Cell(0, 10, "Halaman {$i}");
+        }
+        return $pdf->Output('S');
+    }
+
+    private function fakeQrPng(): string
+    {
+        $img = imagecreatetruecolor(60, 60);
+        imagefill($img, 0, 0, imagecolorallocate($img, 255, 255, 255));
+        imagefilledrectangle($img, 5, 5, 25, 25, imagecolorallocate($img, 0, 0, 0));
+        ob_start();
+        imagepng($img);
+        return (string) ob_get_clean();
+    }
+
+    /** Jumlah gambar QR per halaman PDF keluaran (FPDF menulis satu XObject per gambar unik). */
+    private function stampedPages(string $pdfContent): array
+    {
+        $fpdi = new \setasign\Fpdi\Fpdi();
+        $tmp = tempnam(sys_get_temp_dir(), 'tte');
+        file_put_contents($tmp, $pdfContent);
+        $count = $fpdi->setSourceFile($tmp);
+        @unlink($tmp);
+        // Buka aliran konten (FlateDecode) per halaman lalu hitung perintah gambar FPDF "/I<n> Do".
+        $draws = 0;
+        $drawPages = [];
+        $page = 0;
+        $text = '';
+        preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $pdfContent, $streams);
+        foreach ($streams[1] as $raw) {
+            $plain = @gzuncompress($raw);
+            $plain = $plain === false ? $raw : $plain;
+            if (str_contains($plain, '/TPL')) {
+                $page++;
+                $n = preg_match_all('/\/I\d+ Do/', $plain);
+                $draws += $n;
+                if ($n) {
+                    $drawPages[] = $page;
+                }
+                $text .= $plain;
+            }
+        }
+        return ['pages' => $count, 'draws' => $draws, 'draw_pages' => $drawPages, 'text' => $text];
+    }
+
+    public function test_tte_preview_shows_qr_and_mobile_approval_uses_requested_page(): void
+    {
+        // Skema produksi lengkap untuk tabel TTE.
+        Schema::drop('signature_requests');
+        foreach (glob(database_path('migrations/*signature_requests*.php')) as $m) {
+            (require $m)->up();
+        }
+        foreach (glob(database_path('migrations/*audit_logs*.php')) as $m) {
+            if (!Schema::hasTable('audit_logs')) {
+                (require $m)->up();
+            }
+        }
+        \Illuminate\Support\Facades\Storage::fake('public');
+        Http::fake([
+            'api.qrserver.com/*' => Http::response($this->fakeQrPng(), 200, ['Content-Type' => 'image/png']),
+            '*' => Http::response('', 200),
+        ]);
+        \Illuminate\Support\Facades\Storage::disk('public')->put('signature_reqs/dok3.pdf', $this->realPdf(3));
+        $owner = $this->makeUser();
+        $komandan = $this->makeUser(['role' => 'komandan']);
+        $sr = \App\Models\SignatureRequest::forceCreate([
+            'user_id' => $owner->id, 'subject' => 'Laporan 3 halaman', 'file_path' => 'signature_reqs/dok3.pdf',
+            'status' => 'pending', 'verification_code' => 'TTE-DOC-UJI', 'x' => 0.6, 'y' => 0.7, 'width' => 0.15,
+            'target_page' => 1, 'pages_data' => null,
+        ]);
+
+        // Pratinjau: dokumen + QR di halaman pilihan pengaju (bukan dokumen polos).
+        $preview = $this->withToken($this->tokenFor($owner))->get("/api/mobile/pdf/signature/{$sr->id}")->assertOk()->getContent();
+        $this->assertStringStartsWith('%PDF', $preview);
+        $info = $this->stampedPages($preview);
+        $this->assertSame(3, $info['pages']);
+        $this->assertSame(1, $info['draws'], 'QR pratinjau hanya di halaman 1');
+        $this->assertSame([1], $info['draw_pages']);
+        $this->assertStringContainsString('PRATINJAU TTE', $info['text']);
+
+        // Pengesahan dari aplikasi tanpa target_page → tetap di halaman 1 (bukan halaman terakhir).
+        $r = $this->withToken($this->tokenFor($komandan))->postJson("/api/mobile/signature-requests/{$sr->id}/sign");
+        $this->assertSame(200, $r->status(), (string) $r->getContent());
+        $sr->refresh();
+        $this->assertSame('approved', $sr->status);
+        $this->assertSame(1, (int) $sr->target_page);
+        $signed = \Illuminate\Support\Facades\Storage::disk('public')->get($sr->file_path);
+        $page1 = $this->stampedPages($signed);
+        $this->assertSame(3, $page1['pages']);
+        $this->assertSame(1, $page1['draws']);
+        $this->assertSame([1], $page1['draw_pages'], 'QR hasil TTE di halaman pilihan pengaju');
+    }
+
+    public function test_commander_account_can_be_edited_from_app_by_managers_only(): void
+    {
+        foreach (glob(database_path('migrations/*create_commander_accounts_table.php')) as $m) {
+            (require $m)->up();
+        }
+        $tx = \App\Models\CommanderAccount::forceCreate(['tanggal' => '2026-10-01', 'keterangan' => 'TRANSFER', 'jenis' => 'MASUK', 'jumlah' => 500000, 'petugas_input' => 'Admin']);
+        $komandan = $this->makeUser(['role' => 'komandan']);
+        $admin = $this->makeUser(['role' => 'admin', 'name' => 'Suma']);
+        $payload = ['tanggal' => '2026-10-02', 'keterangan' => 'transfer koreksi', 'jenis' => 'keluar', 'jumlah' => 450000];
+
+        // Komandan hanya melihat (sama dengan web).
+        $this->withToken($this->tokenFor($komandan))->getJson('/api/mobile/commander-account')->assertOk()->assertJsonPath('can_manage', false);
+        $this->withToken($this->tokenFor($komandan))->putJson("/api/mobile/commander-account/{$tx->id}", $payload)->assertStatus(403);
+
+        $tok = $this->tokenFor($admin);
+        $this->withToken($tok)->putJson("/api/mobile/commander-account/{$tx->id}", $payload)->assertOk()->assertJsonPath('status', 'success');
+        $tx->refresh();
+        $this->assertSame('2026-10-02', substr((string) $tx->tanggal, 0, 10));
+        $this->assertSame('TRANSFER KOREKSI', $tx->keterangan);
+        $this->assertSame('KELUAR', $tx->jenis);
+        $this->assertEquals(450000, (float) $tx->jumlah);
+        $this->assertSame('Suma (EDIT)', $tx->petugas_input);
+
+        $this->withToken($tok)->putJson("/api/mobile/commander-account/{$tx->id}", ['tanggal' => '2026-10-02', 'jenis' => 'MASUK'])
+            ->assertStatus(422)->assertJsonPath('status', 'error');
+        $this->withToken($tok)->putJson('/api/mobile/commander-account/99999', $payload)->assertStatus(404);
     }
 }

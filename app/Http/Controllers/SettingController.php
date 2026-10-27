@@ -14,6 +14,10 @@ class SettingController extends Controller
     {
         // Mengambil semua pengaturan dan mengubahnya menjadi format Key-Value
         $settings = Setting::pluck('value', 'key')->toArray();
+        // Secret Turnstile tidak pernah dikirim ke browser; cukup status tersimpan/tidak.
+        $settings['turnstile_secret_set'] = !empty($settings['turnstile_secret_key']) || filled(config('services.turnstile.secret_key'));
+        unset($settings['turnstile_secret_key']);
+        $settings['turnstile_site_key'] = $settings['turnstile_site_key'] ?? \App\Support\Turnstile::siteKey();
         // Firebase: service account (rahasia) tidak pernah dikirim ke browser, hanya statusnya.
         $settings['fcm_service_account_project'] = \App\Support\PushNotifier::serviceAccountProject();
         $settings['fcm_client_project'] = \App\Support\PushNotifier::clientConfig()['project_id'] ?? null;
@@ -40,6 +44,9 @@ class SettingController extends Controller
             'google_login_enabled' => 'nullable|in:0,1',
             'agora_app_id' => 'nullable|string|max:100',
             'agora_app_certificate' => 'nullable|string|max:100',
+            'turnstile_enabled' => 'nullable|in:0,1',
+            'turnstile_site_key' => 'nullable|string|max:255',
+            'turnstile_secret_key' => 'nullable|string|max:255',
             'fcm_enabled' => 'nullable|in:0,1',
             'fcm_google_services' => 'nullable|string|max:20000',
             'fcm_service_account' => 'nullable|string|max:20000',
@@ -57,12 +64,21 @@ class SettingController extends Controller
             'mobile_theme_mode', 'mobile_primary_color', 'mobile_accent_color', 'mobile_card_radius',
             'mobile_show_balance_card', 'mobile_show_summary_trio', 'mobile_show_quick_actions',
             'google_client_id', 'google_client_secret', 'google_login_enabled',
-            'agora_app_id', 'agora_app_certificate', 'fcm_enabled',
+            'agora_app_id', 'agora_app_certificate',
+            'turnstile_enabled', 'turnstile_site_key', 'fcm_enabled',
         ];
         foreach ($request->only($textFields) as $key => $value) {
             if ($value !== null) {
                 Setting::updateOrCreate(['key' => $key], ['value' => (string)$value]);
             }
+        }
+
+        // Secret key Turnstile disimpan terenkripsi; kolom kosong = tidak diubah.
+        if (filled($request->input('turnstile_secret_key'))) {
+            \App\Support\Turnstile::storeSecret(trim((string) $request->input('turnstile_secret_key')));
+        }
+        if ($request->boolean('turnstile_secret_clear')) {
+            Setting::where('key', 'turnstile_secret_key')->delete();
         }
 
         // Firebase Cloud Messaging (notifikasi push aplikasi Android). Kolom kosong = tidak diubah.

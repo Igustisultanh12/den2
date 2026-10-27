@@ -52,4 +52,11 @@ return [
         'app_certificate' => env('AGORA_APP_CERTIFICATE'),
     ],
 
+    // Cloudflare Turnstile (login & aktivasi aplikasi mobile); dapat diatur dari menu Pengaturan.
+    // Site key bersifat publik; secret key hanya di .env server atau tersimpan terenkripsi.
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
 ];

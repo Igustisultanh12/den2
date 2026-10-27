@@ -98,7 +98,7 @@ class HandleInertiaRequests extends Middleware
     }
 
     /** Kunci pengaturan yang bersifat rahasia dan tidak boleh dibagikan ke frontend. */
-    public const SECRET_SETTING_KEYS = ['google_client_secret', 'agora_app_certificate', 'fcm_service_account', 'fcm_client_config', 'app_update_meta'];
+    public const SECRET_SETTING_KEYS = ['google_client_secret', 'agora_app_certificate', 'turnstile_secret_key', 'fcm_service_account', 'fcm_client_config', 'app_update_meta'];
 
     public static function publicSettings(array $settings): array
     {

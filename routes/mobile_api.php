@@ -18,8 +18,10 @@
 */
 
 use App\Http\Controllers\Mobile\MobileApiController;
+use App\Http\Controllers\Mobile\MobileCommsController;
 use App\Models\User;
 use App\Support\MobileAccess;
+use App\Support\Turnstile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -142,6 +144,12 @@ Route::post('/api/mobile/login', function (Request $request) {
             return response()->json(['status' => 'error', 'message' => 'NRP / Email dan Kata Sandi wajib diisi.'], 422);
         }
 
+        // Cloudflare Turnstile diverifikasi SEBELUM menyentuh data akun.
+        $ts = Turnstile::verify($data['cf_turnstile_token'] ?? null, $request->ip(), 'login');
+        if (!$ts['ok']) {
+            return response()->json(['status' => 'error', 'code' => 'turnstile_failed', 'message' => $ts['message']], 422);
+        }
+
         $user = User::where('email', $input)->orWhere('nrp', $input)->first();
 
         // Pesan generik: jangan membocorkan apakah NRP terdaftar.
@@ -203,6 +211,8 @@ Route::get('/api/mobile/config', function () {
         'mobile_show_balance_card' => ($settings['mobile_show_balance_card'] ?? '1') === '1',
         'mobile_show_summary_trio' => ($settings['mobile_show_summary_trio'] ?? '1') === '1',
         'mobile_show_quick_actions' => ($settings['mobile_show_quick_actions'] ?? '1') === '1',
+        'turnstile_site_key' => Turnstile::siteKey(),
+        'turnstile_enabled' => Turnstile::enabled(),
         // Konfigurasi klien Firebase (publik, dari google-services.json) agar APK tidak perlu dibuild ulang.
         'push' => \App\Support\PushNotifier::clientConfig(),
         'push_enabled' => \App\Support\PushNotifier::enabled(),
@@ -213,6 +223,21 @@ Route::get('/api/mobile/config', function () {
 // Pembaruan aplikasi: APK yang diunggah Admin di Pengaturan web (publik; APK diverifikasi SHA-256 & tanda tangan di HP).
 Route::get('/api/mobile/app-update', [\App\Http\Controllers\AppUpdateController::class, 'latest'])->middleware('throttle:60,1');
 Route::get('/api/mobile/app-update/download', [\App\Http\Controllers\AppUpdateController::class, 'download'])->middleware('throttle:30,1');
+
+// Halaman widget Cloudflare Turnstile yang dimuat WebView aplikasi Android
+// (origin = domain Sinden 2, sehingga cocok dengan daftar hostname widget).
+Route::get('/mobile/turnstile', function (Request $request) {
+    $action = in_array($request->query('action'), ['login', 'activate'], true) ? $request->query('action') : 'login';
+    $theme = $request->query('theme') === 'light' ? 'light' : 'dark';
+    return response()
+        ->view('mobile.turnstile', [
+            'siteKey' => Turnstile::siteKey(),
+            'action' => $action,
+            'theme' => $theme,
+        ])
+        ->header('Cache-Control', 'no-store')
+        ->header('X-Robots-Tag', 'noindex');
+})->middleware('throttle:60,1');
 
 // AKTIVASI AKUN MOBILE — wajib token aktivasi dari Admin (sama seperti web /aktivasi).
 Route::post('/api/mobile/activate', function (Request $request) {
@@ -228,6 +253,11 @@ Route::post('/api/mobile/activate', function (Request $request) {
         ]);
         if ($v->fails()) {
             return mobile_validation_error($v);
+        }
+
+        $ts = Turnstile::verify($data['cf_turnstile_token'] ?? null, $request->ip(), 'activate');
+        if (!$ts['ok']) {
+            return response()->json(['status' => 'error', 'code' => 'turnstile_failed', 'message' => $ts['message']], 422);
         }
 
         $identifier = trim($data['nrp']);
@@ -568,6 +598,23 @@ Route::post('/api/mobile/commander-account', function (Request $request) {
         return mobile_error($e, 'Gagal menyimpan transaksi rekening komandan.');
     }
 })->middleware('mobile.auth:commander_account.manage');
+
+// Ubah mutasi: memakai CommanderAccountController@update milik web (format & penanda "(EDIT)" sama).
+Route::put('/api/mobile/commander-account/{id}', function (Request $request, $id) {
+    \App\Models\CommanderAccount::findOrFail($id);
+    $data = mobile_payload($request);
+    if (isset($data['jenis'])) {
+        $data['jenis'] = strtoupper((string) $data['jenis']);
+    }
+    if (isset($data['tanggal'])) {
+        $data['tanggal'] = substr((string) $data['tanggal'], 0, 10);
+    }
+    $request->merge($data);
+    return mobile_delegate(
+        fn () => app(\App\Http\Controllers\CommanderAccountController::class)->update($request, $id),
+        'Transaksi Rekening Komandan berhasil diperbarui.'
+    );
+})->whereNumber('id')->middleware('mobile.auth:commander_account.manage');
 
 Route::delete('/api/mobile/commander-account/{id}', function ($id) {
     try {
@@ -1202,6 +1249,41 @@ Route::post('/api/mobile/attendances', function (Request $request) {
         return mobile_error($e, 'Gagal mencatat presensi.');
     }
 })->middleware(['mobile.auth:attendance.create', 'throttle:20,1']);
+
+// =====================================================================
+// CHAT DINAS, PANGGILAN VIDEO (AGORA), PRATINJAU TTE, TTE SP JAGA
+// =====================================================================
+Route::middleware('mobile.auth:chat.view')->group(function () {
+    Route::get('/api/mobile/chat', [MobileCommsController::class, 'index']);
+    Route::get('/api/mobile/chat/sync', [MobileCommsController::class, 'sync']);
+    Route::get('/api/mobile/chat/unread', [MobileCommsController::class, 'unread']);
+    Route::get('/api/mobile/chat/incoming-call', [MobileCommsController::class, 'incomingCall']);
+    Route::get('/api/mobile/chat/{uuid}/messages', [MobileCommsController::class, 'messages']);
+    Route::post('/api/mobile/chat/{uuid}/send', [MobileCommsController::class, 'send'])->middleware('throttle:60,1');
+    Route::post('/api/mobile/chat/{uuid}/typing', [MobileCommsController::class, 'typing'])->middleware('throttle:60,1');
+    Route::post('/api/mobile/chat/{uuid}/call/initiate', [MobileCommsController::class, 'initiateCall'])->middleware('throttle:20,1');
+    Route::get('/api/mobile/chat/{uuid}/call/signal', [MobileCommsController::class, 'callSignal']);
+    Route::post('/api/mobile/chat/{uuid}/call/signal', [MobileCommsController::class, 'sendCallSignal']);
+    Route::post('/api/mobile/chat/{uuid}/call/end', [MobileCommsController::class, 'endCall']);
+    Route::get('/api/mobile/chat/{uuid}/call/agora-token', [MobileCommsController::class, 'agoraToken']);
+});
+
+Route::middleware('mobile.auth:chat.manage')->group(function () {
+    Route::get('/api/mobile/chat/users', [MobileCommsController::class, 'searchUsers']);
+    Route::post('/api/mobile/chat/start', [MobileCommsController::class, 'start']);
+    Route::post('/api/mobile/chat/{uuid}/status', [MobileCommsController::class, 'toggleStatus']);
+    Route::delete('/api/mobile/chat/{uuid}', [MobileCommsController::class, 'destroy']);
+});
+
+// Halaman media vicon untuk WebView (tanpa data; token Agora diberikan oleh aplikasi).
+Route::get('/mobile/vicon', [MobileCommsController::class, 'viconPage'])->middleware('throttle:60,1');
+
+Route::get('/api/mobile/pdf/signature/{id}', [MobileCommsController::class, 'signaturePdf'])
+    ->whereNumber('id')->middleware('mobile.auth:signature.view');
+
+Route::get('/api/mobile/duty-roster/pending', [MobileCommsController::class, 'pendingSpJaga'])->middleware('mobile.auth:duty_roster.sign');
+Route::post('/api/mobile/duty-roster/{id}/approve', [MobileCommsController::class, 'approveSpJaga'])
+    ->whereNumber('id')->middleware('mobile.auth:duty_roster.sign');
 
 // =====================================================================
 // 16. PELACAKAN LOKASI REALTIME PERSONEL

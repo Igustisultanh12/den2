@@ -29,6 +29,10 @@ const form = useForm({
     google_login_enabled: props.settings.google_login_enabled !== undefined ? String(props.settings.google_login_enabled) : '1',
     agora_app_id: props.settings.agora_app_id || '19daeb63b0ec46f2b02197c9fbbe81d6',
     agora_app_certificate: props.settings.agora_app_certificate || '',
+    turnstile_enabled: props.settings.turnstile_enabled !== undefined ? String(props.settings.turnstile_enabled) : '0',
+    turnstile_site_key: props.settings.turnstile_site_key || '',
+    turnstile_secret_key: '',
+    turnstile_secret_clear: false,
     fcm_enabled: props.settings.fcm_enabled !== undefined ? String(props.settings.fcm_enabled) : '1',
     fcm_google_services: '',
     fcm_service_account: '',
@@ -89,6 +93,7 @@ const readJsonFile = (event, field) => {
 
 const showClientSecret = ref(false);
 const showAgoraCertificate = ref(false);
+const showTurnstileSecret = ref(false);
 const copiedCallback = ref(false);
 
 const callbackUrl = computed(() => {
@@ -658,6 +663,69 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
                                     <li><b>Mode App ID Saja</b>: Jika proyek Agora Anda dibuat tanpa mengaktifkan App Certificate, cukup isi kolom <b>Agora App ID</b> dan kosongkan <b>Agora App Certificate</b>.</li>
                                     <li><b>Mode Token Terenkripsi</b>: Jika App Certificate diaktifkan di Agora Console, isi kedua kolom di atas. Server SINDEN akan secara otomatis membangkitkan token keamanan dinamis saat sesi panggilan dimulai.</li>
                                     <li>Perubahan yang disimpan langsung berlaku seketika pada bilik panggilan video tanpa perlu memuat ulang atau menyetel ulang server.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KEAMANAN LOGIN APLIKASI MOBILE (CLOUDFLARE TURNSTILE) -->
+                    <div class="pt-8 border-t border-slate-100 space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-2xl bg-orange-50 border border-orange-200 text-orange-600 flex items-center justify-center shrink-0">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">KEAMANAN LOGIN APLIKASI MOBILE (CLOUDFLARE TURNSTILE)</h3>
+                                    <p class="text-[10px] text-slate-500 font-semibold">Verifikasi keamanan saat Masuk &amp; Aktivasi Akun di aplikasi Android Sinden 2</p>
+                                </div>
+                            </div>
+                            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                                <input type="checkbox" class="rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                                       :checked="form.turnstile_enabled === '1'"
+                                       @change="form.turnstile_enabled = $event.target.checked ? '1' : '0'" />
+                                <span class="text-[10px] font-extrabold uppercase tracking-wider" :class="form.turnstile_enabled === '1' ? 'text-emerald-700' : 'text-slate-500'">
+                                    {{ form.turnstile_enabled === '1' ? 'Aktif' : 'Nonaktif' }}
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-slate-50 to-orange-50/30 p-6 rounded-3xl border border-slate-200 space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-1.5">
+                                    <label class="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider ms-1">Site Key (publik)</label>
+                                    <input v-model="form.turnstile_site_key" type="text"
+                                           class="w-full rounded-2xl border-slate-200 bg-white focus:ring-orange-500 focus:border-orange-600 font-mono text-xs font-semibold px-4 py-3 text-slate-800 transition"
+                                           placeholder="contoh: 0x4AAAAAAA..." />
+                                    <p class="text-[9px] text-slate-400 font-medium ms-1">Ditampilkan pada widget di aplikasi. Aman untuk dibagikan.</p>
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[10px] font-extrabold text-slate-700 uppercase tracking-wider ms-1 flex items-center justify-between">
+                                        <span>Secret Key (rahasia)</span>
+                                        <button type="button" @click="showTurnstileSecret = !showTurnstileSecret" class="text-[9px] font-bold text-orange-600 hover:text-orange-800 uppercase cursor-pointer">
+                                            {{ showTurnstileSecret ? 'Sembunyikan' : 'Tampilkan' }}
+                                        </button>
+                                    </label>
+                                    <input v-model="form.turnstile_secret_key" :type="showTurnstileSecret ? 'text' : 'password'" autocomplete="new-password"
+                                           class="w-full rounded-2xl border-slate-200 bg-white focus:ring-orange-500 focus:border-orange-600 font-mono text-xs font-semibold px-4 py-3 text-slate-800 transition"
+                                           :placeholder="props.settings.turnstile_secret_set ? 'Tersimpan (terenkripsi) — isi untuk mengganti' : 'Tempel secret key dari Cloudflare'" />
+                                    <p class="text-[9px] font-medium ms-1" :class="props.settings.turnstile_secret_set ? 'text-emerald-600' : 'text-rose-500'">
+                                        {{ props.settings.turnstile_secret_set ? 'Secret key sudah tersimpan terenkripsi dan tidak ditampilkan kembali.' : 'Secret key belum diatur — Turnstile belum dapat diaktifkan.' }}
+                                    </p>
+                                    <label v-if="props.settings.turnstile_secret_set" class="inline-flex items-center gap-2 text-[9px] text-slate-500 ms-1">
+                                        <input type="checkbox" v-model="form.turnstile_secret_clear" class="rounded border-slate-300 text-rose-600" /> Hapus secret key tersimpan
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="p-4 bg-white rounded-2xl border border-orange-100 space-y-2">
+                                <p class="font-bold text-orange-900 text-xs">Panduan Cloudflare Turnstile:</p>
+                                <ul class="list-disc list-inside space-y-1 text-[10px] text-slate-600 font-medium pl-1">
+                                    <li>Buat widget di <b>Cloudflare Dashboard &rarr; Turnstile</b>, lalu tambahkan hostname <b>sinden2.my.id</b>.</li>
+                                    <li>Salin <b>Site Key</b> dan <b>Secret Key</b> ke kolom di atas, centang <b>Aktif</b>, lalu simpan.</li>
+                                    <li>Saat aktif, aplikasi versi lama yang belum mendukung Turnstile tidak dapat masuk &mdash; pastikan personel memperbarui aplikasi.</li>
+                                    <li>Perubahan berlaku seketika tanpa memperbarui aplikasi maupun menyetel ulang server.</li>
                                 </ul>
                             </div>
                         </div>
