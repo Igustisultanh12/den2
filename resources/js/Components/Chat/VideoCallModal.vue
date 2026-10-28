@@ -213,6 +213,20 @@
           </div>
         </div>
 
+        <!-- Suara lawan bicara diblokir browser sampai ada ketukan pengguna -->
+        <button
+          v-if="needsAudioUnlock"
+          type="button"
+          @click="unlockAudio"
+          class="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-amber-500 text-slate-950 text-xs font-bold shadow-lg"
+        >Ketuk untuk menyalakan suara</button>
+
+        <!-- Sinyal lawan bicara putus sebentar -->
+        <div
+          v-if="remoteReconnecting"
+          class="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full bg-slate-800/90 text-white text-xs font-semibold shadow-lg"
+        >Sinyal lawan bicara terputus, menunggu tersambung kembali…</div>
+
         <!-- Wadah Video Lokal Pengguna (Miniatur PiP di Sudut Kanan Bawah) -->
         <div 
           class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 w-28 sm:w-44 aspect-[3/4] sm:aspect-video bg-slate-900 border-2 border-slate-700/90 rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden z-20 group transition-all"
@@ -383,17 +397,21 @@ const channelName = computed(() => {
   return `SINDEN_${cleanId}`;
 });
 
-// Penentuan peran pemanggil
+// Penentuan peran pemanggil: dari ORANGNYA (id akun), bukan peran — chat pribadi antar
+// dua personel biasa memiliki peran yang sama sehingga perbandingan peran salah.
 const isCaller = computed(() => {
-  if (props.incomingCallData?.caller) {
-    const callerType = (props.incomingCallData.caller.type || '').toUpperCase();
-    const currentRole = (props.userRole || '').toUpperCase();
-    if (callerType === currentRole) return true;
-    if (['ADMIN', 'OPERATOR'].includes(callerType) && ['ADMIN', 'OPERATOR'].includes(currentRole)) return true;
-    return false;
+  const callerId = props.incomingCallData?.caller?.id;
+  if (callerId && props.currentUser?.id) {
+    return Number(callerId) === Number(props.currentUser.id);
   }
   return Boolean(isInitiator.value);
 });
+
+// Status bantu sambungan
+const needsAudioUnlock = ref(false);
+const remoteReconnecting = ref(false);
+let remoteLeftTimer = null;
+let joinAttempt = 0;
 
 const getAvatarUrl = (user) => {
   if (!user) return 'https://ui-avatars.com/api/?name=User&background=1e293b&color=94a3b8';
@@ -419,26 +437,96 @@ const toggleFullscreen = () => {
 // ==========================================
 // 1. PEMUAT PUSTAKA RESMI AGORA RTC WEB SDK
 // ==========================================
+// SDK dibundel dari server sendiri (npm agora-rtc-sdk-ng); CDN Agora hanya cadangan.
+// Sebelumnya hanya dari CDN — bila lambat/terblokir, vicon gagal tersambung.
+const loadAgoraFromCdn = () => new Promise((resolve, reject) => {
+  if (typeof window !== 'undefined' && window.AgoraRTC) { resolve(window.AgoraRTC); return; }
+  const script = document.createElement('script');
+  script.id = 'agora-rtc-sdk';
+  script.src = 'https://download.agora.io/sdk/release/AgoraRTC_N-4.20.2.js';
+  script.async = true;
+  script.onload = () => resolve(window.AgoraRTC);
+  script.onerror = (e) => reject(e);
+  document.head.appendChild(script);
+});
+
+let agoraSdkPromise = null;
 const loadAgoraScript = () => {
-  return new Promise((resolve, reject) => {
-    if (typeof window !== 'undefined' && window.AgoraRTC) {
-      resolve(window.AgoraRTC);
+  if (!agoraSdkPromise) {
+    agoraSdkPromise = import('agora-rtc-sdk-ng')
+      .then((m) => m.default || m)
+      .catch(() => loadAgoraFromCdn())
+      .then((sdk) => {
+        // Suara lawan bicara diblokir browser bila belum ada interaksi → tampilkan tombol.
+        sdk.onAutoplayFailed = () => { needsAudioUnlock.value = true; };
+        return sdk;
+      })
+      .catch((e) => { agoraSdkPromise = null; throw e; });
+  }
+  return agoraSdkPromise;
+};
+
+/** Pasang video lawan bicara; ulangi sebentar bila wadah belum siap di layar. */
+const playRemoteVideo = async (user, attempt = 0) => {
+  await nextTick();
+  const el = remoteVideoContainerRef.value;
+  if (!user?.videoTrack) return;
+  if (!el) {
+    if (attempt < 20) setTimeout(() => playRemoteVideo(user, attempt + 1), 150);
+    return;
+  }
+  try {
+    user.videoTrack.play(el, { fit: 'contain' });
+  } catch (e) {
+    if (attempt < 5) setTimeout(() => playRemoteVideo(user, attempt + 1), 300);
+  }
+};
+
+const unlockAudio = () => {
+  needsAudioUnlock.value = false;
+  agoraClient?.remoteUsers?.forEach((u) => { try { u.audioTrack?.play(); } catch (e) {} });
+};
+
+/**
+ * Gabung ke kanal. Bila jaringan memblokir UDP (umum di jaringan kantor/seluler tertentu),
+ * ulangi lewat Cloud Proxy Agora: mode 3 (UDP proxy) lalu mode 5 (TCP/TLS port 443).
+ */
+const joinWithFallback = async (client, appId, token, uid) => {
+  const modes = [null, 3, 5];
+  let lastErr = null;
+  for (const mode of modes) {
+    joinAttempt++;
+    try {
+      if (mode !== null) {
+        try { await client.leave(); } catch (e) {}
+        client.startProxyServer(mode);
+        connectionStatusText.value = 'Mencoba jalur cadangan...';
+      }
+      await Promise.race([
+        client.join(appId, channelName.value, token, uid),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('JOIN_TIMEOUT')), 12000)),
+      ]);
       return;
+    } catch (err) {
+      lastErr = err;
+      console.warn(`Gagal bergabung (percobaan ${joinAttempt}${mode ? ', proxy ' + mode : ''}):`, err?.code || err?.message || err);
+      // Kesalahan parameter/token tidak akan terselesaikan dengan jalur proxy.
+      const msg = String(err?.message || '').toLowerCase();
+      if (err?.code === 'INVALID_PARAMS' || msg.includes('token') || msg.includes('appid')) break;
+      if (!props.show || callStatus.value === 'IDLE' || callStatus.value === 'ENDED') return;
     }
-    const existingScript = document.getElementById('agora-rtc-sdk');
-    if (existingScript) {
-      existingScript.addEventListener('load', () => resolve(window.AgoraRTC));
-      existingScript.addEventListener('error', (e) => reject(e));
-      return;
-    }
-    const script = document.createElement('script');
-    script.id = 'agora-rtc-sdk';
-    script.src = 'https://download.agora.io/sdk/release/AgoraRTC_N-4.20.2.js';
-    script.async = true;
-    script.onload = () => resolve(window.AgoraRTC);
-    script.onerror = (e) => reject(e);
-    document.head.appendChild(script);
-  });
+  }
+  throw lastErr || new Error('Gagal bergabung ke kanal vicon');
+};
+
+/** Kamera kadang masih dipakai aplikasi lain sesaat: coba sekali lagi tanpa preferensi kamera. */
+const createCameraTrack = async (AgoraRTC) => {
+  try {
+    return await AgoraRTC.createCameraVideoTrack({ encoderConfig: '480p_1', facingMode: 'user', optimizationMode: 'motion' });
+  } catch (first) {
+    await new Promise((r) => setTimeout(r, 800));
+    return await AgoraRTC.createCameraVideoTrack({ encoderConfig: '480p_1' });
+  }
 };
 
 // ==========================================
@@ -469,26 +557,40 @@ const initAgoraRoom = async () => {
     client.on('user-published', async (user, mediaType) => {
       try {
         await client.subscribe(user, mediaType);
+        remoteReconnecting.value = false;
+        clearTimeout(remoteLeftTimer);
 
         if (mediaType === 'video') {
           isRemoteMediaActive.value = true;
           isRemoteVideoOff.value = false;
-          await nextTick();
-          if (remoteVideoContainerRef.value && user.videoTrack) {
-            user.videoTrack.play(remoteVideoContainerRef.value);
-          }
+          await playRemoteVideo(user);
           handleConnected();
         }
 
         if (mediaType === 'audio') {
-          if (user.audioTrack) {
-            user.audioTrack.play();
-          }
+          try { user.audioTrack?.play(); } catch (e) { needsAudioUnlock.value = true; }
           handleConnected();
         }
       } catch (subErr) {
         console.warn('Kendala subscribe lawan bicara:', subErr);
+        // Subscribe bisa gagal sesaat saat jaringan baru pulih: coba lagi sekali.
+        setTimeout(async () => {
+          try {
+            await client.subscribe(user, mediaType);
+            if (mediaType === 'video') { isRemoteMediaActive.value = true; await playRemoteVideo(user); }
+            if (mediaType === 'audio') user.audioTrack?.play();
+            handleConnected();
+          } catch (e) {}
+        }, 1500);
       }
+    });
+
+    // Lawan bicara masuk/kembali ke kanal → batalkan hitung mundur pemutusan.
+    client.on('user-joined', () => {
+      remoteReconnecting.value = false;
+      clearTimeout(remoteLeftTimer);
+      // Lawan bicara tanpa kamera/mikrofon tetap dianggap tersambung.
+      handleConnected();
     });
 
     // Tangani saat lawan bicara mematikan kamera
@@ -498,24 +600,38 @@ const initAgoraRoom = async () => {
       }
     });
 
-    // Tangani saat lawan bicara keluar dari bilik panggilan
-    client.on('user-left', () => {
-      hangUpCall();
+    // Lawan bicara keluar. "Quit" = menutup panggilan; selain itu (mis. ServerTimeOut)
+    // biasanya sinyal putus sebentar — tunggu 20 detik sebelum panggilan diakhiri.
+    client.on('user-left', (user, reason) => {
+      if (reason === 'Quit') {
+        hangUpCall();
+        return;
+      }
+      remoteReconnecting.value = true;
+      isRemoteMediaActive.value = false;
+      connectionStatusText.value = 'Sinyal lawan bicara terputus, menunggu tersambung kembali...';
+      clearTimeout(remoteLeftTimer);
+      remoteLeftTimer = setTimeout(() => {
+        if (remoteReconnecting.value) hangUpCall();
+      }, 20000);
     });
 
-    // Masuk ke saluran Agora RTC
-    const uid = Number(props.currentUser?.id) || Math.floor(Math.random() * 900000) + 100000;
+    // Sambungan sendiri terputus lalu pulih otomatis oleh SDK.
+    client.on('connection-state-change', (cur) => {
+      if (cur === 'RECONNECTING') connectionStatusText.value = 'Jaringan Anda terputus, menyambungkan kembali...';
+      if (cur === 'CONNECTED' && callStatus.value === 'CONNECTED') connectionStatusText.value = 'Tersambung';
+    });
+
+    // Kredensial dari server: token terikat ke UID akun, jadi UID mengikuti jawaban server.
+    let uid = Number(props.currentUser?.id) || Math.floor(Math.random() * 900000) + 100000;
     let token = null;
     let appId = AGORA_APP_ID;
 
     try {
-      const resToken = await axios.get(`${baseUrl.value}/agora-token?uid=${uid}`);
-      if (resToken.data?.token) {
-        token = resToken.data.token;
-      }
-      if (resToken.data?.appId) {
-        appId = resToken.data.appId;
-      }
+      const resToken = await axios.get(`${baseUrl.value}/agora-token`);
+      if (resToken.data?.token) token = resToken.data.token;
+      if (resToken.data?.appId) appId = resToken.data.appId;
+      if (resToken.data?.uid) uid = Number(resToken.data.uid);
     } catch (tokenErr) {
       console.debug('Pengambilan token dinas fallback ke mode App ID:', tokenErr);
     }
@@ -526,7 +642,7 @@ const initAgoraRoom = async () => {
       return;
     }
 
-    await client.join(appId, channelName.value, token, uid);
+    await joinWithFallback(client, appId, token, uid);
 
     if (!props.show || !agoraClient || agoraClient !== client || callStatus.value === 'IDLE' || callStatus.value === 'ENDED') {
       try { client.leave(); } catch (e) {}
@@ -546,10 +662,7 @@ const initAgoraRoom = async () => {
     }
 
     try {
-      localVideoTrack = await AgoraRTC.createCameraVideoTrack({
-        encoderConfig: '720p_2',
-        facingMode: 'user',
-      });
+      localVideoTrack = await createCameraTrack(AgoraRTC);
     } catch (camErr) {
       console.warn('Akses kamera ditolak atau tidak tersedia:', camErr);
       isCameraOff.value = true;
@@ -645,7 +758,8 @@ const startConnectingTimer = () => {
   connectingSeconds.value = 0;
   connectingTimeoutTimer = setInterval(() => {
     connectingSeconds.value++;
-    if (connectingSeconds.value >= 35) {
+    // Termasuk waktu mencoba jalur cadangan (cloud proxy) bila jaringan memblokir UDP.
+    if (connectingSeconds.value >= 50) {
       stopConnectingTimer();
       if (callStatus.value !== 'CONNECTED') {
         hangUpCall();
@@ -910,6 +1024,10 @@ const stopSignalingPoll = () => {
 // ==========================================
 const cleanupMedia = () => {
   isInitializingAgora = false;
+  clearTimeout(remoteLeftTimer);
+  remoteReconnecting.value = false;
+  needsAudioUnlock.value = false;
+  joinAttempt = 0;
   stopSignalingPoll();
   stopOutgoingTimeout();
   stopConnectingTimer();

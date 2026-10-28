@@ -179,6 +179,7 @@ class MobileApiSecurityTest extends TestCase
             $t->id();
             $t->uuid('uuid')->unique();
             $t->foreignId('user_id');
+            $t->unsignedBigInteger('peer_id')->nullable();
             $t->foreignId('operator_id')->nullable();
             $t->string('subject')->default('Pusat Komunikasi Dinas');
             $t->string('status')->default('OPEN');
@@ -676,74 +677,174 @@ class MobileApiSecurityTest extends TestCase
         $this->postJson('/api/mobile/login', ['username' => '7373', 'password' => 'rahasia123'])->assertOk();
     }
 
-    public function test_chat_personel_gets_own_thread_and_cannot_touch_other_threads(): void
+    public function test_support_chat_with_operator_still_works_and_is_private_from_other_personel(): void
     {
         $a = $this->makeUser(['name' => 'Pers A']);
         $b = $this->makeUser(['name' => 'Pers B']);
         $admin = $this->makeUser(['role' => 'admin', 'name' => 'Operator']);
         $tokA = $this->tokenFor($a);
         $tokB = $this->tokenFor($b);
+        $tokAdmin = $this->tokenFor($admin);
 
-        $uuid = $this->withToken($tokA)->getJson('/api/mobile/chat')->assertOk()
-            ->assertJsonPath('is_operator', false)->json('thread.uuid');
-        $this->assertNotEmpty($uuid);
+        // Personel selalu melihat entri "Operator Dinas" walau belum ada pesan.
+        $list = $this->withToken($tokA)->getJson('/api/mobile/chat')->assertOk()->assertJsonPath('is_operator', false)->json('conversations');
+        $this->assertSame('support', $list[0]['kind']);
+        $this->assertNull($list[0]['uuid']);
 
+        $uuid = $this->withToken($tokA)->postJson('/api/mobile/chat/start', ['support' => true])->assertOk()->json('uuid');
         $this->withToken($tokA)->postJson("/api/mobile/chat/{$uuid}/send", ['message' => 'Izin lapor'])->assertOk()->assertJsonPath('success', true);
 
         $this->withToken($tokB)->getJson("/api/mobile/chat/{$uuid}/messages")->assertStatus(403);
         $this->withToken($tokB)->postJson("/api/mobile/chat/{$uuid}/send", ['message' => 'nyelonong'])->assertStatus(403);
         $this->withToken($tokB)->getJson("/api/mobile/chat/sync?uuid={$uuid}")->assertStatus(403);
-        $this->withToken($tokB)->getJson('/api/mobile/chat/users?q=Pers')->assertStatus(403);
         $this->withToken($tokB)->postJson("/api/mobile/chat/{$uuid}/status")->assertStatus(403);
+        $this->assertNotContains($uuid, array_column($this->withToken($tokB)->getJson('/api/mobile/chat')->json('conversations'), 'uuid'));
 
-        $tokAdmin = $this->tokenFor($admin);
-        $res = $this->withToken($tokAdmin)->getJson('/api/mobile/chat')->assertOk()->assertJsonPath('is_operator', true);
-        $thread = collect($res->json('threads'))->firstWhere('uuid', $uuid);
-        $this->assertSame(1, $thread['unread_admin']);
+        $conv = collect($this->withToken($tokAdmin)->getJson('/api/mobile/chat')->assertOk()->assertJsonPath('is_operator', true)->json('conversations'))
+            ->firstWhere('uuid', $uuid);
+        $this->assertSame(1, $conv['unread']);
         $this->assertSame(1, $this->withToken($tokAdmin)->getJson('/api/mobile/chat/unread')->json('unread'));
 
         $this->withToken($tokAdmin)->postJson("/api/mobile/chat/{$uuid}/send", ['message' => 'Siap, diterima'])->assertOk();
         $this->assertSame(1, $this->withToken($tokA)->getJson('/api/mobile/chat/unread')->json('unread'));
         $msgs = $this->withToken($tokA)->getJson("/api/mobile/chat/{$uuid}/messages")->assertOk()->json('messages');
-        $this->assertSame(['USER', 'ADMIN'], array_column($msgs, 'sender_type'));
+        $this->assertSame([$a->id, $admin->id], array_column($msgs, 'sender_id'));
+        $this->assertSame(0, $this->withToken($tokA)->getJson('/api/mobile/chat/unread')->json('unread'), 'dibuka = sudah dibaca');
 
-        // Operator menutup utas lama lalu membuka utas baru: sync personel
-        // mengikuti utas yang diminta (bukan utas pertama).
+        // Hanya operator yang boleh menutup utas layanan.
         $this->withToken($tokAdmin)->postJson("/api/mobile/chat/{$uuid}/status")->assertOk()->assertJsonPath('status', 'CLOSED');
-        $newUuid = $this->withToken($tokAdmin)->postJson('/api/mobile/chat/start', ['user_id' => $a->id])->assertOk()->json('uuid');
-        $this->assertNotSame($uuid, $newUuid);
-        $this->withToken($tokAdmin)->postJson("/api/mobile/chat/{$newUuid}/send", ['message' => 'Utas baru'])->assertOk();
-        $sync = $this->withToken($tokA)->getJson("/api/mobile/chat/sync?uuid={$newUuid}")->assertOk();
-        $sync->assertJsonPath('thread.uuid', $newUuid);
-        $this->assertSame(['Utas baru'], array_column($sync->json('messages'), 'message'));
-        $this->withToken($tokA)->getJson('/api/mobile/chat')->assertOk()->assertJsonPath('thread.uuid', $newUuid);
+        $this->withToken($tokA)->postJson("/api/mobile/chat/{$uuid}/send", ['message' => 'masih?'])->assertStatus(422);
     }
 
-    public function test_video_call_signaling_reaches_operator_and_is_logged(): void
+    public function test_personel_can_chat_directly_with_anyone_and_it_stays_private(): void
+    {
+        $a = $this->makeUser(['name' => 'Pers A']);
+        $komandan = $this->makeUser(['role' => 'komandan', 'name' => 'Danden', 'pangkat' => 'Letkol Laut (P)']);
+        $c = $this->makeUser(['name' => 'Pers C']);
+        $admin = $this->makeUser(['role' => 'admin', 'name' => 'Operator']);
+        $nonaktif = $this->makeUser(['name' => 'Pers Nonaktif', 'is_active' => false]);
+        $tokA = $this->tokenFor($a);
+        $tokK = $this->tokenFor($komandan);
+
+        // Semua personel dapat mencari kontak (akun nonaktif & diri sendiri tidak muncul).
+        $contacts = array_column($this->withToken($tokA)->getJson('/api/mobile/chat/users')->assertOk()->json('users'), 'id');
+        $this->assertContains($komandan->id, $contacts);
+        $this->assertNotContains($a->id, $contacts);
+        $this->assertNotContains($nonaktif->id, $contacts);
+        $this->withToken($tokA)->postJson('/api/mobile/chat/start', ['user_id' => $nonaktif->id])->assertStatus(422);
+
+        $uuid = $this->withToken($tokA)->postJson('/api/mobile/chat/start', ['user_id' => $komandan->id])->assertOk()->json('uuid');
+        // Satu utas per pasangan, dari sisi mana pun dibuka.
+        $this->assertSame($uuid, $this->withToken($tokK)->postJson('/api/mobile/chat/start', ['user_id' => $a->id])->json('uuid'));
+
+        $this->withToken($tokA)->postJson("/api/mobile/chat/{$uuid}/send", ['message' => 'Izin Komandan'])->assertOk();
+
+        $conv = collect($this->withToken($tokK)->getJson('/api/mobile/chat')->json('conversations'))->firstWhere('uuid', $uuid);
+        $this->assertSame('direct', $conv['kind']);
+        $this->assertSame('Pers A', $conv['title']);
+        $this->assertSame(1, $conv['unread']);
+        $this->assertSame('Izin Komandan', $conv['latest_message']['preview']);
+
+        $this->withToken($tokK)->postJson("/api/mobile/chat/{$uuid}/send", ['message' => 'Silakan'])->assertOk();
+        $msgs = $this->withToken($tokA)->getJson("/api/mobile/chat/sync?uuid={$uuid}")->assertOk()->json('active.messages');
+        $this->assertSame(['Izin Komandan', 'Silakan'], array_column($msgs, 'message'));
+        $this->assertSame([$a->id, $komandan->id], array_column($msgs, 'sender_id'));
+
+        // Polling hanya pesan baru.
+        $lastId = end($msgs)['id'];
+        $this->assertSame([], $this->withToken($tokA)->getJson("/api/mobile/chat/sync?uuid={$uuid}&after={$lastId}")->json('active.messages'));
+
+        // Pihak ketiga — termasuk Admin — tidak dapat membaca chat pribadi.
+        foreach ([$c, $admin] as $outsider) {
+            $tok = $this->tokenFor($outsider);
+            $this->withToken($tok)->getJson("/api/mobile/chat/{$uuid}/messages")->assertStatus(403);
+            $this->withToken($tok)->postJson("/api/mobile/chat/{$uuid}/send", ['message' => 'x'])->assertStatus(403);
+            $this->withToken($tok)->postJson("/api/mobile/chat/{$uuid}/call/initiate")->assertStatus(403);
+            $this->assertNotContains($uuid, array_column($this->withToken($tok)->getJson('/api/mobile/chat')->json('conversations'), 'uuid'));
+        }
+
+        // Peserta boleh menghapus chat pribadinya.
+        $this->withToken($tokA)->deleteJson("/api/mobile/chat/{$uuid}")->assertOk();
+        $this->assertNull(\App\Models\LiveChatThread::where('uuid', $uuid)->first());
+    }
+
+    public function test_video_call_between_two_personel_rings_the_partner_and_is_logged_once(): void
     {
         $a = $this->makeUser(['name' => 'Pemanggil']);
-        $admin = $this->makeUser(['role' => 'admin', 'name' => 'Operator']);
+        $b = $this->makeUser(['name' => 'Penerima']);
         $tokA = $this->tokenFor($a);
-        $tokAdmin = $this->tokenFor($admin);
-        $uuid = $this->withToken($tokA)->getJson('/api/mobile/chat')->json('thread.uuid');
+        $tokB = $this->tokenFor($b);
+        $uuid = $this->withToken($tokA)->postJson('/api/mobile/chat/start', ['user_id' => $b->id])->json('uuid');
 
-        $this->withToken($tokA)->postJson("/api/mobile/chat/{$uuid}/call/initiate", ['call_type' => 'video'])
-            ->assertOk()->assertJsonPath('call.status', 'RINGING');
+        $call = $this->withToken($tokA)->postJson("/api/mobile/chat/{$uuid}/call/initiate", ['call_type' => 'video'])
+            ->assertOk()->assertJsonPath('call.status', 'RINGING')->json('call');
+        $this->assertSame($b->id, $call['callee_user_id']);
 
-        $incoming = $this->withToken($tokAdmin)->getJson('/api/mobile/chat/incoming-call')->assertOk()->json('call');
+        $incoming = $this->withToken($tokB)->getJson('/api/mobile/chat/incoming-call')->assertOk()->json('call');
         $this->assertSame($uuid, $incoming['thread_uuid']);
-        $this->assertSame('video', $incoming['call_type']);
+        $this->assertNull($this->withToken($tokA)->getJson('/api/mobile/chat/incoming-call')->json('call'), 'pemanggil tidak ikut berdering');
 
-        $this->withToken($tokAdmin)->postJson("/api/mobile/chat/{$uuid}/call/signal", ['action' => 'accept'])
+        // Token Agora selalu untuk UID akun sendiri, walau klien meminta UID lain.
+        $tok = $this->withToken($tokB)->getJson("/api/mobile/chat/{$uuid}/call/agora-token?uid=999999")->assertOk();
+        $this->assertSame($b->id, $tok->json('uid'));
+
+        $this->withToken($tokB)->postJson("/api/mobile/chat/{$uuid}/call/signal", ['action' => 'accept'])
             ->assertOk()->assertJsonPath('call.status', 'ACCEPTED');
+        $this->assertNull($this->withToken($tokB)->getJson('/api/mobile/chat/incoming-call')->json('call'), 'dering berhenti setelah diterima');
         $this->withToken($tokA)->getJson("/api/mobile/chat/{$uuid}/call/signal")->assertJsonPath('call.status', 'ACCEPTED');
 
+        // Kedua sisi menekan tutup → riwayat hanya dicatat sekali.
         $this->withToken($tokA)->postJson("/api/mobile/chat/{$uuid}/call/end", ['reason' => 'ended', 'duration_seconds' => 65])->assertOk();
-        $log = \App\Models\LiveChatMessage::where('sender_type', 'SYSTEM')->latest('id')->value('message');
-        $this->assertStringContainsString('01:05', $log);
+        $this->withToken($tokB)->postJson("/api/mobile/chat/{$uuid}/call/end", ['reason' => 'ended', 'duration_seconds' => 65])->assertOk();
+        $logs = \App\Models\LiveChatMessage::where('sender_type', 'SYSTEM')->pluck('message');
+        $this->assertCount(1, $logs);
+        $this->assertStringContainsString('01:05', $logs[0]);
+    }
 
-        $other = $this->makeUser();
-        $this->withToken($this->tokenFor($other))->postJson("/api/mobile/chat/{$uuid}/call/initiate")->assertStatus(403);
+    /** Berkas unggahan sungguhan: jenisnya ditebak dari ISI (finfo), seperti di server. */
+    private function realUpload(string $name, string $content): \Illuminate\Http\UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'upl');
+        file_put_contents($path, $content);
+        return new \Illuminate\Http\UploadedFile($path, $name, null, null, true);
+    }
+
+    public function test_voice_note_and_image_are_stored_as_media_and_scripts_are_rejected(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $a = $this->makeUser();
+        $b = $this->makeUser();
+        $tokA = $this->tokenFor($a);
+        $uuid = $this->withToken($tokA)->postJson('/api/mobile/chat/start', ['user_id' => $b->id])->json('uuid');
+
+        // WAV minimal yang valid (dikenali dari ISI berkas, bukan nama).
+        $samples = str_repeat("\x00\x00", 800);
+        $wav = 'RIFF' . pack('V', 36 + strlen($samples)) . 'WAVEfmt ' . pack('VvvVVvv', 16, 1, 1, 8000, 16000, 2, 16)
+            . 'data' . pack('V', strlen($samples)) . $samples;
+        $voice = $this->realUpload('voice.wav', $wav);
+
+        $msg = $this->withToken($tokA)->post("/api/mobile/chat/{$uuid}/send", [
+            'voice_note' => '1', 'duration_ms' => 4200, 'attachments' => [$voice],
+        ], ['Accept' => 'application/json'])->assertOk()->json('message');
+        $att = $msg['attachments'][0];
+        $this->assertTrue($att['is_audio']);
+        $this->assertTrue($att['is_voice']);
+        $this->assertSame(4200, $att['duration_ms']);
+        \Illuminate\Support\Facades\Storage::disk('public')->assertExists($att['file_path']);
+
+        $conv = collect($this->withToken($this->tokenFor($b))->getJson('/api/mobile/chat')->json('conversations'))->firstWhere('uuid', $uuid);
+        $this->assertSame('🎤 Pesan suara', $conv['latest_message']['preview']);
+
+        $png = \Illuminate\Http\UploadedFile::fake()->image('foto.png', 40, 40);
+        $img = $this->withToken($tokA)->post("/api/mobile/chat/{$uuid}/send", ['attachments' => [$png]], ['Accept' => 'application/json'])
+            ->assertOk()->json('message.attachments.0');
+        $this->assertTrue($img['is_image']);
+        $this->assertFalse($img['is_audio']);
+
+        // "Pesan suara" berisi skrip PHP ditolak.
+        $evil = $this->realUpload('voice.m4a', "<?php echo 'x'; ?>");
+        $this->withToken($tokA)->post("/api/mobile/chat/{$uuid}/send", ['voice_note' => '1', 'duration_ms' => 1000, 'attachments' => [$evil]], ['Accept' => 'application/json'])
+            ->assertStatus(422);
     }
 
     public function test_signature_document_preview_only_for_approver_or_requester(): void

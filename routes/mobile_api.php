@@ -1268,17 +1268,31 @@ Route::middleware('mobile.auth:chat.view')->group(function () {
     Route::post('/api/mobile/chat/{uuid}/call/signal', [MobileCommsController::class, 'sendCallSignal']);
     Route::post('/api/mobile/chat/{uuid}/call/end', [MobileCommsController::class, 'endCall']);
     Route::get('/api/mobile/chat/{uuid}/call/agora-token', [MobileCommsController::class, 'agoraToken']);
+
+    // Chat antar-personel: siapa pun dapat mencari kontak & memulai chat pribadi.
+    Route::get('/api/mobile/chat/users', [MobileCommsController::class, 'searchUsers']);
+    Route::post('/api/mobile/chat/start', [MobileCommsController::class, 'start'])->middleware('throttle:30,1');
+    // Hapus: peserta chat pribadi, atau operator untuk utas layanan (dicek di controller).
+    Route::delete('/api/mobile/chat/{uuid}', [MobileCommsController::class, 'destroy']);
 });
 
 Route::middleware('mobile.auth:chat.manage')->group(function () {
-    Route::get('/api/mobile/chat/users', [MobileCommsController::class, 'searchUsers']);
-    Route::post('/api/mobile/chat/start', [MobileCommsController::class, 'start']);
     Route::post('/api/mobile/chat/{uuid}/status', [MobileCommsController::class, 'toggleStatus']);
-    Route::delete('/api/mobile/chat/{uuid}', [MobileCommsController::class, 'destroy']);
 });
 
 // Halaman media vicon untuk WebView (tanpa data; token Agora diberikan oleh aplikasi).
 Route::get('/mobile/vicon', [MobileCommsController::class, 'viconPage'])->middleware('throttle:60,1');
+
+// SDK Agora Web (npm agora-rtc-sdk-ng, MIT) disajikan dari server sendiri agar vicon tidak
+// bergantung pada CDN Agora yang kadang lambat/terblokir di jaringan tertentu.
+Route::get('/mobile/agora-sdk', function () {
+    $path = base_path('node_modules/agora-rtc-sdk-ng/AgoraRTC_N-production.js');
+    abort_unless(is_file($path), 404);
+    return response()->file($path, [
+        'Content-Type' => 'application/javascript; charset=utf-8',
+        'Cache-Control' => 'public, max-age=604800',
+    ]);
+})->middleware('throttle:120,1');
 
 Route::get('/api/mobile/pdf/signature/{id}', [MobileCommsController::class, 'signaturePdf'])
     ->whereNumber('id')->middleware('mobile.auth:signature.view');

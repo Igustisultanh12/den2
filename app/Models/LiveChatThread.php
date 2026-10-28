@@ -16,6 +16,7 @@ class LiveChatThread extends Model
     protected $fillable = [
         'uuid',
         'user_id',
+        'peer_id',
         'operator_id',
         'subject',
         'status',
@@ -38,6 +39,17 @@ class LiveChatThread extends Model
     public function operator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'operator_id');
+    }
+
+    /** Lawan bicara pada chat langsung (null = utas layanan Operator Dinas). */
+    public function peer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'peer_id');
+    }
+
+    public function isDirect(): bool
+    {
+        return $this->peer_id !== null;
     }
 
     public function messages(): HasMany

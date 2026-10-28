@@ -8,6 +8,7 @@ use App\Http\Controllers\SpJagaController;
 use App\Models\LiveChatThread;
 use App\Models\SignatureRequest;
 use App\Models\SpJaga;
+use App\Support\ChatConversations as Chat;
 use App\Support\MobileAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -30,121 +31,44 @@ class MobileCommsController extends Controller
         return app(LiveChatController::class);
     }
 
-    private function isOperator(Request $request): bool
-    {
-        return MobileAccess::can($request->user(), 'chat.manage');
-    }
-
-    /** Utas yang boleh diakses: operator → semua; personel → miliknya saja. */
+    /** Pengecekan akses dilakukan ChatConversations (peserta utas / operator utas layanan). */
     private function thread(Request $request, string $uuid): LiveChatThread
     {
-        $thread = LiveChatThread::where('uuid', $uuid)->firstOrFail();
-        if (!$this->isOperator($request) && (int) $thread->user_id !== (int) $request->user()->id) {
-            abort(403, 'Anda tidak memiliki akses ke percakapan ini.');
-        }
-        return $thread;
-    }
-
-    private function presence(int $userId): void
-    {
-        Cache::put("live_chat:user_presence:{$userId}", now()->timestamp, now()->addMinutes(5));
+        return Chat::find($uuid, $request->user());
     }
 
     // ================================================================ CHAT
 
-    /**
-     * Halaman awal chat. Operator: daftar utas. Personel: utas miliknya
-     * (dibuat otomatis seperti halaman web) beserta pesan.
-     */
+    /** Daftar percakapan (chat pribadi + Operator Dinas) gaya WhatsApp. */
     public function index(Request $request)
     {
         $user = $request->user();
-        $this->presence($user->id);
-
-        if ($this->isOperator($request)) {
-            $response = $this->chat()->sync($request);
-            $data = $response->getData(true);
-            return response()->json(['status' => 'success', 'is_operator' => true] + $data);
-        }
-
-        $thread = $this->ownThread($user->id);
-        if (!$thread) {
-            $thread = LiveChatThread::create([
-                'uuid' => (string) Str::uuid(),
-                'user_id' => $user->id,
-                'subject' => 'Pusat Komunikasi Dinas',
-                'status' => 'OPEN',
-                'last_message_at' => now(),
-                'unread_admin' => 0,
-                'unread_user' => 0,
-            ]);
-        }
-        if ($thread->unread_user > 0) {
-            $thread->update(['unread_user' => 0]);
-        }
-        $thread->messages()->where('sender_type', '!=', 'USER')->where('is_read', false)->update(['is_read' => true]);
+        Chat::touchPresence($user->id);
+        $conversations = Chat::listFor($user, (string) $request->input('search', ''));
 
         return response()->json([
             'status' => 'success',
-            'is_operator' => false,
-            'thread' => $thread->only(['id', 'uuid', 'subject', 'status', 'unread_user']),
-            'messages' => $thread->messages()->orderBy('id')->get(),
-            'is_typing' => Cache::has("live_chat:typing:{$thread->uuid}:ADMIN"),
+            'is_operator' => Chat::isOperator($user),
+            'me' => ['id' => $user->id],
+            'conversations' => $conversations,
+            'total_unread' => (int) collect($conversations)->sum('unread'),
             'incoming_call' => Cache::get("live_chat:user_call:{$user->id}"),
         ]);
     }
 
-    /** Polling: format sama dengan /live-chat/sync milik web. */
+    /** Polling: ?uuid= percakapan aktif, ?after= hanya pesan baru. */
     public function sync(Request $request)
     {
-        if ($this->isOperator($request)) {
-            if ($request->filled('uuid')) {
-                $this->thread($request, (string) $request->input('uuid'));
-            }
-            return $this->chat()->sync($request);
-        }
-
-        // Personel: utas yang diminta (bukan sekadar utas pertama seperti di web),
-        // agar utas baru yang dibuka operator setelah utas lama ditutup tetap sinkron.
-        $user = $request->user();
-        $this->presence($user->id);
-        $thread = $request->filled('uuid')
-            ? $this->thread($request, (string) $request->input('uuid'))
-            : $this->ownThread($user->id);
-
-        $messages = [];
-        if ($thread) {
-            if ($thread->unread_user > 0) {
-                $thread->update(['unread_user' => 0]);
-            }
-            $thread->messages()->where('sender_type', '!=', 'USER')->where('is_read', false)->update(['is_read' => true]);
-            $messages = $thread->messages()->orderBy('id')->get();
-        }
-
-        return response()->json([
-            'thread' => $thread,
-            'messages' => $messages,
-            'is_typing' => $thread ? Cache::has("live_chat:typing:{$thread->uuid}:ADMIN") : false,
-            'call' => $thread ? Cache::get("live_chat:call:{$thread->uuid}") : null,
-            'incoming_call' => Cache::get("live_chat:user_call:{$user->id}"),
-        ]);
-    }
-
-    private function ownThread(int $userId): ?LiveChatThread
-    {
-        return LiveChatThread::where('user_id', $userId)->where('status', 'OPEN')->latest('last_message_at')->first()
-            ?? LiveChatThread::where('user_id', $userId)->latest('last_message_at')->first();
+        return $this->chat()->sync($request);
     }
 
     public function messages(Request $request, string $uuid)
     {
-        $this->thread($request, $uuid);
         return $this->chat()->getMessages($request, $uuid);
     }
 
     public function send(Request $request, string $uuid)
     {
-        $this->thread($request, $uuid);
         try {
             return $this->chat()->sendMessage($request, $uuid);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -154,7 +78,6 @@ class MobileCommsController extends Controller
 
     public function typing(Request $request, string $uuid)
     {
-        $this->thread($request, $uuid);
         return $this->chat()->typing($request, $uuid);
     }
 
@@ -162,26 +85,23 @@ class MobileCommsController extends Controller
     public function unread(Request $request)
     {
         $user = $request->user();
-        if ($this->isOperator($request)) {
-            $latest = LiveChatThread::with('latestMessage')->where('unread_admin', '>', 0)->orderByDesc('last_message_at')->first();
-            return response()->json([
-                'status' => 'success',
-                'unread' => (int) LiveChatThread::sum('unread_admin'),
-                'latest' => $latest?->latestMessage?->only(['id', 'sender_name', 'message', 'created_at']),
-                'thread_uuid' => $latest?->uuid,
-            ]);
-        }
-        $thread = LiveChatThread::with('latestMessage')->where('user_id', $user->id)->orderByDesc('last_message_at')->first();
+        $conversations = collect(Chat::listFor($user, '', 200));
+        $latest = $conversations->where('unread', '>', 0)->first();
+
         return response()->json([
             'status' => 'success',
-            'unread' => (int) ($thread?->unread_user ?? 0),
-            'latest' => $thread?->latestMessage?->only(['id', 'sender_name', 'message', 'created_at']),
-            'thread_uuid' => $thread?->uuid,
+            'unread' => (int) $conversations->sum('unread'),
+            'latest' => $latest && $latest['latest_message'] ? [
+                'id' => null,
+                'sender_name' => $latest['latest_message']['sender_name'],
+                'message' => $latest['latest_message']['preview'],
+                'created_at' => $latest['latest_message']['created_at'],
+            ] : null,
+            'thread_uuid' => $latest['uuid'] ?? null,
         ]);
     }
 
-    // ---------------------------------------------------- operator saja
-
+    /** Kontak: seluruh personel aktif (semua pengguna chat). */
     public function searchUsers(Request $request)
     {
         return $this->chat()->searchUsers($request);
@@ -203,11 +123,9 @@ class MobileCommsController extends Controller
 
     public function destroy(Request $request, string $uuid)
     {
-        $thread = LiveChatThread::where('uuid', $uuid)->firstOrFail();
-        $thread->purgeFiles();
-        $thread->messages()->delete();
-        $thread->delete();
-        return response()->json(['status' => 'success', 'message' => 'Utas percakapan dinas berhasil dihapus.']);
+        $request->headers->set('Accept', 'application/json');
+        $this->chat()->destroy($request, $uuid);
+        return response()->json(['status' => 'success', 'message' => 'Percakapan berhasil dihapus.']);
     }
 
     // ================================================================ PANGGILAN
@@ -215,38 +133,33 @@ class MobileCommsController extends Controller
     public function incomingCall(Request $request)
     {
         $user = $request->user();
-        $this->presence($user->id);
+        Chat::touchPresence($user->id);
         $call = Cache::get("live_chat:user_call:{$user->id}");
         return response()->json(['status' => 'success', 'call' => $call ?: null]);
     }
 
     public function initiateCall(Request $request, string $uuid)
     {
-        $this->thread($request, $uuid);
         return $this->chat()->initiateCall($request, $uuid);
     }
 
     public function callSignal(Request $request, string $uuid)
     {
-        $this->thread($request, $uuid);
         return $this->chat()->getCallSignal($request, $uuid);
     }
 
     public function sendCallSignal(Request $request, string $uuid)
     {
-        $this->thread($request, $uuid);
         return $this->chat()->sendCallSignal($request, $uuid);
     }
 
     public function endCall(Request $request, string $uuid)
     {
-        $this->thread($request, $uuid);
         return $this->chat()->endCall($request, $uuid);
     }
 
     public function agoraToken(Request $request, string $uuid)
     {
-        $this->thread($request, $uuid);
         return $this->chat()->getAgoraToken($request, $uuid);
     }
 

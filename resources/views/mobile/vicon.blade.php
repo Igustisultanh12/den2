@@ -12,8 +12,13 @@
                  border: 2px solid rgba(255,255,255,.35); box-shadow: 0 8px 20px rgba(0,0,0,.45); background: #0f172a; z-index: 2; display: none; }
         #remote video, #local video { object-fit: cover !important; }
     </style>
-    {{-- SDK yang sama dengan modul Vicon web (VideoCallModal.vue) --}}
-    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.2.js"></script>
+    {{-- SDK disajikan dari server Sinden 2 sendiri (sama dengan web); CDN Agora hanya cadangan. --}}
+    <script src="{{ url('/mobile/agora-sdk') }}"></script>
+    <script>
+        if (!window.AgoraRTC) {
+            document.write('<script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.2.js"><\/script>');
+        }
+    </script>
 </head>
 <body>
 <div id="remote"></div>
@@ -27,34 +32,100 @@
         try { if (window.SisindenVicon) window.SisindenVicon.onEvent(type, JSON.stringify(data || {})); } catch (e) {}
     }
 
+    function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+    // Pasang video lawan bicara; ulangi bila gagal sesaat.
+    async function playRemote(user, attempt) {
+        attempt = attempt || 0;
+        if (!user || !user.videoTrack) return;
+        try {
+            user.videoTrack.play(document.getElementById('remote'));
+            emit('remote-video', { on: true });
+        } catch (e) {
+            if (attempt < 5) { await sleep(300); return playRemote(user, attempt + 1); }
+            emit('warn', { message: 'Video lawan bicara gagal ditampilkan' });
+        }
+    }
+
+    // Gabung kanal; bila UDP diblokir jaringan, ulangi lewat Cloud Proxy Agora (UDP lalu TCP/TLS 443).
+    async function joinWithFallback(appId, channel, token, uid) {
+        var modes = [null, 3, 5], lastErr = null;
+        for (var i = 0; i < modes.length; i++) {
+            try {
+                if (modes[i] !== null) {
+                    try { await client.leave(); } catch (e) {}
+                    client.startProxyServer(modes[i]);
+                    emit('state', { state: 'PROXY_' + modes[i] });
+                }
+                await Promise.race([
+                    client.join(appId, channel, token || null, Number(uid) || null),
+                    new Promise(function (_, rej) { setTimeout(function () { rej(new Error('JOIN_TIMEOUT')); }, 12000); })
+                ]);
+                return;
+            } catch (e) {
+                lastErr = e;
+                var msg = String((e && e.message) || '').toLowerCase();
+                if ((e && e.code === 'INVALID_PARAMS') || msg.indexOf('token') >= 0 || msg.indexOf('appid') >= 0) break;
+            }
+        }
+        throw lastErr || new Error('Gagal bergabung ke kanal vicon');
+    }
+
+    async function createCamera() {
+        try {
+            return await AgoraRTC.createCameraVideoTrack({ encoderConfig: '480p_1', facingMode: 'user', optimizationMode: 'motion' });
+        } catch (e) {
+            // Kamera kadang masih dipakai sesaat (mis. kamera presensi): coba sekali lagi.
+            await sleep(800);
+            return await AgoraRTC.createCameraVideoTrack({ encoderConfig: '480p_1' });
+        }
+    }
+
     async function viconJoin(appId, channel, token, uid, withVideo) {
         if (client) return;
         if (!window.AgoraRTC) { emit('error', { message: 'SDK Agora tidak dapat dimuat. Periksa koneksi internet.' }); return; }
         try {
             AgoraRTC.setLogLevel(3);
+            AgoraRTC.onAutoplayFailed = function () {
+                // WebView sudah mengizinkan autoplay; bila tetap gagal, coba putar ulang audio.
+                setTimeout(function () { (client && client.remoteUsers || []).forEach(function (u) { try { u.audioTrack && u.audioTrack.play(); } catch (e) {} }); }, 500);
+            };
             client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
             client.on('user-published', async function (user, mediaType) {
                 try {
                     await client.subscribe(user, mediaType);
-                    if (mediaType === 'video' && user.videoTrack) { user.videoTrack.play(document.getElementById('remote')); emit('remote-video', { on: true }); }
-                    if (mediaType === 'audio' && user.audioTrack) { user.audioTrack.play(); }
+                    if (mediaType === 'video') await playRemote(user);
+                    if (mediaType === 'audio' && user.audioTrack) user.audioTrack.play();
                     emit('remote-joined', { media: mediaType });
-                } catch (e) { emit('warn', { message: String(e && e.message || e) }); }
+                } catch (e) {
+                    emit('warn', { message: String(e && e.message || e) });
+                    // Subscribe bisa gagal sesaat saat jaringan baru pulih: coba lagi sekali.
+                    await sleep(1500);
+                    try {
+                        await client.subscribe(user, mediaType);
+                        if (mediaType === 'video') await playRemote(user);
+                        if (mediaType === 'audio' && user.audioTrack) user.audioTrack.play();
+                        emit('remote-joined', { media: mediaType });
+                    } catch (e2) {}
+                }
             });
             client.on('user-unpublished', function (user, mediaType) {
                 if (mediaType === 'video') emit('remote-video', { on: false });
             });
-            client.on('user-left', function () { emit('remote-left', {}); });
+            // Lawan bicara masuk tanpa kamera/mikrofon tetap dianggap tersambung.
+            client.on('user-joined', function () { emit('remote-joined', { media: 'none' }); });
+            // reason: "Quit" = menutup panggilan; "ServerTimeOut" = sinyal putus sebentar.
+            client.on('user-left', function (user, reason) { emit('remote-left', { reason: reason || '' }); });
             client.on('connection-state-change', function (cur) { emit('state', { state: cur }); });
 
-            await client.join(appId, channel, token || null, Number(uid) || null);
+            await joinWithFallback(appId, channel, token, uid);
             joined = true;
             try {
                 mic = await AgoraRTC.createMicrophoneAudioTrack({ AEC: true, ANS: true, AGC: true });
             } catch (e) { emit('warn', { message: 'Mikrofon tidak tersedia' }); }
             if (withVideo) {
                 try {
-                    cam = await AgoraRTC.createCameraVideoTrack({ encoderConfig: '720p_2', facingMode: 'user' });
+                    cam = await createCamera();
                     var local = document.getElementById('local');
                     local.style.display = 'block';
                     cam.play(local);

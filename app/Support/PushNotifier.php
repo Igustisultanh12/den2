@@ -188,12 +188,9 @@ class PushNotifier
         if (!$thread) {
             return;
         }
-        $targets = strtoupper((string) $m->sender_type) === 'ADMIN' ? [(int) $thread->user_id] : self::operatorIds($thread);
-        $targets = array_values(array_filter($targets, fn ($id) => $id && $id !== (int) $m->sender_id));
-        $body = trim((string) $m->message);
-        if ($body === '') {
-            $body = !empty($m->attachments) ? 'Mengirim lampiran' : 'Pesan baru';
-        }
+        // Chat pribadi → lawan bicara; utas layanan → operator atau personel pemilik utas.
+        $targets = \App\Support\ChatConversations::recipientIds($thread, $m->sender_id ? (int) $m->sender_id : null);
+        $body = \App\Support\ChatConversations::preview($m);
         self::queue($targets, [
             'type' => 'chat',
             'id' => (string) $m->id,
