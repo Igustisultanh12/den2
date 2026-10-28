@@ -1,0 +1,41 @@
+{
+  "status": "success",
+  "is_operator": false,
+  "me": {"id": 7},
+  "conversations": [
+    {
+      "uuid": "4f1c2a9e-1b2c-4d5e-8f90-1234567890ab",
+      "kind": "direct",
+      "role": "user",
+      "title": "Letkol Laut (P) Danden",
+      "subtitle": "Komandan",
+      "avatar": null,
+      "partner": {"id": 3, "name": "Danden", "pangkat": "Letkol Laut (P)", "nrp": "12345", "jabatan": "Komandan", "role": "komandan", "avatar": null},
+      "status": "OPEN",
+      "unread": 2,
+      "is_online": true,
+      "is_typing": false,
+      "last_message_at": "2026-10-28T09:15:00+07:00",
+      "last_message_human": "5 menit yang lalu",
+      "latest_message": {"sender_id": 3, "sender_type": "ADMIN", "sender_name": "Letkol Laut (P) Danden", "message": null, "preview": "🎤 Pesan suara", "created_at": "2026-10-28T09:15:00+07:00"}
+    },
+    {
+      "uuid": null,
+      "kind": "support",
+      "role": "user",
+      "title": "Operator Dinas",
+      "subtitle": "Layanan & laporan ke Admin",
+      "avatar": null,
+      "partner": null,
+      "status": "OPEN",
+      "unread": 0,
+      "is_online": false,
+      "is_typing": false,
+      "last_message_at": null,
+      "last_message_human": null,
+      "latest_message": null
+    }
+  ],
+  "total_unread": 2,
+  "incoming_call": null
+}

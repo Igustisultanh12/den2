@@ -1,0 +1,19 @@
+{
+  "conversations": [],
+  "total_unread": 0,
+  "active": {
+    "thread": {"uuid": "4f1c2a9e-1b2c-4d5e-8f90-1234567890ab", "kind": "direct", "role": "user", "title": "Letkol Laut (P) Danden", "status": "OPEN", "unread": 0, "is_online": true, "is_typing": true},
+    "messages": [
+      {"id": 41, "thread_id": 5, "sender_type": "USER", "sender_id": 7, "sender_name": "Serka Pers", "message": "Izin Komandan", "attachments": null, "is_read": true, "created_at": "2026-10-28T09:10:00+07:00"},
+      {"id": 42, "thread_id": 5, "sender_type": "ADMIN", "sender_id": 3, "sender_name": "Letkol Laut (P) Danden", "message": null,
+       "attachments": [{"original_name": "pesan-suara.m4a", "file_path": "chat_attachments/4f1c2a9e-1b2c-4d5e-8f90-1234567890ab/20261028_voice.m4a", "url": "https://sinden2.my.id/storage/chat_attachments/4f1c2a9e-1b2c-4d5e-8f90-1234567890ab/20261028_voice.m4a", "mime_type": "audio/mp4", "size": 18432, "is_image": false, "is_audio": true, "is_voice": true, "duration_ms": 4200}],
+       "is_read": false, "created_at": "2026-10-28T09:15:00+07:00"},
+      {"id": 43, "thread_id": 5, "sender_type": "ADMIN", "sender_id": 3, "sender_name": "Letkol Laut (P) Danden", "message": null,
+       "attachments": [{"original_name": "foto.png", "file_path": "chat_attachments/4f1c2a9e-1b2c-4d5e-8f90-1234567890ab/20261028_foto.png", "mime_type": "image/png", "size": 2048, "is_image": true, "is_audio": false}],
+       "is_read": false, "created_at": "2026-10-28T09:16:00+07:00"}
+    ],
+    "is_typing": true,
+    "call": null
+  },
+  "incoming_call": null
+}

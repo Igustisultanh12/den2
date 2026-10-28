@@ -3,43 +3,51 @@ package id.my.sisinden.app.data.model
 import com.google.gson.annotations.SerializedName
 
 // ======================================================== Chat Dinas
-// Bentuk data mengikuti LiveChatController milik web (lihat
-// app/Http/Controllers/Chat/LiveChatController.php) agar web & aplikasi identik.
+// Bentuk data mengikuti App\Support\ChatConversations di server (web & aplikasi identik).
+// Dua jenis percakapan: "direct" (chat pribadi dua personel) dan "support" (Operator Dinas).
 
 data class ChatUserDto(
     @SerializedName("id") val id: Int? = null,
     @SerializedName("name") val name: String? = null,
     @SerializedName("pangkat") val pangkat: String? = null,
     @SerializedName("nrp") val nrp: String? = null,
+    @SerializedName("jabatan") val jabatan: String? = null,
     @SerializedName("role") val role: String? = null,
-    @SerializedName("existing_thread_uuid") val existingThreadUuid: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("is_online") val isOnline: Boolean = false,
 ) {
     val displayName: String get() = name?.takeIf { it.isNotBlank() } ?: "Personel"
     val fullName: String get() = listOfNotNull(pangkat?.takeIf { it.isNotBlank() }, displayName).joinToString(" ")
 }
 
-data class ChatLatestMessageDto(
+data class ConversationLatestDto(
+    @SerializedName("sender_id") val senderId: Int? = null,
     @SerializedName("sender_name") val senderName: String? = null,
-    @SerializedName("sender_type") val senderType: String? = null,
-    @SerializedName("message") val message: String? = null,
-    @SerializedName("has_attachments") val hasAttachments: Boolean = false,
+    @SerializedName("preview") val preview: String? = null,
     @SerializedName("created_at") val createdAt: String? = null,
 )
 
-data class ChatThreadDto(
-    @SerializedName("id") val id: Int = 0,
-    @SerializedName("uuid") val uuid: String = "",
-    @SerializedName("subject") val subject: String? = null,
+/** Satu entri daftar percakapan. [uuid] null = entri "Operator Dinas" yang belum pernah dipakai. */
+data class ConversationDto(
+    @SerializedName("uuid") val uuid: String? = null,
+    /** direct | support */
+    @SerializedName("kind") val kind: String? = null,
+    /** user | peer | operator — peran Anda dalam percakapan. */
+    @SerializedName("role") val role: String? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("subtitle") val subtitle: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("partner") val partner: ChatUserDto? = null,
     @SerializedName("status") val status: String? = null,
-    /** Operator: teks relatif ("5 menit yang lalu"); personel: waktu ISO. */
-    @SerializedName("last_message_at") val lastMessageAt: String? = null,
-    @SerializedName("unread_admin") val unreadAdmin: Int = 0,
-    @SerializedName("unread_user") val unreadUser: Int = 0,
+    @SerializedName("unread") val unread: Int = 0,
     @SerializedName("is_online") val isOnline: Boolean = false,
-    @SerializedName("user") val user: ChatUserDto? = null,
-    @SerializedName("latest_message") val latestMessage: ChatLatestMessageDto? = null,
+    @SerializedName("is_typing") val isTyping: Boolean = false,
+    @SerializedName("last_message_at") val lastMessageAt: String? = null,
+    @SerializedName("latest_message") val latestMessage: ConversationLatestDto? = null,
 ) {
     val isOpen: Boolean get() = !status.equals("CLOSED", ignoreCase = true)
+    val isSupport: Boolean get() = kind == "support"
+    val displayTitle: String get() = title?.takeIf { it.isNotBlank() } ?: if (isSupport) "Operator Dinas" else "Personel"
 }
 
 data class ChatAttachmentDto(
@@ -49,6 +57,9 @@ data class ChatAttachmentDto(
     @SerializedName("mime_type") val mimeType: String? = null,
     @SerializedName("size") val size: Long = 0,
     @SerializedName("is_image") val isImage: Boolean = false,
+    @SerializedName("is_audio") val isAudio: Boolean = false,
+    @SerializedName("is_voice") val isVoice: Boolean = false,
+    @SerializedName("duration_ms") val durationMs: Long? = null,
 ) {
     /**
      * URL publik HTTPS lampiran di server Sinden 2. Dibangun dari `file_path`
@@ -81,30 +92,28 @@ data class ChatMessageDto(
     val isSystem: Boolean get() = senderType.equals("SYSTEM", ignoreCase = true)
 }
 
-data class ChatStatsDto(
-    @SerializedName("total_open") val totalOpen: Int = 0,
+/** Respons GET /api/mobile/chat. */
+data class ChatHomeResponse(
+    @SerializedName("is_operator") val isOperator: Boolean = false,
+    @SerializedName("conversations") val conversations: List<ConversationDto>? = null,
     @SerializedName("total_unread") val totalUnread: Int = 0,
-    @SerializedName("total_threads") val totalThreads: Int = 0,
-)
-
-/**
- * Respons /api/mobile/chat dan /api/mobile/chat/sync.
- * Operator mengisi [threads]/[activeMessages]; personel mengisi [thread]/[messages].
- */
-data class ChatSyncResponse(
-    @SerializedName("is_operator") val isOperator: Boolean? = null,
-    @SerializedName("threads") val threads: List<ChatThreadDto>? = null,
-    @SerializedName("active_messages") val activeMessages: List<ChatMessageDto>? = null,
-    @SerializedName("stats") val stats: ChatStatsDto? = null,
-    @SerializedName("thread") val thread: ChatThreadDto? = null,
-    @SerializedName("messages") val messages: List<ChatMessageDto>? = null,
-    @SerializedName("is_typing") val isTyping: Boolean = false,
-    @SerializedName("call") val call: CallDataDto? = null,
     @SerializedName("incoming_call") val incomingCall: CallDataDto? = null,
 )
 
-data class ChatMessagesResponse(
+/** Percakapan terbuka: GET /chat/{uuid}/messages dan bagian `active` dari /chat/sync. */
+data class ChatDetailDto(
+    @SerializedName("thread") val thread: ConversationDto? = null,
     @SerializedName("messages") val messages: List<ChatMessageDto>? = null,
+    @SerializedName("is_typing") val isTyping: Boolean = false,
+    @SerializedName("call") val call: CallDataDto? = null,
+)
+
+/** Respons GET /api/mobile/chat/sync?uuid=&after=. */
+data class ChatSyncResponse(
+    @SerializedName("conversations") val conversations: List<ConversationDto>? = null,
+    @SerializedName("total_unread") val totalUnread: Int = 0,
+    @SerializedName("active") val active: ChatDetailDto? = null,
+    @SerializedName("incoming_call") val incomingCall: CallDataDto? = null,
 )
 
 data class ChatSendResponse(
@@ -122,7 +131,11 @@ data class ChatUsersResponse(
     @SerializedName("users") val users: List<ChatUserDto>? = null,
 )
 
-data class ChatStartRequest(@SerializedName("user_id") val userId: Int)
+/** [userId] → chat pribadi dengan personel; [support] true → utas Operator Dinas. */
+data class ChatStartRequest(
+    @SerializedName("user_id") val userId: Int? = null,
+    @SerializedName("support") val support: Boolean? = null,
+)
 
 data class ChatStartResponse(
     @SerializedName("success") val success: Boolean = false,

@@ -344,10 +344,8 @@ fun MainNavigation(
                 Guard(currentPerms(), Perm.CHAT_VIEW, back) {
                     ChatHomeScreen(
                         repository = repository,
-                        myUserId = sessionState.value.user.id,
                         onBack = back,
                         onOpenThread = { uuid, title -> nav.navigate(Routes.chatThread(uuid, title)) { launchSingleTop = true } },
-                        onCall = { uuid, video, peer -> nav.navigate(Routes.call(uuid, video, incoming = false, peer = peer)) },
                     )
                 }
             }
@@ -358,14 +356,14 @@ fun MainNavigation(
                     navArgument("title") { type = NavType.StringType; defaultValue = "Chat Dinas" },
                 ),
             ) { entry ->
-                Guard(currentPerms(), Perm.CHAT_MANAGE, back) {
+                // Semua personel dapat membuka percakapannya; akses per utas dicek server.
+                Guard(currentPerms(), Perm.CHAT_VIEW, back) {
                     val uuid = entry.arguments?.getString("uuid").orEmpty()
                     val title = entry.arguments?.getString("title").orEmpty().ifBlank { "Chat Dinas" }
                     ChatThreadScreen(
                         repository = repository,
                         uuid = uuid,
                         title = title,
-                        isOperator = true,
                         myUserId = sessionState.value.user.id,
                         onBack = back,
                         onCall = { video -> nav.navigate(Routes.call(uuid, video, incoming = false, peer = title)) },

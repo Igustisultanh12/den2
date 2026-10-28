@@ -214,20 +214,19 @@ interface SindenApiService {
 
     // ------------------------------------------------------ Chat Dinas
     @GET("api/mobile/chat")
-    suspend fun chatHome(): Response<ChatSyncResponse>
+    suspend fun chatHome(@Query("search") search: String? = null): Response<ChatHomeResponse>
 
     @GET("api/mobile/chat/sync")
     suspend fun chatSync(
         @Query("uuid") uuid: String? = null,
-        @Query("status") status: String? = null,
-        @Query("search") search: String? = null,
+        @Query("after") after: Long? = null,
     ): Response<ChatSyncResponse>
 
     @GET("api/mobile/chat/unread")
     suspend fun chatUnread(): Response<ChatUnreadResponse>
 
     @GET("api/mobile/chat/{uuid}/messages")
-    suspend fun chatMessages(@Path("uuid") uuid: String): Response<ChatMessagesResponse>
+    suspend fun chatMessages(@Path("uuid") uuid: String): Response<ChatDetailDto>
 
     @Multipart
     @POST("api/mobile/chat/{uuid}/send")
@@ -235,6 +234,8 @@ interface SindenApiService {
         @Path("uuid") uuid: String,
         @Part("message") message: RequestBody?,
         @Part attachments: List<MultipartBody.Part>,
+        @Part("voice_note") voiceNote: RequestBody? = null,
+        @Part("duration_ms") durationMs: RequestBody? = null,
     ): Response<ChatSendResponse>
 
     @POST("api/mobile/chat/{uuid}/typing")

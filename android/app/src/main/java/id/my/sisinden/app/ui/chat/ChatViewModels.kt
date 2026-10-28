@@ -10,9 +10,10 @@ import id.my.sisinden.app.core.network.ApiError
 import id.my.sisinden.app.core.network.ApiResult
 import id.my.sisinden.app.core.notification.NotificationHelper
 import id.my.sisinden.app.core.ui.components.LoadState
+import id.my.sisinden.app.data.model.ChatHomeResponse
 import id.my.sisinden.app.data.model.ChatMessageDto
-import id.my.sisinden.app.data.model.ChatSyncResponse
 import id.my.sisinden.app.data.model.ChatUserDto
+import id.my.sisinden.app.data.model.ConversationDto
 import id.my.sisinden.app.data.repository.SindenRepository
 import id.my.sisinden.app.data.repository.UploadImage
 import id.my.sisinden.app.ui.common.UiMessages
@@ -26,30 +27,23 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Filter status utas (operator), sama dengan halaman Chat web. */
-enum class ThreadFilter(val label: String, val query: String) {
-    ALL("Semua", "all"),
-    OPEN("Aktif", "OPEN"),
-    CLOSED("Ditutup", "CLOSED"),
-}
-
 /**
- * Beranda Chat Dinas. Operator (admin/developer) melihat daftar utas;
- * personel langsung masuk ke utas miliknya (dibuat otomatis seperti di web).
+ * Beranda Chat Dinas gaya WhatsApp: daftar percakapan milik pengguna (chat pribadi
+ * + Operator Dinas) dan pencarian kontak untuk memulai chat dengan personel mana pun.
  */
 class ChatHomeViewModel(private val repository: SindenRepository) : ViewModel() {
 
-    private val _state = MutableStateFlow<LoadState<ChatSyncResponse>>(LoadState.Loading)
-    val state: StateFlow<LoadState<ChatSyncResponse>> = _state.asStateFlow()
-
-    private val _filter = MutableStateFlow(ThreadFilter.ALL)
-    val filter: StateFlow<ThreadFilter> = _filter.asStateFlow()
+    private val _state = MutableStateFlow<LoadState<ChatHomeResponse>>(LoadState.Loading)
+    val state: StateFlow<LoadState<ChatHomeResponse>> = _state.asStateFlow()
 
     private val _search = MutableStateFlow("")
     val search: StateFlow<String> = _search.asStateFlow()
 
-    private val _userResults = MutableStateFlow<List<ChatUserDto>>(emptyList())
-    val userResults: StateFlow<List<ChatUserDto>> = _userResults.asStateFlow()
+    private val _contacts = MutableStateFlow<List<ChatUserDto>>(emptyList())
+    val contacts: StateFlow<List<ChatUserDto>> = _contacts.asStateFlow()
+
+    private val _contactsLoading = MutableStateFlow(false)
+    val contactsLoading: StateFlow<Boolean> = _contactsLoading.asStateFlow()
 
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
@@ -57,34 +51,24 @@ class ChatHomeViewModel(private val repository: SindenRepository) : ViewModel() 
     val messages = UiMessages()
 
     private var searchJob: Job? = null
-    private var userSearchJob: Job? = null
+    private var contactJob: Job? = null
 
     init {
         load()
     }
 
     fun load() {
-        viewModelScope.launch {
-            when (val res = repository.chatHome()) {
-                is ApiResult.Success -> _state.value = LoadState.Ready(res.data)
-                is ApiResult.Failure -> if (_state.value !is LoadState.Ready) _state.value = LoadState.Failed(res.error)
+        viewModelScope.launch { refresh(showErrors = true) }
+    }
+
+    /** Polling daftar percakapan (dipanggil berkala oleh layar). */
+    suspend fun refresh(showErrors: Boolean = false) {
+        when (val res = repository.chatHome(_search.value)) {
+            is ApiResult.Success -> _state.value = LoadState.Ready(res.data)
+            is ApiResult.Failure -> if (_state.value !is LoadState.Ready || showErrors) {
+                if (_state.value !is LoadState.Ready) _state.value = LoadState.Failed(res.error)
             }
         }
-    }
-
-    /** Polling daftar utas operator (dipanggil berkala oleh layar). */
-    suspend fun refreshThreads() {
-        val current = (_state.value as? LoadState.Ready)?.data ?: return
-        if (current.isOperator != true) return
-        val res = repository.chatSync(null, _filter.value.query, _search.value)
-        if (res is ApiResult.Success) {
-            _state.value = LoadState.Ready(current.copy(threads = res.data.threads, stats = res.data.stats))
-        }
-    }
-
-    fun setFilter(value: ThreadFilter) {
-        _filter.value = value
-        viewModelScope.launch { refreshThreads() }
     }
 
     fun setSearch(value: String) {
@@ -92,36 +76,48 @@ class ChatHomeViewModel(private val repository: SindenRepository) : ViewModel() 
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(350)
-            refreshThreads()
+            refresh()
         }
     }
 
-    fun searchUsers(query: String) {
-        userSearchJob?.cancel()
-        if (query.trim().length < 2) {
-            _userResults.value = emptyList()
-            return
-        }
-        userSearchJob = viewModelScope.launch {
-            delay(300)
+    /** Kontak: semua personel aktif; [query] kosong = tampilkan daftar awal. */
+    fun searchContacts(query: String) {
+        contactJob?.cancel()
+        contactJob = viewModelScope.launch {
+            delay(if (query.isBlank()) 0 else 300)
+            _contactsLoading.value = true
             val res = repository.chatSearchUsers(query)
-            if (res is ApiResult.Success) _userResults.value = res.data.users.orEmpty()
+            if (res is ApiResult.Success) _contacts.value = res.data.users.orEmpty()
+            _contactsLoading.value = false
         }
     }
 
-    /** Buka utas aktif dengan personel (atau buat baru). */
-    fun startChat(user: ChatUserDto, onOpened: (String) -> Unit) {
-        val existing = user.existingThreadUuid
-        if (!existing.isNullOrBlank()) {
-            onOpened(existing)
+    /** Buka percakapan; entri "Operator Dinas" tanpa uuid dibuatkan utasnya lebih dulu. */
+    fun open(conv: ConversationDto, onOpened: (uuid: String, title: String) -> Unit) {
+        val uuid = conv.uuid
+        if (!uuid.isNullOrBlank()) {
+            onOpened(uuid, conv.displayTitle)
             return
         }
+        if (_busy.value) return
+        _busy.value = true
+        viewModelScope.launch {
+            when (val res = repository.chatStartSupport()) {
+                is ApiResult.Success -> res.data.uuid?.let { onOpened(it, conv.displayTitle) } ?: messages.post("Percakapan tidak dapat dibuat.")
+                is ApiResult.Failure -> messages.post(res.error.message)
+            }
+            _busy.value = false
+        }
+    }
+
+    /** Mulai (atau lanjutkan) chat pribadi dengan personel. */
+    fun startChat(user: ChatUserDto, onOpened: (uuid: String, title: String) -> Unit) {
         val id = user.id ?: return
         if (_busy.value) return
         _busy.value = true
         viewModelScope.launch {
             when (val res = repository.chatStart(id)) {
-                is ApiResult.Success -> res.data.uuid?.let(onOpened) ?: messages.post("Utas tidak dapat dibuat.")
+                is ApiResult.Success -> res.data.uuid?.let { onOpened(it, user.fullName) } ?: messages.post("Percakapan tidak dapat dibuat.")
                 is ApiResult.Failure -> messages.post(res.error.message)
             }
             _busy.value = false
@@ -135,15 +131,20 @@ class PendingAttachment(val upload: UploadImage, val sizeLabel: String)
 data class ChatThreadUi(
     val loading: Boolean = true,
     val error: ApiError? = null,
+    val thread: ConversationDto? = null,
     val messages: List<ChatMessageDto> = emptyList(),
     val remoteTyping: Boolean = false,
     val open: Boolean = true,
     val sending: Boolean = false,
-)
+) {
+    val isOperator: Boolean get() = thread?.role == "operator"
+    /** Chat pribadi dapat dihapus pesertanya; utas layanan hanya oleh operator. */
+    val canDelete: Boolean get() = thread?.isSupport == false || isOperator
+}
 
 /**
- * Satu utas Chat Dinas: polling 3 detik (sama dengan web), kirim pesan teks
- * dan lampiran, indikator mengetik, buka/tutup & hapus utas (operator).
+ * Satu percakapan: polling tiap 2,5 detik (hanya pesan baru), kirim teks/lampiran/pesan
+ * suara, indikator mengetik, buka/tutup utas layanan (operator) & hapus percakapan.
  */
 class ChatThreadViewModel(
     private val repository: SindenRepository,
@@ -165,30 +166,36 @@ class ChatThreadViewModel(
         viewModelScope.launch {
             when (val res = repository.chatMessages(uuid)) {
                 is ApiResult.Success -> {
-                    _ui.update { it.copy(loading = false, error = null, messages = res.data.messages.orEmpty()) }
+                    val d = res.data
+                    _ui.update {
+                        it.copy(
+                            loading = false, error = null, thread = d.thread,
+                            messages = d.messages.orEmpty(), remoteTyping = d.isTyping,
+                            open = d.thread?.isOpen ?: true,
+                        )
+                    }
                     markSeen()
                 }
                 is ApiResult.Failure -> _ui.update { it.copy(loading = false, error = res.error) }
             }
-            poll()
         }
     }
 
-    /** Sinkron pesan, status utas, dan indikator mengetik. */
+    /** Sinkron pesan baru, status utas, dan indikator mengetik. */
     suspend fun poll() {
-        val res = repository.chatSync(uuid)
+        val after = _ui.value.messages.lastOrNull()?.id
+        val res = repository.chatSync(uuid, after)
         if (res !is ApiResult.Success) return
-        val data = res.data
-        val operator = data.threads != null
-        val list = (if (operator) data.activeMessages else data.messages) ?: return
-        val status = if (operator) data.threads?.firstOrNull { it.uuid == uuid }?.status else data.thread?.status
-        _ui.update {
-            it.copy(
+        val active = res.data.active ?: return
+        val fresh = active.messages.orEmpty()
+        _ui.update { s ->
+            s.copy(
                 loading = false,
                 error = null,
-                messages = list,
-                remoteTyping = data.isTyping,
-                open = status?.let { s -> !s.equals("CLOSED", ignoreCase = true) } ?: it.open,
+                thread = active.thread ?: s.thread,
+                messages = if (fresh.isEmpty()) s.messages else (s.messages + fresh).distinctBy { it.id },
+                remoteTyping = active.isTyping,
+                open = active.thread?.isOpen ?: s.open,
             )
         }
         markSeen()
@@ -207,6 +214,10 @@ class ChatThreadViewModel(
         viewModelScope.launch { repository.chatTyping(uuid) }
     }
 
+    private fun appendSent(sent: ChatMessageDto?) {
+        if (sent != null) _ui.update { s -> s.copy(messages = (s.messages + sent).distinctBy { it.id }) }
+    }
+
     fun send(text: String, onSent: () -> Unit) {
         val files = _attachments.value
         if (text.isBlank() && files.isEmpty()) return
@@ -215,12 +226,26 @@ class ChatThreadViewModel(
         viewModelScope.launch {
             when (val res = repository.chatSend(uuid, text, files.map { it.upload })) {
                 is ApiResult.Success -> {
-                    val sent = res.data.message
                     _attachments.value = emptyList()
-                    if (sent != null) _ui.update { s -> s.copy(messages = (s.messages + sent).distinctBy { it.id }) }
+                    appendSent(res.data.message)
                     onSent()
-                    poll()
                 }
+                is ApiResult.Failure -> messages.post(res.error.message)
+            }
+            _ui.update { it.copy(sending = false) }
+        }
+    }
+
+    /** Kirim rekaman pesan suara lalu hapus berkas sementara. */
+    fun sendVoice(clip: VoiceClip) {
+        viewModelScope.launch {
+            _ui.update { it.copy(sending = true) }
+            val bytes = withContext(Dispatchers.IO) { runCatching { clip.file.readBytes() }.getOrNull() }
+            clip.file.delete()
+            if (bytes == null || bytes.isEmpty()) {
+                messages.post("Rekaman pesan suara tidak dapat dibaca.")
+            } else when (val res = repository.chatSendVoice(uuid, UploadImage("pesan-suara.m4a", "audio/mp4", bytes), clip.durationMs)) {
+                is ApiResult.Success -> appendSent(res.data.message)
                 is ApiResult.Failure -> messages.post(res.error.message)
             }
             _ui.update { it.copy(sending = false) }
@@ -301,19 +326,19 @@ class ChatThreadViewModel(
         const val MAX_TOTAL_BYTES = 20L * 1024 * 1024
         const val MAX_FILES = 5
 
-        /** Ekstensi yang diterima server (LiveChatController@sendMessage). */
-        val ALLOWED_EXT = setOf("jpg", "jpeg", "png", "webp", "pdf", "doc", "docx", "xls", "xlsx", "txt", "zip")
+        /** Ekstensi yang diterima server (ChatConversations::send). */
+        val ALLOWED_EXT = setOf("jpg", "jpeg", "png", "webp", "pdf", "doc", "docx", "xls", "xlsx", "txt", "zip", "m4a", "mp3", "aac", "ogg", "wav")
 
         val PICKER_MIME = arrayOf(
             "image/jpeg", "image/png", "image/webp", "application/pdf",
             "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "text/plain", "application/zip",
+            "text/plain", "application/zip", "audio/*",
         )
 
         /**
          * Nama berkas aman dengan ekstensi yang diizinkan (server memeriksa
-         * ekstensi nama asli). Null bila formatnya tidak didukung.
+         * isi berkas). Null bila formatnya tidak didukung.
          */
         fun attachmentName(displayName: String?, mime: String): String? {
             val raw = displayName?.substringAfterLast('/')?.trim().orEmpty()

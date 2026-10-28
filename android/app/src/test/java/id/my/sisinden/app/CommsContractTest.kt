@@ -5,6 +5,7 @@ import id.my.sisinden.app.core.notification.NotificationHelper
 import id.my.sisinden.app.data.model.AgoraTokenResponse
 import id.my.sisinden.app.data.model.CallResponse
 import id.my.sisinden.app.data.model.ChatAttachmentDto
+import id.my.sisinden.app.data.model.ChatHomeResponse
 import id.my.sisinden.app.data.model.ChatSyncResponse
 import id.my.sisinden.app.data.model.ChatUnreadResponse
 import id.my.sisinden.app.data.model.NotificationResponse
@@ -29,28 +30,48 @@ class CommsContractTest {
         requireNotNull(javaClass.classLoader?.getResource("fixtures/$name.json")) { "fixture $name hilang" }.readText()
 
     @Test
-    fun `sync operator berisi daftar utas dan pesan aktif`() {
-        val res = gson.fromJson(fixture("chat_sync_operator"), ChatSyncResponse::class.java)
-        val threads = requireNotNull(res.threads)
-        assertEquals(1, threads.size)
-        val t = threads.first()
-        assertTrue(t.isOpen)
-        assertEquals(2, t.unreadAdmin)
-        assertEquals("Peltu Saa Bambang", t.user?.fullName)
-        assertEquals("Mohon petunjuk", t.latestMessage?.message)
-        val msgs = requireNotNull(res.activeMessages)
-        assertEquals(listOf("USER", "ADMIN", "USER"), msgs.map { it.senderType })
-        assertNull(res.thread)
+    fun `daftar percakapan berisi chat pribadi dan entri operator dinas`() {
+        val res = gson.fromJson(fixture("chat_home"), ChatHomeResponse::class.java)
+        assertFalse(res.isOperator)
+        assertEquals(2, res.totalUnread)
+        val (direct, support) = requireNotNull(res.conversations)
+        assertFalse(direct.isSupport)
+        assertEquals("Letkol Laut (P) Danden", direct.displayTitle)
+        assertEquals("Letkol Laut (P) Danden", direct.partner?.fullName)
+        assertEquals(2, direct.unread)
+        assertTrue(direct.isOnline && direct.isOpen)
+        assertEquals("🎤 Pesan suara", direct.latestMessage?.preview)
+        // Operator Dinas yang belum pernah dipakai: uuid null, dibuat saat dibuka.
+        assertTrue(support.isSupport)
+        assertNull(support.uuid)
+        assertEquals("Operator Dinas", support.displayTitle)
     }
 
     @Test
-    fun `sync personel berisi utas sendiri`() {
-        val res = gson.fromJson(fixture("chat_sync_personel"), ChatSyncResponse::class.java)
-        assertNull(res.threads)
-        assertNotNull(res.thread)
-        assertEquals("OPEN", res.thread?.status)
-        assertEquals(listOf("Izin lapor, Ndan", "Siap, diterima"), res.messages?.map { it.message })
-        assertFalse(res.messages!!.any { it.isSystem })
+    fun `sync percakapan aktif berisi pesan suara dan foto`() {
+        val res = gson.fromJson(fixture("chat_sync_active"), ChatSyncResponse::class.java)
+        val active = requireNotNull(res.active)
+        assertTrue(active.isTyping)
+        val msgs = requireNotNull(active.messages)
+        assertEquals(listOf(7, 3, 3), msgs.map { it.senderId })
+        val voice = msgs[1].attachments!!.single()
+        assertTrue(voice.isAudio && voice.isVoice)
+        assertEquals(4200L, voice.durationMs)
+        assertFalse(voice.isImage)
+        val photo = msgs[2].attachments!!.single()
+        assertTrue(photo.isImage)
+        assertFalse(photo.isAudio)
+        assertEquals(
+            "https://sinden2.my.id/storage/chat_attachments/4f1c2a9e-1b2c-4d5e-8f90-1234567890ab/20261028_foto.png",
+            photo.publicUrl("https://sinden2.my.id"),
+        )
+    }
+
+    @Test
+    fun `durasi pesan suara diformat menit detik`() {
+        assertEquals("0:04", id.my.sisinden.app.ui.chat.formatVoiceDuration(4_200))
+        assertEquals("1:05", id.my.sisinden.app.ui.chat.formatVoiceDuration(65_000))
+        assertEquals("0:00", id.my.sisinden.app.ui.chat.formatVoiceDuration(-5))
     }
 
     @Test

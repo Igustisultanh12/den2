@@ -279,14 +279,14 @@ class SindenRepository(
 
     // ------------------------------------------------------ Chat Dinas
 
-    suspend fun chatHome() = call { chatHome() }
-    suspend fun chatSync(uuid: String?, status: String? = null, search: String? = null) =
-        call { chatSync(uuid, status, search?.takeIf { it.isNotBlank() }) }
+    suspend fun chatHome(search: String? = null) = call { chatHome(search?.trim()?.takeIf { it.isNotEmpty() }) }
+    suspend fun chatSync(uuid: String?, after: Long? = null) = call { chatSync(uuid, after) }
     suspend fun chatUnread() = call { chatUnread() }
     suspend fun chatMessages(uuid: String) = call { chatMessages(uuid) }
     suspend fun chatTyping(uuid: String) = call { chatTyping(uuid) }
     suspend fun chatSearchUsers(query: String) = call { chatSearchUsers(query.trim()) }
-    suspend fun chatStart(userId: Int) = call { chatStart(ChatStartRequest(userId)) }
+    suspend fun chatStart(userId: Int) = call { chatStart(ChatStartRequest(userId = userId)) }
+    suspend fun chatStartSupport() = call { chatStart(ChatStartRequest(support = true)) }
     suspend fun chatToggleStatus(uuid: String) = call { chatToggleStatus(uuid) }
     suspend fun chatDelete(uuid: String) = call { chatDelete(uuid) }
 
@@ -297,6 +297,13 @@ class SindenRepository(
             MultipartBody.Part.createFormData("attachments[]", it.fileName, it.bytes.toRequestBody(it.mimeType.toMediaType()))
         }
         return call { chatSend(uuid, body, parts) }
+    }
+
+    /** Kirim pesan suara (rekaman AAC/M4A) beserta durasinya. */
+    suspend fun chatSendVoice(uuid: String, audio: UploadImage, durationMs: Long): ApiResult<ChatSendResponse> {
+        val text = "text/plain".toMediaType()
+        val part = MultipartBody.Part.createFormData("attachments[]", audio.fileName, audio.bytes.toRequestBody(audio.mimeType.toMediaType()))
+        return call { chatSend(uuid, null, listOf(part), "1".toRequestBody(text), durationMs.toString().toRequestBody(text)) }
     }
 
     // ------------------------------------------------- Panggilan (Vicon)

@@ -60,6 +60,7 @@ class CallViewModel(
     private var pollJob: Job? = null
     private var timeoutJob: Job? = null
     private var durationJob: Job? = null
+    private var reconnectJob: Job? = null
     private var joining = false
 
     init {
@@ -135,9 +136,30 @@ class CallViewModel(
     /** Peristiwa dari halaman vicon (lihat resources/views/mobile/vicon.blade.php). */
     fun onViconEvent(type: String, data: JSONObject) {
         when (type) {
-            "remote-joined" -> onConnected(notifyServer = true)
+            "remote-joined" -> {
+                reconnectJob?.cancel()
+                _state.update { it.copy(info = null) }
+                onConnected(notifyServer = true)
+            }
             "remote-video" -> _state.update { it.copy(remoteVideo = data.optBoolean("on")) }
-            "remote-left" -> if (phase == CallPhase.CONNECTED) hangUp("Lawan bicara menutup panggilan")
+            // "Quit" = lawan bicara menutup; selain itu sinyalnya putus sebentar → tunggu 20 dtk.
+            "remote-left" -> if (phase == CallPhase.CONNECTED) {
+                if (data.optString("reason") == "Quit") {
+                    hangUp("Lawan bicara menutup panggilan")
+                } else {
+                    _state.update { it.copy(remoteVideo = false, info = "Sinyal lawan bicara terputus, menunggu tersambung kembali…") }
+                    reconnectJob?.cancel()
+                    reconnectJob = viewModelScope.launch {
+                        delay(REMOTE_RECONNECT_S * 1_000L)
+                        if (phase == CallPhase.CONNECTED) hangUp("Sambungan lawan bicara terputus")
+                    }
+                }
+            }
+            "state" -> when (data.optString("state")) {
+                "RECONNECTING" -> _state.update { it.copy(info = "Jaringan Anda terputus, menyambungkan kembali…") }
+                "CONNECTED" -> if (_state.value.info?.startsWith("Jaringan") == true) _state.update { it.copy(info = null) }
+                "PROXY_3", "PROXY_5" -> _state.update { it.copy(info = "Mencoba jalur cadangan…") }
+            }
             "warn" -> _state.update { it.copy(info = data.optString("message").ifBlank { null }) }
             "error" -> {
                 val msg = data.optString("message").ifBlank { "Media panggilan gagal dimulai." }
@@ -241,6 +263,7 @@ class CallViewModel(
         pollJob?.cancel()
         timeoutJob?.cancel()
         durationJob?.cancel()
+        reconnectJob?.cancel()
         _commands.trySend(ViconCommand.Leave)
         _state.update { it.copy(phase = CallPhase.ENDED, endedMessage = message) }
     }
@@ -253,6 +276,8 @@ class CallViewModel(
 
     companion object {
         const val OUTGOING_TIMEOUT_S = 40
-        const val CONNECT_TIMEOUT_S = 35
+        // Termasuk waktu mencoba jalur cadangan (cloud proxy) bila jaringan memblokir UDP.
+        const val CONNECT_TIMEOUT_S = 50
+        const val REMOTE_RECONNECT_S = 20
     }
 }
