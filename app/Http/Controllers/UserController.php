@@ -19,72 +19,9 @@ use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
-    /**
-     * Menampilkan daftar personel utama + Antrean Personel dari Dokumen SP Jaga
-     */
+    /** Menampilkan daftar personel. */
     public function index()
     {
-        $rawPdfPersonnel = [
-            ['name' => 'Bambang', 'pangkat' => 'Peltu Saa', 'nrp' => '82068', 'role' => 'anggotasintel'],
-            ['name' => 'Rizal Nurdin W.', 'pangkat' => 'Kapten Laut (P)', 'nrp' => '20873/P', 'role' => 'anggotasintel'],
-            ['name' => 'Alex Hamid R.T.', 'pangkat' => 'Kapten Laut (P)', 'nrp' => '22029/P', 'role' => 'anggotasintel'],
-            ['name' => 'Indra Gunawan', 'pangkat' => 'Kapten Laut (P)', 'nrp' => '19739/P', 'role' => 'danunit1'],
-            ['name' => 'Erwan Junaidi', 'pangkat' => 'Peltu Ttg', 'nrp' => '84025', 'role' => 'anggotasintel'],
-            ['name' => "Agus Sub'chan", 'pangkat' => 'Lettu Laut (T)', 'nrp' => '25724/P', 'role' => 'anggotasintel'],
-            ['name' => 'Agus Musonif', 'pangkat' => 'Lettu Laut (P)', 'nrp' => '26327/P', 'role' => 'anggotasintel'],
-            ['name' => 'HASAN BASRI', 'pangkat' => 'PELDA MAR', 'nrp' => '106737', 'role' => 'anggotasintel'],
-            ['name' => 'ADITYA H.', 'pangkat' => 'SERMA KOM', 'nrp' => '115980', 'role' => 'anggotasintel'],
-            ['name' => 'ACHMAD H.', 'pangkat' => 'KOPKA LIS', 'nrp' => '89853', 'role' => 'anggotasintel'],
-            ['name' => 'SUNARKO, S.H', 'pangkat' => 'PENATA III/C', 'nrp' => '197308261994011001', 'role' => 'anggotasintel'],
-            ['name' => 'ANDIS Y.', 'pangkat' => 'SERKA EKO', 'nrp' => '114153', 'role' => 'anggotasintel'],
-            ['name' => 'PUJIANTO', 'pangkat' => 'SERKA TKU', 'nrp' => '117387', 'role' => 'anggotasintel'],
-            ['name' => 'RINO Y', 'pangkat' => 'KOPTU TLG', 'nrp' => '113623', 'role' => 'anggotasintel'],
-            ['name' => 'HADIS S.', 'pangkat' => 'PENDA TK I III/B', 'nrp' => '197101311994031002', 'role' => 'anggotasintel'],
-            ['name' => 'HARTANTO', 'pangkat' => 'PELTU NAV', 'nrp' => '98486', 'role' => 'anggotasintel'],
-            ['name' => 'DWI PURNOMO', 'pangkat' => 'SERTU TTU', 'nrp' => '105224', 'role' => 'anggotasintel'],
-            ['name' => 'RUMADI', 'pangkat' => 'SERTU TTU', 'nrp' => '88386', 'role' => 'anggotasintel'],
-            ['name' => 'EKO YANUAR', 'pangkat' => 'PENG TK I II/D', 'nrp' => '197201141998031003', 'role' => 'anggotasintel'],
-            ['name' => 'TRI WINDARTO', 'pangkat' => 'SERMA PDK', 'nrp' => '114222', 'role' => 'anggotasintel'],
-            ['name' => 'KARIYADI', 'pangkat' => 'SERKA JAS', 'nrp' => '85822', 'role' => 'anggotasintel'],
-            ['name' => 'IFAN SUSANTO', 'pangkat' => 'KOPKA MES', 'nrp' => '99018', 'role' => 'anggotasintel'],
-            ['name' => 'SAGUS N', 'pangkat' => 'PENATA TK I III/D', 'nrp' => '19701221994021001', 'role' => 'anggotasintel'],
-            ['name' => 'RIBUT JOHAN P', 'pangkat' => 'SERMA KEU', 'nrp' => '112631', 'role' => 'anggotasintel'],
-            ['name' => 'HENDRA S', 'pangkat' => 'SERMA KOM', 'nrp' => '114931', 'role' => 'anggotasintel'],
-            ['name' => 'HERI WARSITO', 'pangkat' => 'PENDA TK I III/B', 'nrp' => '197502022002122006', 'role' => 'anggotasintel'],
-            ['name' => 'GUNAWAN', 'pangkat' => 'PENDA III/A', 'nrp' => '197810062005011005', 'role' => 'anggotasintel'],
-        ];
-
-        $allUsers = User::all();
-        $existingNrps = $allUsers->pluck('nrp')->filter()->map(fn($n) => strtolower(trim(preg_replace('/[^A-Za-z0-9]/', '', $n))))->toArray();
-        $existingNames = $allUsers->pluck('name')->filter()->map(fn($n) => strtolower(trim($n)))->toArray();
-
-        $pendingSpPersonnel = [];
-        foreach ($rawPdfPersonnel as $p) {
-            $cleanNrp = strtolower(trim(preg_replace('/[^A-Za-z0-9]/', '', $p['nrp'])));
-            $cleanName = strtolower(trim($p['name']));
-
-            $exists = in_array($cleanNrp, $existingNrps);
-            if (!$exists) {
-                foreach ($existingNames as $exName) {
-                    if (str_contains($exName, $cleanName) || str_contains($cleanName, $exName)) {
-                        $exists = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!$exists) {
-                $pendingSpPersonnel[] = [
-                    'name' => $p['name'],
-                    'pangkat' => $p['pangkat'],
-                    'nrp' => $p['nrp'],
-                    'email' => strtolower($cleanNrp) . '@sinden.my.id',
-                    'phone' => '',
-                    'role' => $p['role'] ?? 'anggotasintel',
-                ];
-            }
-        }
-
         return Inertia::render('Users/Index', [
             'users' => User::where('id', '!=', auth()->id()) 
                 ->orderBy('created_at', 'desc')
@@ -94,8 +31,6 @@ class UserController extends Controller
             'allUsers' => User::where('id', '!=', auth()->id())
                 ->orderBy('role', 'asc')
                 ->get(),
-
-            'pendingSpPersonnel' => $pendingSpPersonnel,
         ]);
     }
 

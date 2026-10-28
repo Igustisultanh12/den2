@@ -10,7 +10,6 @@ import html2pdf from 'html2pdf.js'; // Library Sakti untuk Cetak Tanpa RAM Serve
 const props = defineProps({
     users: Object, // Data pagination (10 orang)
     allUsers: Array, // Data lengkap untuk Rekap PDF
-    pendingSpPersonnel: Array, // Data antrean dari SP Jaga PDF
 });
 
 const user = computed(() => usePage().props.auth.user);
@@ -179,13 +178,6 @@ const isSubmittingBulk = ref(false);
 const bulkRows = ref([
     { name: '', pangkat: '', nrp: '', email: '', phone: '', role: 'personel' }
 ]);
-
-const loadPendingSpPersonnel = () => {
-    if (props.pendingSpPersonnel && props.pendingSpPersonnel.length > 0) {
-        bulkRows.value = JSON.parse(JSON.stringify(props.pendingSpPersonnel));
-        showBulkModal.value = true;
-    }
-};
 
 const openBulkModal = () => {
     bulkRows.value = [
@@ -680,29 +672,6 @@ onUnmounted(() => {
                         + Tambah Personel
                     </button>
                 </div>
-            </div>
-
-            <!-- BANNER ANTREAN PERSONEL DARI SP JAGA -->
-            <div v-if="pendingSpPersonnel && pendingSpPersonnel.length > 0" class="p-6 rounded-3xl bg-amber-50 border border-amber-300 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div class="space-y-1">
-                    <div class="flex items-center gap-2">
-                        <span class="px-3 py-1 bg-amber-400 text-slate-950 font-black text-[10px] uppercase rounded-full tracking-wider">
-                            Antrean Personel SP Jaga
-                        </span>
-                        <span class="text-xs font-bold text-slate-800">{{ pendingSpPersonnel.length }} Personel Belum Terdaftar</span>
-                    </div>
-                    <p class="text-xs text-slate-600 font-medium max-w-2xl">
-                        Ditemukan data nama, pangkat, & NRP dari dokumen SP Jaga Siaga Sintel yang belum ada di database. Klik tombol di samping untuk memuat seluruhnya ke antrean pendaftaran masal (Bulk) dan tinggal memasukkan nomor WhatsApp saja.
-                    </p>
-                </div>
-
-                <button 
-                    @click="loadPendingSpPersonnel"
-                    type="button"
-                    class="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl transition shadow-md shadow-amber-500/20 active:scale-[0.98] shrink-0 cursor-pointer"
-                >
-                    + Muat {{ pendingSpPersonnel.length }} Personel ke Bulk
-                </button>
             </div>
 
             <!-- Table Card -->
