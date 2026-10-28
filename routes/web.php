@@ -429,16 +429,56 @@ Route::middleware('auth')->group(function () {
         // Jalur MFA WhatsApp Gateway Engine Lokal (Port 3000)
         Route::get('/admin/setting/wa-status', function () {
             try {
-                $response = Http::timeout(3)->get('http://localhost:3000/status');
-                return $response->json();
+                $data = Http::timeout(3)->get('http://127.0.0.1:3000/status')->json() ?? [];
             } catch (\Exception $e) {
                 return response()->json([
                     'status' => 'OFFLINE',
-                    'pairing_code' => null,
-                    'error' => 'WA Gateway tidak merespon'
-                ], 500);
+                    'gateway' => 'down',
+                    'qr' => null,
+                    'error' => 'WA Gateway tidak berjalan. Jalankan: pm2 start sinden-wa-gateway',
+                ]);
             }
+
+            // Gateway hidup tapi belum ada sesi aktif (instalasi baru / setelah logout):
+            // minta gateway membuat sesi "dinas" agar QR muncul pada pengecekan berikutnya.
+            $active = collect($data['sessions'] ?? [])
+                ->contains(fn ($s) => in_array($s['status'] ?? '', ['CONNECTED', 'QR_READY', 'CONNECTING'], true));
+            if (!$active) {
+                try {
+                    Http::timeout(5)->post('http://127.0.0.1:3000/sessions', ['sessionId' => 'dinas', 'label' => 'WA Dinas / Radar Utama']);
+                } catch (\Exception $e) {
+                    // Diabaikan: status dicek ulang tiap 5 detik oleh halaman.
+                }
+            }
+
+            $connected = collect($data['sessions'] ?? [])->firstWhere('status', 'CONNECTED');
+
+            return response()->json([
+                'status' => $data['status'] ?? 'OFFLINE',
+                'gateway' => 'up',
+                'qr' => $data['qr'] ?? null,
+                'phone' => $connected['phone'] ?? null,
+                'name' => $connected['name'] ?? null,
+                'preparing' => !$active || ($data['status'] ?? '') === 'OFFLINE',
+            ]);
         })->name('settings.wa-status');
+
+        // Putuskan WhatsApp yang tertaut lalu siapkan QR baru untuk nomor lain.
+        Route::post('/admin/setting/wa-logout', function () {
+            try {
+                $res = Http::timeout(15)->post('http://127.0.0.1:3000/sessions/dinas/logout');
+            } catch (\Exception $e) {
+                return response()->json(['ok' => false, 'message' => 'WA Gateway tidak berjalan.'], 503);
+            }
+            if ($res->status() === 404) {
+                return response()->json(['ok' => true, 'message' => 'Tidak ada WhatsApp yang tertaut.']);
+            }
+            \Illuminate\Support\Facades\Log::info('[WA_GATEWAY] Logout sesi dinas oleh Super Admin', ['user_id' => auth()->id()]);
+            return response()->json([
+                'ok' => $res->successful(),
+                'message' => $res->successful() ? 'WhatsApp berhasil di-logout. QR baru akan muncul sebentar lagi.' : ($res->json('error') ?? 'Gagal logout WhatsApp.'),
+            ], $res->successful() ? 200 : 500);
+        })->name('settings.wa-logout');
     });
 
     // =====================================================================

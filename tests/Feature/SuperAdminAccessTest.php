@@ -38,6 +38,41 @@ class SuperAdminAccessTest extends TestCase
         $this->assertFalse($this->user('personel')->isAdmin());
     }
 
+    public function test_wa_status_reports_gateway_down_clearly(): void
+    {
+        // Gateway mati → pesan jelas, bukan error 500.
+        \Illuminate\Support\Facades\Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('refused'));
+        $this->actingAs($this->user('super_admin'))->getJson(route('settings.wa-status'))
+            ->assertOk()->assertJsonPath('gateway', 'down')->assertJsonPath('status', 'OFFLINE');
+    }
+
+    public function test_wa_status_starts_session_for_qr(): void
+    {
+        $super = $this->user('super_admin');
+
+        // Gateway hidup tanpa sesi (instalasi baru) → Laravel meminta sesi "dinas" dibuat agar QR muncul.
+        \Illuminate\Support\Facades\Http::fake([
+            '127.0.0.1:3000/status' => \Illuminate\Support\Facades\Http::response(['ok' => true, 'status' => 'OFFLINE', 'qr' => null, 'sessions' => []]),
+            '127.0.0.1:3000/sessions' => \Illuminate\Support\Facades\Http::response(['ok' => true, 'status' => 'CONNECTING']),
+        ]);
+        $this->actingAs($super)->getJson(route('settings.wa-status'))->assertOk()->assertJsonPath('gateway', 'up');
+        \Illuminate\Support\Facades\Http::assertSent(fn ($r) => str_ends_with($r->url(), '/sessions') && $r['sessionId'] === 'dinas');
+
+        // Admin biasa tidak boleh mengakses status maupun logout WA.
+        $this->actingAs($this->user('admin'))->getJson(route('settings.wa-status'))->assertForbidden();
+        $this->actingAs($this->user('admin'))->postJson(route('settings.wa-logout'))->assertForbidden();
+    }
+
+    public function test_wa_logout_calls_gateway_for_super_admin(): void
+    {
+        \Illuminate\Support\Facades\Http::fake([
+            '127.0.0.1:3000/sessions/dinas/logout' => \Illuminate\Support\Facades\Http::response(['ok' => true]),
+        ]);
+        $this->actingAs($this->user('super_admin'))->postJson(route('settings.wa-logout'))
+            ->assertOk()->assertJsonPath('ok', true);
+        \Illuminate\Support\Facades\Http::assertSent(fn ($r) => str_ends_with($r->url(), '/sessions/dinas/logout') && $r->method() === 'POST');
+    }
+
     public function test_settings_save_without_copyright_field(): void
     {
         Setting::updateOrCreate(['key' => 'copyright'], ['value' => 'lama']);

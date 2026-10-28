@@ -174,8 +174,13 @@ const submit = () => {
 };
 
 // --- LOGIKA WHATSAPP GATEWAY ---
-const waData = ref({ status: 'LOADING', qr: null, pairingCode: null });
+const waData = ref({ status: 'LOADING', qr: null, pairingCode: null, gateway: null, error: null, phone: null, name: null });
+const waLoggingOut = ref(false);
+const waMessage = ref(null);
 let waInterval = null;
+
+// Gateway mengirim QR sebagai gambar (data:image/png;base64,...) → tampilkan sebagai <img>.
+const waQrIsImage = computed(() => typeof waData.value.qr === 'string' && waData.value.qr.startsWith('data:image'));
 
 const checkStatus = async () => {
     try {
@@ -183,16 +188,35 @@ const checkStatus = async () => {
         waData.value = {
             status: res.data.status === 'ONLINE' ? 'CONNECTED' : (res.data.status === 'WAITING_SCAN' ? 'WAITING' : 'OFFLINE'),
             qr: res.data.qr,
-            pairingCode: res.data.pairing_code
+            pairingCode: res.data.pairing_code,
+            gateway: res.data.gateway,
+            error: res.data.error || null,
+            phone: res.data.phone || null,
+            name: res.data.name || null,
         };
     } catch (error) {
-        waData.value = { status: 'OFFLINE', qr: null, pairingCode: null };
+        waData.value = { status: 'OFFLINE', qr: null, pairingCode: null, gateway: 'down', error: 'Tidak dapat menghubungi server.', phone: null, name: null };
     }
 };
 
 const generateNewCode = async () => {
     waData.value.status = 'LOADING';
     await checkStatus();
+};
+
+const logoutWa = async () => {
+    if (!window.confirm('Putuskan WhatsApp yang tertaut? Notifikasi WA berhenti sampai QR dipindai ulang.')) return;
+    waLoggingOut.value = true;
+    waMessage.value = null;
+    try {
+        const res = await axios.post(route('settings.wa-logout'));
+        waMessage.value = res.data.message;
+    } catch (error) {
+        waMessage.value = error.response?.data?.message || 'Gagal logout WhatsApp.';
+    } finally {
+        waLoggingOut.value = false;
+        await checkStatus();
+    }
 };
 
 onMounted(() => {
@@ -232,15 +256,37 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
                                     {{ waData.status === 'CONNECTED' ? 'TERHUBUNG / LIVE' : 'TERPUTUS / OFFLINE' }}
                                 </span>
                             </div>
-                            <button @click="generateNewCode" v-if="waData.status !== 'CONNECTED'" class="mt-2 text-[10px] font-extrabold text-blue-600 uppercase border-b border-dashed border-blue-300 hover:text-blue-800 transition"> Refresh Status Koneksi
-                            </button>
+                            <p v-if="waData.status === 'CONNECTED' && waData.phone" class="mt-1 text-[11px] font-bold text-slate-600">
+                                {{ waData.name }} · +{{ waData.phone }}
+                            </p>
+                            <p v-else-if="waData.gateway === 'down'" class="mt-1 text-[11px] font-semibold text-rose-600 max-w-xs">
+                                {{ waData.error || 'WA Gateway tidak berjalan.' }}
+                            </p>
+                            <p v-else-if="waData.status !== 'CONNECTED' && !waData.qr" class="mt-1 text-[11px] font-semibold text-slate-500">
+                                Menyiapkan QR, tunggu beberapa detik…
+                            </p>
+                            <div class="flex items-center gap-4 mt-2">
+                                <button @click="generateNewCode" v-if="waData.status !== 'CONNECTED'" class="text-[10px] font-extrabold text-blue-600 uppercase border-b border-dashed border-blue-300 hover:text-blue-800 transition"> Refresh Status Koneksi
+                                </button>
+                                <button
+                                    v-if="waData.status === 'CONNECTED'"
+                                    type="button"
+                                    :disabled="waLoggingOut"
+                                    @click="logoutWa"
+                                    class="px-3 py-1.5 rounded-xl bg-rose-600 text-white text-[10px] font-extrabold uppercase tracking-wider hover:bg-rose-700 transition disabled:opacity-50"
+                                >
+                                    {{ waLoggingOut ? 'Memutuskan…' : 'Logout WhatsApp' }}
+                                </button>
+                            </div>
+                            <p v-if="waMessage" class="mt-2 text-[11px] font-semibold text-slate-600">{{ waMessage }}</p>
                         </div>
                     </div>
 
                     <div v-if="waData.status !== 'CONNECTED' && waData.qr" class="bg-white p-4 rounded-3xl shadow-xl border-4 border-slate-900">
                         <p class="text-[9px] text-slate-900 font-extrabold uppercase mb-2 text-center tracking-wider">SCAN QR AKTIVASI</p>
-                        <qrcode-vue :value="waData.qr" :size="150" level="H" class="mx-auto" />
-                        <p class="mt-2 text-[8px] text-slate-400 font-bold text-center uppercase">Gunakan WhatsApp Web di HP</p>
+                        <img v-if="waQrIsImage" :src="waData.qr" alt="QR WhatsApp" class="w-[180px] h-[180px] mx-auto" />
+                        <qrcode-vue v-else :value="waData.qr" :size="180" level="M" class="mx-auto" />
+                        <p class="mt-2 text-[8px] text-slate-400 font-bold text-center uppercase">WhatsApp → Perangkat tertaut → Tautkan perangkat</p>
                     </div>
 
                     <div v-else-if="waData.status !== 'CONNECTED' && waData.pairingCode" class="bg-slate-900 p-6 rounded-3xl shadow-xl">

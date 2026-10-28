@@ -399,6 +399,11 @@ async function createSession(sessionId, label = '', customFolder = null) {
                 } catch (e) {
                     console.error(`[${sessionId}] Gagal menghapus folder sesi:`, e);
                 }
+                // Sesi utama dibuat ulang agar Super Admin langsung mendapat QR baru.
+                if (sessionId === DEFAULT_SESSION_ID) {
+                    sessions.delete(sessionId);
+                    setTimeout(() => ensureDefaultSession(), 3000);
+                }
             } else if (shouldReconnect) {
                 sessionData.status = 'CONNECTING';
                 setTimeout(() => {
@@ -710,6 +715,26 @@ async function createSession(sessionId, label = '', customFolder = null) {
 }
 
 /**
+ * Sesi utama "dinas" dipakai Laravel (/send). Di instalasi baru atau setelah logout
+ * belum ada sesi sama sekali, sehingga QR tidak pernah dibuat: buat otomatis.
+ */
+const DEFAULT_SESSION_ID = 'dinas';
+let creatingDefault = false;
+async function ensureDefaultSession() {
+    const existing = sessions.get(DEFAULT_SESSION_ID);
+    if (creatingDefault || (existing && existing.status !== 'DISCONNECTED')) return;
+    creatingDefault = true;
+    console.log(`Membuat sesi '${DEFAULT_SESSION_ID}' agar QR dapat dipindai...`);
+    try {
+        await createSession(DEFAULT_SESSION_ID, 'WA Dinas / Radar Utama');
+    } catch (err) {
+        console.error(err);
+    } finally {
+        creatingDefault = false;
+    }
+}
+
+/**
  * Memulihkan sesi sebelumnya dari disk
  */
 function restoreSessions() {
@@ -729,6 +754,7 @@ function restoreSessions() {
         }
     }
 
+    let defaultRestored = legacyFound;
     try {
         const dirs = fs.readdirSync(SESSIONS_DIR, { withFileTypes: true });
         for (const dir of dirs) {
@@ -738,6 +764,7 @@ function restoreSessions() {
                 const credsPath = path.join(SESSIONS_DIR, sessionId, 'creds.json');
                 if (fs.existsSync(credsPath)) {
                     console.log(`Memulihkan sesi tersimpan: ${sessionId}`);
+                    if (sessionId === DEFAULT_SESSION_ID) defaultRestored = true;
                     createSession(sessionId).catch(console.error);
                 }
             }
@@ -745,6 +772,7 @@ function restoreSessions() {
     } catch (err) {
         console.error('Gagal memulihkan sesi:', err);
     }
+    return defaultRestored;
 }
 
 // -------------------------------------------------------------
@@ -923,6 +951,9 @@ app.post('/sessions/:id/logout', async (req, res) => {
             fs.rmSync(sessionFolder, { recursive: true, force: true });
         }
 
+        // Sesi utama langsung disiapkan ulang agar QR baru tampil di Pengaturan.
+        if (sessionId === DEFAULT_SESSION_ID) setTimeout(() => ensureDefaultSession(), 3000);
+
         res.json({ ok: true, message: `Sesi ${sessionId} berhasil di-logout dan dihapus.` });
     } catch (err) {
         res.status(500).json({ ok: false, error: err.message });
@@ -1100,5 +1131,7 @@ app.listen(PORT, HOST, () => {
     console.log(`====================================================`);
     console.log(` SINDEN Multi-Session WhatsApp Gateway aktif di ${HOST}:${PORT}`);
     console.log(`====================================================`);
-    restoreSessions();
+    const restoringDefault = restoreSessions();
+    // Belum pernah ada sesi utama tersimpan → buat sesi baru agar QR muncul.
+    if (!restoringDefault) ensureDefaultSession();
 });
