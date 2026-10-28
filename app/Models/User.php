@@ -24,6 +24,7 @@ class User extends Authenticatable
         'avatar',
         'password',
         'pangkat',
+        'jabatan',
         'nrp',
         'phone',
         'role',
