@@ -17,6 +17,8 @@ data class ActivateRequest(
     @SerializedName("token") val token: String,
     @SerializedName("password") val password: String,
     @SerializedName("cf_turnstile_token") val turnstileToken: String? = null,
+    /** Persetujuan ketentuan dinas (termasuk pelacakan lokasi), dicentang saat aktivasi. */
+    @SerializedName("consent") val consent: Boolean = true,
 )
 
 data class LoginResponse(

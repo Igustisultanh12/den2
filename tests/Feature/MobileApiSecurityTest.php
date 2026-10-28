@@ -49,6 +49,7 @@ class MobileApiSecurityTest extends TestCase
             $t->boolean('can_access_ibu_beti')->default(false);
             $t->string('activation_token')->nullable();
             $t->boolean('must_change_password')->default(false);
+            $t->timestamp('tracking_consent_at')->nullable();
             $t->rememberToken();
             $t->timestamps();
         });
@@ -447,13 +448,19 @@ class MobileApiSecurityTest extends TestCase
         $u = $this->makeUser(['nrp' => '999', 'is_active' => false, 'activation_token' => 'TOKEN-ABC']);
         $oldHash = $u->password;
 
-        $this->postJson('/api/mobile/activate', ['nrp' => '999', 'password' => 'barubaru123'])->assertStatus(422);
-        $this->postJson('/api/mobile/activate', ['nrp' => '999', 'token' => 'SALAH', 'password' => 'barubaru123'])->assertStatus(422);
+        $this->postJson('/api/mobile/activate', ['nrp' => '999', 'password' => 'barubaru123', 'consent' => true])->assertStatus(422);
+        $this->postJson('/api/mobile/activate', ['nrp' => '999', 'token' => 'SALAH', 'password' => 'barubaru123', 'consent' => true])->assertStatus(422);
         $this->assertSame($oldHash, $u->fresh()->password);
 
-        $this->postJson('/api/mobile/activate', ['nrp' => '999', 'token' => 'TOKEN-ABC', 'password' => 'barubaru123'])->assertOk();
+        // Tanpa persetujuan ketentuan (termasuk pelacakan) aktivasi ditolak.
+        $this->postJson('/api/mobile/activate', ['nrp' => '999', 'token' => 'TOKEN-ABC', 'password' => 'barubaru123'])
+            ->assertStatus(422)->assertJsonValidationErrors('consent');
+        $this->assertFalse($u->fresh()->is_active);
+
+        $this->postJson('/api/mobile/activate', ['nrp' => '999', 'token' => 'TOKEN-ABC', 'password' => 'barubaru123', 'consent' => true])->assertOk();
         $this->assertTrue($u->fresh()->is_active);
         $this->assertNull($u->fresh()->activation_token);
+        $this->assertNotNull($u->fresh()->tracking_consent_at);
     }
 
     public function test_logout_revokes_token(): void
@@ -591,9 +598,9 @@ class MobileApiSecurityTest extends TestCase
             ->assertOk()->assertJsonPath('status', 'success');
 
         // Token untuk action "login" tidak boleh dipakai untuk aktivasi.
-        $this->postJson('/api/mobile/activate', ['nrp' => '6161', 'token' => 'TOK-1', 'password' => 'barubaru123', 'cf_turnstile_token' => 'login-token'])
+        $this->postJson('/api/mobile/activate', ['nrp' => '6161', 'token' => 'TOK-1', 'password' => 'barubaru123', 'consent' => true, 'cf_turnstile_token' => 'login-token'])
             ->assertStatus(422)->assertJsonPath('code', 'turnstile_failed');
-        $this->postJson('/api/mobile/activate', ['nrp' => '6161', 'token' => 'TOK-1', 'password' => 'barubaru123', 'cf_turnstile_token' => 'act-token'])
+        $this->postJson('/api/mobile/activate', ['nrp' => '6161', 'token' => 'TOK-1', 'password' => 'barubaru123', 'consent' => true, 'cf_turnstile_token' => 'act-token'])
             ->assertOk();
         $this->assertTrue($u->fresh()->is_active);
 

@@ -247,9 +247,11 @@ Route::post('/api/mobile/activate', function (Request $request) {
             'nrp' => 'required|string|max:100',
             'token' => 'required|string|max:255',
             'password' => 'required|string|min:8|max:255',
+            'consent' => 'accepted',
         ], [
             'token.required' => 'Token aktivasi dari Admin wajib diisi.',
             'password.min' => 'Kata sandi minimal 8 karakter.',
+            'consent.accepted' => 'Persetujuan ketentuan dinas (termasuk pelacakan lokasi) wajib disetujui.',
         ]);
         if ($v->fails()) {
             return mobile_validation_error($v);
@@ -271,12 +273,12 @@ Route::post('/api/mobile/activate', function (Request $request) {
             return response()->json(['status' => 'error', 'message' => 'NRP / Email atau token aktivasi tidak valid.'], 422);
         }
 
-        $user->update([
+        $user->update(array_merge([
             'password' => Hash::make($data['password']),
             'is_active' => true,
             'activation_token' => null,
             'must_change_password' => false,
-        ]);
+        ], Schema::hasColumn('users', 'tracking_consent_at') ? ['tracking_consent_at' => now()] : []));
 
         return response()->json([
             'status' => 'success',

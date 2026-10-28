@@ -32,6 +32,7 @@ class User extends Authenticatable
         'can_manage_koperasi',
         'activation_token',
         'must_change_password', // Agar sistem tahu user perlu ganti password
+        'tracking_consent_at', // Waktu personel menyetujui ketentuan dinas (termasuk pelacakan) saat aktivasi
         'reset_token',
         'token_expires_at',
         'birth_date',
