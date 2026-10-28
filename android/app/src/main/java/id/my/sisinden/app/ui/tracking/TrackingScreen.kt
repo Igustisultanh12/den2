@@ -52,6 +52,8 @@ import id.my.sisinden.app.data.repository.SindenRepository
 import id.my.sisinden.app.ui.common.CollectMessages
 import id.my.sisinden.app.ui.common.LoadableViewModel
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
@@ -79,13 +81,13 @@ class TrackingViewModel(private val repository: SindenRepository) : LoadableView
 
     override suspend fun fetch(): ApiResult<TrackingResponse> = repository.tracking()
 
-    /** Jejak 2 jam terakhir personel terpilih (kosong bila tidak ada yang dipilih). */
-    fun loadTrail(userId: Int?) {
+    /** Jejak [hours] jam terakhir personel terpilih (kosong bila tidak ada yang dipilih). */
+    fun loadTrail(userId: Int?, hours: Int) {
         trailJob?.cancel()
         _trail.value = emptyList()
         if (userId == null) return
         trailJob = viewModelScope.launch {
-            (repository.trackingHistory(userId, hours = 2) as? ApiResult.Success)?.let { _trail.value = it.data.points.orEmpty() }
+            (repository.trackingHistory(userId, hours) as? ApiResult.Success)?.let { _trail.value = it.data.points.orEmpty() }
         }
     }
 }
@@ -107,8 +109,9 @@ fun TrackingScreen(repository: SindenRepository, onBack: () -> Unit) {
     var filter by rememberSaveable { mutableStateOf(TrackingFilter.ALL) }
     var view by rememberSaveable { mutableStateOf(TrackingView.MAP) }
     var selectedId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var trailHours by rememberSaveable { mutableStateOf(2) }
     val trail by vm.trail.collectAsStateWithLifecycle()
-    LaunchedEffect(selectedId) { vm.loadTrail(selectedId) }
+    LaunchedEffect(selectedId, trailHours) { vm.loadTrail(selectedId, trailHours) }
 
     // Segarkan otomatis hanya saat layar aktif (berhenti ketika aplikasi di latar).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -166,14 +169,44 @@ fun TrackingScreen(repository: SindenRepository, onBack: () -> Unit) {
                             )
                         }
                         if (selected != null) {
-                            Box(Modifier.align(Alignment.BottomCenter).padding(Spacing.sm)) {
-                                PersonnelRow(
-                                    selected,
-                                    trailing = {
-                                        TextButton(onClick = { selectedId = null }) { Text("Lepas") }
-                                    },
-                                    onClick = { openMap(selected) },
-                                )
+                            // Detail pergerakan personel terpilih: tetap di peta aplikasi (tidak membuka aplikasi lain).
+                            Surface(
+                                modifier = Modifier.align(Alignment.BottomCenter).padding(Spacing.sm),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                                shadowElevation = 4.dp,
+                            ) {
+                                Column(Modifier.padding(Spacing.md)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(selected.displayName.ifBlank { "Personel #${selected.userId}" }, style = MaterialTheme.typography.titleSmall)
+                                            Text(
+                                                listOfNotNull(
+                                                    if (selected.isOnline) "Online" else "Offline",
+                                                    ageLabel(selected.ageSeconds),
+                                                    selected.speed?.takeIf { it >= 1f }?.let { "${(it * 3.6f).toInt()} km/j" } ?: "Diam",
+                                                    selected.battery?.let { "Baterai $it%" },
+                                                ).joinToString(" · "),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        TextButton(onClick = { selectedId = null }) { Text("Tutup") }
+                                    }
+                                    Spacer(Modifier.height(Spacing.xs))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Jejak:", style = MaterialTheme.typography.labelMedium)
+                                        listOf(1, 2, 6, 24).forEach { h ->
+                                            TextButton(onClick = { trailHours = h }) {
+                                                Text("${h}j", fontWeight = if (h == trailHours) FontWeight.Bold else FontWeight.Normal)
+                                            }
+                                        }
+                                        Spacer(Modifier.weight(1f))
+                                        IconButton(onClick = { openMap(selected) }) {
+                                            Icon(Icons.Outlined.Map, contentDescription = "Buka di Google Maps")
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
