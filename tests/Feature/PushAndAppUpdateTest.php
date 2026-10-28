@@ -209,6 +209,54 @@ class PushAndAppUpdateTest extends TestCase
         return $path;
     }
 
+    /** Respons palsu GitHub Releases dengan APK & SHA256SUMS.txt. */
+    private function fakeGithubRelease(string $apkBytes, string $sum, string $tag = 'v1.4.0'): void
+    {
+        // Simulasi baru tiap skenario (Http::fake berlapis tidak menimpa yang lama).
+        Http::swap(new \Illuminate\Http\Client\Factory());
+        Http::fake([
+            'api.github.com/repos/Igustisultanh12/den2/releases/latest' => Http::response([
+                'tag_name' => $tag,
+                'name' => 'Sinden 2 1.4.0',
+                'assets' => [
+                    ['name' => 'SISINDEN-1.4.0-debug.apk', 'size' => 10, 'browser_download_url' => 'https://github.com/x/debug.apk'],
+                    ['name' => 'SISINDEN-1.4.0.apk', 'size' => strlen($apkBytes), 'browser_download_url' => 'https://github.com/x/SISINDEN-1.4.0.apk'],
+                    ['name' => 'SHA256SUMS.txt', 'size' => 100, 'browser_download_url' => 'https://github.com/x/SHA256SUMS.txt'],
+                ],
+            ]),
+            'github.com/x/SISINDEN-1.4.0.apk' => Http::response($apkBytes),
+            'github.com/x/SHA256SUMS.txt' => Http::response("{$sum}  SISINDEN-1.4.0.apk\n"),
+        ]);
+    }
+
+    public function test_super_admin_fetches_latest_apk_from_github_with_checksum_check(): void
+    {
+        Storage::fake('local');
+        $dir = sys_get_temp_dir() . '/apkgh-' . uniqid();
+        mkdir($dir);
+        $bytes = file_get_contents($this->fakeApk($dir, 'a.apk', file_get_contents(base_path('tests/Fixtures/AndroidManifest-sinden2-1.4.0.bin'))));
+        $super = $this->user('super_admin');
+
+        // Hanya Super Admin.
+        $this->actingAs($this->user('admin'))->post('/settings/app-update/github')->assertForbidden();
+
+        // Checksum tidak cocok → ditolak, tidak ada APK tersimpan.
+        $this->fakeGithubRelease($bytes, str_repeat('0', 64));
+        $this->actingAs($super)->post('/settings/app-update/github')->assertSessionHas('error', fn ($m) => str_contains($m, 'Checksum'));
+        $this->getJson('/api/mobile/app-update')->assertJsonPath('available', false);
+
+        // Checksum cocok → tersimpan & dilayani ke aplikasi seperti unggahan manual.
+        $this->fakeGithubRelease($bytes, hash('sha256', $bytes));
+        $this->actingAs($super)->post('/settings/app-update/github', ['notify' => '0'])
+            ->assertSessionHas('success', fn ($m) => str_contains($m, 'diambil dari GitHub'));
+        $this->getJson('/api/mobile/app-update')->assertOk()->assertJsonPath('available', true)->assertJsonPath('version', '1.4.0');
+
+        // Rilis yang sama diambil lagi → diberi tahu sudah terbaru, tidak mengunduh ulang.
+        $this->fakeGithubRelease($bytes, hash('sha256', $bytes));
+        $this->actingAs($super)->post('/settings/app-update/github')->assertSessionHas('success', fn ($m) => str_contains($m, 'sudah yang terbaru'));
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), 'SISINDEN-1.4.0.apk'));
+    }
+
     public function test_apk_uploaded_in_settings_is_served_to_app(): void
     {
         Storage::fake('local');

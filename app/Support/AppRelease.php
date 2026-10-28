@@ -81,9 +81,16 @@ class AppRelease
      *
      * @return array<string, mixed>|string
      */
-    public static function store(UploadedFile $file, string $notes, string $uploader, ?string $manualVersion = null)
+    /**
+     * @param  UploadedFile|string  $file  unggahan browser, atau jalur berkas APK di server
+     *                                      (mis. hasil unduhan rilis GitHub)
+     */
+    public static function store(UploadedFile|string $file, string $notes, string $uploader, ?string $manualVersion = null)
     {
-        $tmp = $file->getRealPath();
+        $tmp = is_string($file) ? $file : $file->getRealPath();
+        if (is_string($file)) {
+            $file = new \Illuminate\Http\File($file);
+        }
         if (!$tmp || !is_file($tmp)) {
             return 'Berkas APK tidak terbaca. Coba unggah ulang.';
         }

@@ -418,6 +418,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
         // Pembaruan aplikasi Android: unggah/hapus APK sumber pembaruan di HP personel
         Route::post('/settings/app-update', [\App\Http\Controllers\AppUpdateController::class, 'store'])->name('settings.app-update.store');
+        Route::post('/settings/app-update/github', [\App\Http\Controllers\AppUpdateController::class, 'fetchFromGithub'])->middleware('throttle:6,1')->name('settings.app-update.github');
         Route::delete('/settings/app-update', [\App\Http\Controllers\AppUpdateController::class, 'destroy'])->name('settings.app-update.destroy');
         Route::post('/settings/update-stamp', [SettingController::class, 'updateStamp'])->name('settings.update-stamp');
 

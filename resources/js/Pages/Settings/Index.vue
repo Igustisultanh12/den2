@@ -51,6 +51,15 @@ const fmtSize = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.m
 const fmtDate = (iso) => { try { return new Date(iso).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso; } };
 const uploadLimitLabel = computed(() => (uploadLimit.value > 0 && uploadLimit.value < 1e15 ? fmtSize(uploadLimit.value) : 'tanpa batas'));
 const apkForm = useForm({ apk: null, notes: '', version: '', notify: true });
+const githubBusy = ref(false);
+// Server mengunduh APK rilis terbaru dari GitHub; catatan & pilihan notifikasi ikut formulir.
+const fetchFromGithub = () => {
+    githubBusy.value = true;
+    router.post('/settings/app-update/github', { notes: apkForm.notes, notify: apkForm.notify }, {
+        preserveScroll: true,
+        onFinish: () => { githubBusy.value = false; },
+    });
+};
 const apkError = ref('');
 const apkInput = ref(null);
 const pickApk = (event) => {
@@ -874,6 +883,19 @@ onUnmounted(() => { if (waInterval) clearInterval(waInterval); });
                     <button type="button" @click="deleteApk" class="self-start md:self-center px-4 py-2 rounded-xl border border-rose-200 text-rose-600 text-[10px] font-extrabold uppercase tracking-wider hover:bg-rose-50">Hapus APK</button>
                 </div>
                 <p v-else class="text-[11px] text-slate-500 font-semibold">Belum ada APK pembaruan di server.</p>
+
+                <!-- Cara tercepat: server mengunduh langsung dari GitHub Releases (tanpa unggah dari komputer) -->
+                <div class="p-4 rounded-2xl bg-slate-900 text-white flex flex-col md:flex-row md:items-center gap-3">
+                    <div class="flex-1">
+                        <p class="text-xs font-black">Ambil versi terbaru dari GitHub (disarankan)</p>
+                        <p class="text-[10px] text-slate-300 font-semibold">Server mengunduh APK rilis resmi langsung dari GitHub — jauh lebih cepat daripada mengunggah dari komputer. Keaslian diperiksa dengan SHA-256.</p>
+                    </div>
+                    <button type="button" @click="fetchFromGithub" :disabled="githubBusy || apkForm.processing"
+                            class="self-start md:self-center px-5 py-3 rounded-2xl bg-emerald-500 text-slate-950 text-xs font-extrabold uppercase tracking-wider hover:bg-emerald-400 disabled:opacity-50">
+                        {{ githubBusy ? 'Mengunduh di server…' : 'Ambil dari GitHub' }}
+                    </button>
+                </div>
+                <p class="text-[10px] text-slate-500 font-bold">Atau unggah berkas APK manual:</p>
 
                 <form @submit.prevent="uploadApk" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="space-y-1.5">

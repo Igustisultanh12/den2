@@ -52,6 +52,11 @@ return [
         'app_certificate' => env('AGORA_APP_CERTIFICATE'),
     ],
 
+    // Sumber APK untuk tombol "Ambil dari GitHub" di Pengaturan → Pembaruan Aplikasi.
+    'app_release' => [
+        'github_repo' => env('APP_RELEASE_GITHUB_REPO', 'Igustisultanh12/den2'),
+    ],
+
     // Cloudflare Turnstile (login & aktivasi aplikasi mobile); dapat diatur dari menu Pengaturan.
     // Site key bersifat publik; secret key hanya di .env server atau tersimpan terenkripsi.
     'turnstile' => [

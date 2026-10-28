@@ -26,8 +26,8 @@ android {
         applicationId = "id.my.sinden2.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 24
-        versionName = "1.7.1"
+        versionCode = 25
+        versionName = "1.7.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -53,7 +53,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Kecilkan APK (±33 MB → jauh lebih kecil): buang kode & resource pustaka yang tak dipakai.
+            // Aturan konservatif di proguard-rules.pro menjaga seluruh kode aplikasi tetap utuh.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
