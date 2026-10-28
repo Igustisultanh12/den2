@@ -36,7 +36,12 @@ class PersonnelTracking
         $now = now();
         $rows = [];
         foreach ($points as $p) {
-            $recordedAt = isset($p['recorded_at']) ? Carbon::parse($p['recorded_at']) : $now->copy();
+            // HP mengirim ISO-8601 UTC ("...Z"). Wajib dikonversi ke zona waktu aplikasi
+            // sebelum disimpan; jika tidak, jam UTC tersimpan lalu dibaca sebagai WIB
+            // sehingga setiap titik baru tampak "7 jam lalu" (offline).
+            $recordedAt = isset($p['recorded_at'])
+                ? Carbon::parse($p['recorded_at'])->setTimezone(config('app.timezone'))
+                : $now->copy();
             if ($recordedAt->greaterThan($now)) {
                 $recordedAt = $now->copy();
             }

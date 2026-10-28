@@ -434,6 +434,24 @@ class MobileApiSecurityTest extends TestCase
         }
     }
 
+    public function test_location_sent_in_utc_from_android_is_online_immediately(): void
+    {
+        // Android mengirim Instant.toString(): ISO-8601 UTC berakhiran "Z" (mis. 2026-10-28T03:03:06Z).
+        $personel = $this->makeUser(['name' => 'Pers UTC']);
+        $this->withToken($this->tokenFor($personel))->postJson('/api/mobile/location', [
+            'points' => [[
+                'latitude' => -7.25, 'longitude' => 112.75,
+                'recorded_at' => now()->utc()->subSeconds(5)->format('Y-m-d\TH:i:s\Z'),
+            ]],
+        ])->assertOk();
+
+        $viewer = $this->makeUser(['role' => 'admin']);
+        $p = collect($this->withToken($this->tokenFor($viewer))->getJson('/api/mobile/tracking')->assertOk()->json('personnel'))
+            ->firstWhere('user_id', $personel->id);
+        $this->assertTrue($p['is_online'], 'titik UTC baru harus langsung online, bukan tampak 7 jam lalu');
+        $this->assertLessThan(60, $p['age_seconds']);
+    }
+
     public function test_location_report_rejects_invalid_coordinates_and_requires_token(): void
     {
         $this->postJson('/api/mobile/location', ['latitude' => -7.2, 'longitude' => 112.7])->assertStatus(401);
