@@ -162,6 +162,7 @@ data class ActivationUiState(
     val token: String = "",
     val password: String = "",
     val confirm: String = "",
+    val consent: Boolean = false,
     val errors: Map<String, String> = emptyMap(),
     val errorMessage: String? = null,
     val successMessage: String? = null,
@@ -197,6 +198,7 @@ class ActivationViewModel(private val repository: SindenRepository) : ViewModel(
             if (s.token.isBlank()) put("token", "Token aktivasi dari Admin wajib diisi")
             if (s.password.length < 8) put("password", "Minimal 8 karakter")
             if (s.confirm != s.password) put("confirm", "Konfirmasi kata sandi tidak sama")
+            if (!s.consent) put("consent", "Anda harus menyetujui ketentuan untuk mengaktifkan akun")
         }
         if (errors.isNotEmpty()) {
             _state.update { it.copy(errors = errors) }

@@ -205,9 +205,16 @@ class LocationTrackingService : Service() {
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(CHANNEL_ID, "Pelacakan Lokasi Dinas", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Menandakan lokasi Anda sedang dibagikan ke pimpinan selama login Sinden 2"
+            // Android mewajibkan notifikasi untuk foreground service lokasi. Dibuat seminim
+            // mungkin (IMPORTANCE_MIN: tanpa suara, tanpa ikon status, tersembunyi di bagian
+            // bawah). Persetujuan pelacakan sudah diambil saat aktivasi akun.
+            val channel = NotificationChannel(CHANNEL_ID, "Layanan Sinden 2", NotificationManager.IMPORTANCE_MIN).apply {
+                description = "Menjaga aplikasi tetap berjalan selama Anda login"
                 setShowBadge(false)
+                setSound(null, null)
+                enableVibration(false)
+                enableLights(false)
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
             }
             (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
         }
@@ -222,11 +229,14 @@ class LocationTrackingService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_sinden_mark)
-            .setContentTitle("Pelacakan lokasi dinas aktif")
-            .setContentText("Lokasi Anda dibagikan ke Admin & Komandan selama login Sinden 2.")
+            .setContentTitle("Sinden 2")
+            .setContentText("Aplikasi sedang berjalan.")
             .setOngoing(true)
+            .setSilent(true)
             .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setShowWhen(false)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setVisibility(NotificationCompat.VISIBILITY_SECRET)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(open)

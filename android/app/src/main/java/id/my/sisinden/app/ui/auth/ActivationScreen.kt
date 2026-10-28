@@ -1,22 +1,31 @@
 package id.my.sisinden.app.ui.auth
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -74,6 +83,32 @@ fun ActivationScreen(
                 error = s.errors["confirm"], keyboardType = KeyboardType.Password, imeAction = ImeAction.Done,
                 visualTransformation = PasswordVisualTransformation(),
             )
+            Spacer(Modifier.height(Spacing.sm))
+
+            // Persetujuan ketentuan dinas, termasuk pembagian lokasi selama bertugas.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { vm.update { it.copy(consent = !it.consent) } }
+                    .padding(Spacing.sm),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Checkbox(checked = s.consent, onCheckedChange = { c -> vm.update { it.copy(consent = c) } })
+                Spacer(Modifier.width(Spacing.xs))
+                Text(
+                    "Saya menyatakan tunduk pada ketentuan dan tata tertib dinas Denintel Koarmada 2 dalam " +
+                        "penggunaan aplikasi Sinden 2. Saya memahami dan menyetujui bahwa selama akun aktif, " +
+                        "posisi lokasi perangkat saya dibagikan kepada pimpinan untuk keperluan kedinasan dan " +
+                        "pengawasan personel.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            s.errors["consent"]?.let {
+                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(start = Spacing.sm))
+            }
+
             Spacer(Modifier.height(Spacing.sm))
             PrimaryButton(text = "Aktifkan akun", onClick = vm::submit, enabled = !s.busy)
             Spacer(Modifier.height(Spacing.xxl))
