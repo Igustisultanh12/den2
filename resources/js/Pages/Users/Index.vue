@@ -67,9 +67,32 @@ const editForm = useForm({
     pangkat: '',
     nrp: '',
     phone: '',
+    jabatan: '',
+    role: '',
     password: '',
     mfa_enabled: false,
 });
+
+// Peran Super Admin hanya dapat diberikan/dicabut oleh Super Admin (ditegakkan juga di server).
+const actorIsSuperAdmin = computed(() => ['super_admin', 'superadmin'].includes(String(usePage().props.auth?.user?.role || '').toLowerCase().replace(/[\s-]/g, '')));
+const roleOptions = [
+    { value: 'super_admin', label: 'SUPER ADMIN' },
+    { value: 'admin', label: 'ADMIN' },
+    { value: 'personel', label: 'PERSONEL' },
+    { value: 'personel_sintel', label: 'PERSONEL SINTEL' },
+    { value: 'komandan', label: 'KOMANDAN (APPROVER)' },
+    { value: 'wadan', label: 'WAKIL KOMANDAN' },
+    { value: 'pasops', label: 'PASOPS' },
+    { value: 'staf', label: 'STAF ADMINISTRASI' },
+    { value: 'danunit1', label: 'DAN UNIT I / LID' },
+    { value: 'danunit2', label: 'DAN UNIT II / PAMGAL' },
+    { value: 'danunitteknis', label: 'DAN UNIT TEKNIS' },
+    { value: 'kaurmintel', label: 'KAUR MINTEL' },
+    { value: 'paurset', label: 'PAUR SET' },
+    { value: 'anggotasintel', label: 'ANGGOTA SINTEL' },
+];
+const editRoleLocked = computed(() => !actorIsSuperAdmin.value && editForm.role === 'super_admin');
+const editRoleOptions = computed(() => roleOptions.filter((o) => o.value !== 'super_admin' || actorIsSuperAdmin.value || editForm.role === 'super_admin'));
 
 // Form untuk Tambah Personel Baru (Otomatis)
 const addForm = useForm({
@@ -413,8 +436,13 @@ const startEdit = (user) => {
     editForm.pangkat = user.pangkat;
     editForm.nrp = user.nrp;
     editForm.phone = user.phone;
+    editForm.jabatan = user.jabatan || '';
+    editForm.role = user.role || 'personel';
     editForm.password = '';
     editForm.mfa_enabled = Boolean(user.mfa_enabled);
+    editForm.clearErrors();
+    // Tutup modal detail agar formulir edit tidak tertumpuk di belakangnya.
+    showDetailModal.value = false;
     showEditModal.value = true;
 };
 
@@ -862,7 +890,7 @@ onUnmounted(() => {
                         <div class="col-span-2">
                             <label class="text-[9px] font-black text-gray-400 uppercase ml-2">Otoritas Akses (Role)</label>
                             <select v-model="addForm.role" class="w-full bg-indigo-50 border-none rounded-2xl p-4 text-[11px] font-black uppercase focus:ring-2 focus:ring-indigo-600">
-                                <option value="super_admin">SUPER ADMIN</option>
+                                <option v-if="actorIsSuperAdmin" value="super_admin">SUPER ADMIN</option>
                                 <option value="admin">ADMIN</option>
                                 <option value="personel">PERSONEL</option>
                                 <option value="personel_sintel">PERSONEL SINTEL</option>
@@ -920,8 +948,8 @@ onUnmounted(() => {
             </div>
         </div>
 
-        <div v-if="showEditModal" class="fixed inset-0 bg-indigo-950/20 backdrop-blur-md flex items-center justify-center z-[100] p-6">
-            <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 animate-in zoom-in duration-200">
+        <div v-if="showEditModal" class="fixed inset-0 bg-indigo-950/20 backdrop-blur-md flex items-center justify-center z-[110] p-4 sm:p-6 overflow-y-auto">
+            <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-6 sm:p-10 my-auto max-h-[92vh] overflow-y-auto animate-in zoom-in duration-200">
                 <h3 class="text-sm font-black text-indigo-950 uppercase mb-8 border-l-4 border-indigo-600 pl-4 italic">Update Data Personel</h3>
                 <form @submit.prevent="submitEdit" class="space-y-4">
                     <div class="grid grid-cols-2 gap-4">
@@ -944,6 +972,19 @@ onUnmounted(() => {
                         <div class="col-span-2">
                             <label class="text-[9px] font-black text-gray-400 uppercase ml-2">WhatsApp</label>
                             <input v-model="editForm.phone" type="text" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-[11px] font-bold focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-[9px] font-black text-gray-400 uppercase ml-2">Jabatan</label>
+                            <input v-model="editForm.jabatan" type="text" maxlength="255" placeholder="Contoh: Dan Unit I / Lid" class="w-full bg-gray-50 border-none rounded-2xl p-4 text-[11px] font-bold focus:ring-2 focus:ring-indigo-500" />
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-[9px] font-black text-gray-400 uppercase ml-2">Otoritas Akses (Peran)</label>
+                            <select v-model="editForm.role" :disabled="editRoleLocked"
+                                    class="w-full bg-indigo-50 border-none rounded-2xl p-4 text-[11px] font-black uppercase focus:ring-2 focus:ring-indigo-600 disabled:opacity-60">
+                                <option v-for="o in editRoleOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                            </select>
+                            <p v-if="editRoleLocked" class="text-[9px] text-amber-600 font-bold ml-2 mt-1">Peran Super Admin hanya dapat diubah oleh Super Admin.</p>
+                            <p v-if="editForm.errors.role" class="text-[9px] text-rose-600 font-bold ml-2 mt-1">{{ editForm.errors.role }}</p>
                         </div>
                         <div class="col-span-2 pt-2 border-t border-gray-100">
                             <label class="text-[9px] font-black text-gray-400 uppercase ml-2 flex items-center gap-1.5">
@@ -1295,7 +1336,7 @@ onUnmounted(() => {
                                 </td>
                                 <td class="p-2">
                                     <select v-model="row.role" class="w-full text-xs rounded-xl border-slate-200 font-bold focus:ring-indigo-500 bg-white">
-                                        <option value="super_admin">SUPER ADMIN</option>
+                                        <option v-if="actorIsSuperAdmin" value="super_admin">SUPER ADMIN</option>
                                         <option value="admin">ADMIN</option>
                                         <option value="personel">PERSONEL</option>
                                         <option value="personel_sintel">PERSONEL SINTEL</option>

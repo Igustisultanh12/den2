@@ -120,6 +120,10 @@ class UserController extends Controller
             'role' => 'required|string|in:super_admin,admin,personel,personel_sintel,komandan,wadan,pasops,danunit1,danunit2,danunitteknis,kaurmintel,paurset,staf,anggotasintel'
         ]);
 
+        if ($denied = $this->roleChangeDenied(null, (string) $request->role)) {
+            return back()->withErrors(['role' => $denied]);
+        }
+
         try {
             DB::beginTransaction();
             
@@ -283,8 +287,14 @@ class UserController extends Controller
             'users.*.nrp' => 'required|string|distinct|unique:users,nrp',
             'users.*.email' => 'nullable|email|distinct|unique:users,email',
             'users.*.phone' => 'nullable|string',
-            'users.*.role' => 'nullable|string',
+            'users.*.role' => 'nullable|string|in:super_admin,admin,personel,personel_sintel,komandan,wadan,pasops,danunit1,danunit2,danunitteknis,kaurmintel,paurset,staf,anggotasintel',
         ]);
+
+        foreach ((array) $request->input('users', []) as $row) {
+            if ($denied = $this->roleChangeDenied(null, (string) ($row['role'] ?? ''))) {
+                return back()->withErrors(['users' => $denied]);
+            }
+        }
 
         $createdIds = [];
 
@@ -575,6 +585,7 @@ class UserController extends Controller
             'phone'    => 'nullable|string',
             'email'    => 'required|email|unique:users,email,' . $user->id,
             'role'     => 'nullable|string|in:super_admin,admin,personel,personel_sintel,komandan,wadan,pasops,danunit1,danunit2,danunitteknis,kaurmintel,paurset,staf,anggotasintel',
+            'jabatan'  => 'nullable|string|max:255',
             'password' => 'nullable|string|min:6',
         ]);
 
@@ -586,7 +597,15 @@ class UserController extends Controller
             'email'   => $request->email,
         ];
 
-        if ($request->filled('role')) {
+        if ($request->has('jabatan') && \Illuminate\Support\Facades\Schema::hasColumn('users', 'jabatan')) {
+            $updateData['jabatan'] = trim((string) $request->jabatan) ?: null;
+        }
+
+        $oldRole = (string) $user->role;
+        if ($request->filled('role') && $request->role !== $oldRole) {
+            if ($denied = $this->roleChangeDenied($user, (string) $request->role)) {
+                return back()->withErrors(['role' => $denied]);
+            }
             $updateData['role'] = $request->role;
         }
 
@@ -606,11 +625,34 @@ class UserController extends Controller
             'admin_name'       => auth()->user()->name,
             'action'           => 'UPDATE PERSONEL',
             'target_personnel' => $user->name,
-            'description'      => "Memperbarui data profil {$user->name}" . ($request->filled('password') ? " dan password akun" : ""),
+            'description'      => "Memperbarui data profil {$user->name}"
+                . (isset($updateData['role']) ? " (peran: {$oldRole} → {$updateData['role']})" : '')
+                . ($request->filled('password') ? " dan password akun" : ""),
             'ip_address'       => $request->ip(),
         ]);
 
         return back()->with('message', 'Data personel berhasil diperbarui.');
+    }
+
+    /**
+     * Aturan perubahan peran: hanya Super Admin yang dapat memberi/mencabut peran Super
+     * Admin, dan tidak ada yang dapat mengubah peran akunnya sendiri (cegah terkunci).
+     * $target null = membuat personel baru.
+     */
+    private function roleChangeDenied(?User $target, string $newRole): ?string
+    {
+        $actor = auth()->user();
+        $actorIsSuper = \App\Support\MobileAccess::isSuperAdmin($actor);
+        $touchesSuper = $newRole === 'super_admin'
+            || ($target && \App\Support\MobileAccess::isSuperAdmin($target));
+
+        if ($target && (int) $target->id === (int) $actor->id) {
+            return 'Anda tidak dapat mengubah peran akun Anda sendiri. Minta Super Admin lain untuk mengubahnya.';
+        }
+        if ($touchesSuper && !$actorIsSuper) {
+            return 'Hanya Super Admin yang dapat memberi atau mencabut peran Super Admin.';
+        }
+        return null;
     }
 
     /**
