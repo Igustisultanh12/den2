@@ -102,7 +102,15 @@ class UploadSecurityTest extends TestCase
         for ($i = 0; $i < 5; $i++) {
             $this->post('/aktivasi', ['nrp' => 'x', 'token' => 'SALAH' . $i, 'password' => 'rahasia123', 'password_confirmation' => 'rahasia123']);
         }
+        // Diblokir: kembali ke formulir dengan pesan jelas (bukan halaman 429 polos),
+        // dan percobaan ke-6 tidak diproses sama sekali.
         $this->post('/aktivasi', ['nrp' => 'x', 'token' => 'SALAH', 'password' => 'rahasia123', 'password_confirmation' => 'rahasia123'])
-            ->assertStatus(429);
+            ->assertRedirect()
+            ->assertSessionHasErrors('nrp');
+        $this->assertStringContainsString('Terlalu banyak percobaan aktivasi', session('errors')->first('nrp'));
+
+        // Lewat API (JSON) tetap berstatus 429.
+        $this->postJson('/aktivasi', ['nrp' => 'x', 'token' => 'SALAH', 'password' => 'rahasia123', 'password_confirmation' => 'rahasia123'])
+            ->assertStatus(429)->assertJsonPath('code', 'too_many_attempts');
     }
 }

@@ -11,6 +11,10 @@
         #local { position: absolute; top: 96px; right: 14px; width: 112px; height: 160px; border-radius: 18px; overflow: hidden;
                  border: 2px solid rgba(255,255,255,.35); box-shadow: 0 8px 20px rgba(0,0,0,.45); background: #0f172a; z-index: 2; display: none; }
         #remote video, #local video { object-fit: cover !important; }
+        /* Keterangan saat video lawan bicara belum/ tidak tersedia (di bawah video). */
+        #hint { position: absolute; left: 0; right: 0; top: 45%; text-align: center; color: rgba(255,255,255,.75);
+                font: 600 14px/1.4 system-ui, sans-serif; padding: 0 32px; z-index: 1; pointer-events: none; }
+        #remote { z-index: 0; }
     </style>
     {{-- SDK disajikan dari server Sinden 2 sendiri (sama dengan web); CDN Agora hanya cadangan. --}}
     <script src="{{ url('/mobile/agora-sdk') }}"></script>
@@ -21,6 +25,7 @@
     </script>
 </head>
 <body>
+<div id="hint">Menunggu video lawan bicara…</div>
 <div id="remote"></div>
 <div id="local"></div>
 <script>
@@ -34,17 +39,56 @@
 
     function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
+    function hint(text) {
+        var el = document.getElementById('hint');
+        el.textContent = text || '';
+        el.style.display = text ? 'block' : 'none';
+    }
+
+    var frameWatch = null;
+
     // Pasang video lawan bicara; ulangi bila gagal sesaat.
     async function playRemote(user, attempt) {
         attempt = attempt || 0;
         if (!user || !user.videoTrack) return;
         try {
-            user.videoTrack.play(document.getElementById('remote'));
+            user.videoTrack.play(document.getElementById('remote'), { fit: 'cover' });
             emit('remote-video', { on: true });
+            watchFrames(user);
         } catch (e) {
             if (attempt < 5) { await sleep(300); return playRemote(user, attempt + 1); }
             emit('warn', { message: 'Video lawan bicara gagal ditampilkan' });
         }
+    }
+
+    /**
+     * Pastikan gambar video benar-benar masuk. Bila setelah 4 detik resolusi yang
+     * diterima masih 0 (video tersendat/terputus diam-diam), subscribe ulang & putar ulang.
+     */
+    function watchFrames(user) {
+        clearInterval(frameWatch);
+        var checks = 0, resubscribed = 0;
+        frameWatch = setInterval(async function () {
+            checks++;
+            var stats = {};
+            try { stats = (user.videoTrack && user.videoTrack.getStats()) || {}; } catch (e) {}
+            var width = stats.receiveResolutionWidth || 0;
+            if (width > 0) { hint(''); clearInterval(frameWatch); return; }
+            hint('Menerima video lawan bicara…');
+            if (checks % 4 === 0 && resubscribed < 3 && client) {
+                resubscribed++;
+                try {
+                    await client.unsubscribe(user, 'video');
+                    await client.subscribe(user, 'video');
+                    if (user.videoTrack) user.videoTrack.play(document.getElementById('remote'), { fit: 'cover' });
+                } catch (e) {}
+            }
+            if (checks >= 20) {
+                clearInterval(frameWatch);
+                hint('Video lawan bicara belum diterima — sinyal lemah. Suara tetap tersambung.');
+                emit('warn', { message: 'Video lawan bicara belum diterima (sinyal lemah).' });
+            }
+        }, 1000);
     }
 
     // Gabung kanal; bila UDP diblokir jaringan, ulangi lewat Cloud Proxy Agora (UDP lalu TCP/TLS 443).
@@ -110,10 +154,20 @@
                 }
             });
             client.on('user-unpublished', function (user, mediaType) {
-                if (mediaType === 'video') emit('remote-video', { on: false });
+                if (mediaType === 'video') {
+                    clearInterval(frameWatch);
+                    hint('Kamera lawan bicara dimatikan');
+                    emit('remote-video', { on: false });
+                }
             });
             // Lawan bicara masuk tanpa kamera/mikrofon tetap dianggap tersambung.
-            client.on('user-joined', function () { emit('remote-joined', { media: 'none' }); });
+            client.on('user-joined', function (user) {
+                emit('remote-joined', { media: 'none' });
+                // Belum ada video dalam beberapa detik → lawan bicara tanpa kamera.
+                setTimeout(function () {
+                    if (!user.hasVideo) hint('Lawan bicara tidak mengaktifkan kamera');
+                }, 5000);
+            });
             // reason: "Quit" = menutup panggilan; "ServerTimeOut" = sinyal putus sebentar.
             client.on('user-left', function (user, reason) { emit('remote-left', { reason: reason || '' }); });
             client.on('connection-state-change', function (cur) { emit('state', { state: cur }); });
@@ -141,6 +195,7 @@
     }
 
     async function viconLeave() {
+        clearInterval(frameWatch);
         try { if (mic) { mic.stop(); mic.close(); } } catch (e) {}
         try { if (cam) { cam.stop(); cam.close(); } } catch (e) {}
         mic = null; cam = null;

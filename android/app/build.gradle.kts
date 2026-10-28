@@ -26,8 +26,8 @@ android {
         applicationId = "id.my.sinden2.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 23
-        versionName = "1.7.0"
+        versionCode = 24
+        versionName = "1.7.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

@@ -183,7 +183,7 @@ Route::post('/api/mobile/login', function (Request $request) {
     } catch (\Throwable $e) {
         return mobile_error($e, 'Kendala server saat login. Coba beberapa saat lagi.');
     }
-})->middleware('throttle:10,1');
+})->middleware('throttle:mobile-login');
 
 Route::get('/api/mobile/config', function () {
     $settings = \App\Models\Setting::pluck('value', 'key')->toArray();
@@ -251,7 +251,8 @@ Route::post('/api/mobile/activate', function (Request $request) {
         ], [
             'token.required' => 'Token aktivasi dari Admin wajib diisi.',
             'password.min' => 'Kata sandi minimal 8 karakter.',
-            'consent.accepted' => 'Persetujuan ketentuan dinas (termasuk pelacakan lokasi) wajib disetujui.',
+            // Aplikasi versi lama (< 1.6.2) belum memiliki kotak persetujuan.
+            'consent.accepted' => 'Persetujuan ketentuan dinas (termasuk pelacakan lokasi) wajib dicentang. Bila kotak persetujuan tidak terlihat, perbarui aplikasi Sinden 2 ke versi terbaru.',
         ]);
         if ($v->fails()) {
             return mobile_validation_error($v);
@@ -287,7 +288,7 @@ Route::post('/api/mobile/activate', function (Request $request) {
     } catch (\Throwable $e) {
         return mobile_error($e, 'Gagal memproses aktivasi akun.');
     }
-})->middleware('throttle:5,1');
+})->middleware('throttle:activation');
 
 // API VERIFIKASI KEASLIAN TTE DIGITAL (QR) — publik seperti /verify-* di web.
 Route::get('/api/mobile/verify-signature', function (Request $request) {

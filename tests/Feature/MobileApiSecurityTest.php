@@ -453,6 +453,22 @@ class MobileApiSecurityTest extends TestCase
         $this->assertLessThan(60, $p['age_seconds']);
     }
 
+    public function test_activation_limit_is_per_account_so_personel_on_one_office_ip_do_not_block_each_other(): void
+    {
+        // Satu personel salah token berulang → dibatasi setelah 5 kali, pesan dalam bahasa Indonesia.
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/mobile/activate', ['nrp' => 'A1', 'token' => 'SALAH', 'password' => 'barubaru123', 'consent' => true])->assertStatus(422);
+        }
+        $blocked = $this->postJson('/api/mobile/activate', ['nrp' => 'A1', 'token' => 'SALAH', 'password' => 'barubaru123', 'consent' => true])->assertStatus(429);
+        $blocked->assertJsonPath('code', 'too_many_attempts');
+        $this->assertStringContainsString('Terlalu banyak percobaan aktivasi', $blocked->json('message'));
+
+        // Personel lain dari IP kantor yang sama tetap dapat aktivasi.
+        $u = $this->makeUser(['nrp' => 'B2', 'is_active' => false, 'activation_token' => 'TOK-B2']);
+        $this->postJson('/api/mobile/activate', ['nrp' => 'B2', 'token' => 'TOK-B2', 'password' => 'barubaru123', 'consent' => true])->assertOk();
+        $this->assertTrue($u->fresh()->is_active);
+    }
+
     public function test_location_report_rejects_invalid_coordinates_and_requires_token(): void
     {
         $this->postJson('/api/mobile/location', ['latitude' => -7.2, 'longitude' => 112.7])->assertStatus(401);

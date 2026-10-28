@@ -153,7 +153,10 @@ fun CallScreen(
             modifier = Modifier.fillMaxSize(),
         )
 
-        val showPeerCard = !state.video || !state.remoteVideo || state.phase != CallPhase.CONNECTED
+        // Setelah tersambung, video tidak lagi ditutupi kartu: halaman vicon sendiri menampilkan
+        // keterangan bila video lawan bicara belum masuk. Sebelumnya kartu baru terbuka setelah
+        // laporan "video tampil" — bila pemutaran di WebView gagal diam-diam, video tak pernah terlihat.
+        val showPeerCard = !state.video || state.phase != CallPhase.CONNECTED
         if (showPeerCard) {
             Box(
                 Modifier

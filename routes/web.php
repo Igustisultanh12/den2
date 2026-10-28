@@ -58,7 +58,7 @@ Route::get('/aktivasi', function () {
     return Inertia::render('Auth/Aktivasi'); 
 })->name('aktivasi');
 // Token aktivasi/reset hanya 6 karakter: batasi percobaan agar tidak dapat di-brute-force.
-Route::post('/aktivasi', [UserController::class, 'activate'])->middleware('throttle:5,1')->name('aktivasi.proses');
+Route::post('/aktivasi', [UserController::class, 'activate'])->middleware('throttle:activation')->name('aktivasi.proses');
 
 Route::get('forgot-password-custom', [ResetPasswordController::class, 'showResetForm'])->name('password.request.custom');
 Route::post('reset-password-custom', [ResetPasswordController::class, 'store'])->middleware('throttle:5,1')->name('password.update.custom');
