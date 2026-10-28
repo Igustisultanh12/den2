@@ -168,6 +168,7 @@ class SindenRepository(
     }
 
     suspend fun tracking() = call { tracking() }
+    suspend fun trackingHistory(userId: Int, hours: Int = 2) = call { trackingHistory(userId, hours) }
 
     private val deviceModel: String
         get() = "${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE})".take(150)

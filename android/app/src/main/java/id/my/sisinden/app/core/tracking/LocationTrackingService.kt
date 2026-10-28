@@ -54,6 +54,8 @@ class LocationTrackingService : Service() {
     private var uploadJob: Job? = null
     private var lastAccepted: Location? = null
     private var listening = false
+    private var fastMode = true
+    private var lastMovedAt = System.currentTimeMillis()
 
     private val listener = LocationListener { location -> onLocation(location) }
 
@@ -83,14 +85,7 @@ class LocationTrackingService : Service() {
     private fun startListening() {
         if (listening) return
         val lm = getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return
-        listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
-            .filter { runCatching { lm.allProviders.contains(it) }.getOrDefault(false) }
-            .forEach { provider ->
-                runCatching {
-                    lm.requestLocationUpdates(provider, UPDATE_INTERVAL_MS, 0f, listener, Looper.getMainLooper())
-                    listening = true
-                }.onFailure { Log.w(TAG, "Provider $provider tidak tersedia", it) }
-            }
+        requestUpdates(lm, fast = true)
         // Kirim posisi terakhir yang diketahui segera agar pemantau tidak menunggu fix pertama.
         listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
             .mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
@@ -100,27 +95,54 @@ class LocationTrackingService : Service() {
     }
 
     /**
-     * Saring titik: terima bila lebih akurat dari titik terakhir, atau bila titik
-     * terakhir sudah cukup lama (GPS & jaringan tidak saling menimpa tiap detik).
+     * Mode cepat (bergerak): GPS tiap [FAST_INTERVAL_MS] seperti aplikasi ojek daring.
+     * Mode hemat (diam > [IDLE_AFTER_MS]): GPS tiap [SLOW_INTERVAL_MS] agar baterai awet.
+     */
+    @SuppressLint("MissingPermission")
+    private fun requestUpdates(lm: LocationManager, fast: Boolean) {
+        if (listening) lm.removeUpdates(listener)
+        listening = false
+        fastMode = fast
+        val gpsInterval = if (fast) FAST_INTERVAL_MS else SLOW_INTERVAL_MS
+        listOf(LocationManager.GPS_PROVIDER to gpsInterval, LocationManager.NETWORK_PROVIDER to maxOf(gpsInterval, NETWORK_INTERVAL_MS))
+            .filter { (provider, _) -> runCatching { lm.allProviders.contains(provider) }.getOrDefault(false) }
+            .forEach { (provider, interval) ->
+                runCatching {
+                    lm.requestLocationUpdates(provider, interval, 0f, listener, Looper.getMainLooper())
+                    listening = true
+                }.onFailure { Log.w(TAG, "Provider $provider tidak tersedia", it) }
+            }
+    }
+
+    private fun setFastMode(fast: Boolean) {
+        if (fast == fastMode) return
+        val lm = getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return
+        requestUpdates(lm, fast)
+    }
+
+    /**
+     * Saring titik: saat bergerak setiap titik baru (≥ [MIN_MOVING_GAP_MS]) diterima;
+     * saat diam cukup satu titik per [STATIONARY_GAP_MS]. Titik jaringan yang jauh
+     * kurang akurat tidak menimpa titik GPS yang masih segar.
      */
     private fun onLocation(location: Location) {
         val last = lastAccepted
-        val newer = last == null || location.time - last.time >= MIN_ACCEPT_GAP_MS
-        val moreAccurate = last != null && location.hasAccuracy() && (!last.hasAccuracy() || location.accuracy < last.accuracy)
-        if (!newer && !moreAccurate) return
+        val gap = if (last == null) Long.MAX_VALUE else location.time - last.time
+        if (gap < MIN_MOVING_GAP_MS) return
+        val distance = last?.distanceTo(location) ?: Float.MAX_VALUE
+        // Abaikan "loncatan" GPS saat diam: jarak harus melebihi ketidakpastian titik.
+        val jitter = if (location.hasAccuracy()) location.accuracy else 0f
+        val moving = (location.hasSpeed() && location.speed >= MOVING_SPEED_MPS) || distance >= maxOf(MOVING_DISTANCE_M, jitter)
+        val worse = last != null && location.hasAccuracy() && last.hasAccuracy() &&
+            location.accuracy > last.accuracy * 3 && gap < STATIONARY_GAP_MS
+        if (worse) return
+        if (!moving && gap < STATIONARY_GAP_MS) return
+
+        if (moving) lastMovedAt = System.currentTimeMillis()
+        setFastMode(System.currentTimeMillis() - lastMovedAt < IDLE_AFTER_MS)
         lastAccepted = location
 
-        val point = LocationPoint(
-            latitude = location.latitude,
-            longitude = location.longitude,
-            accuracy = if (location.hasAccuracy()) location.accuracy else null,
-            speed = if (location.hasSpeed()) location.speed else null,
-            heading = if (location.hasBearing()) location.bearing else null,
-            battery = batteryLevel(),
-            isCharging = isCharging(),
-            provider = location.provider,
-            recordedAt = Instant.ofEpochMilli(location.time).toString(),
-        )
+        val point = pointOf(location, Instant.ofEpochMilli(location.time).toString(), location.provider)
         scope.launch {
             queueLock.withLock {
                 pending.addLast(point)
@@ -131,17 +153,45 @@ class LocationTrackingService : Service() {
 
     private suspend fun uploadLoop() {
         val repository = (application as SindenApplication).repository
+        var lastSentAt = 0L
+        var failures = 0
         while (scope.isActive) {
-            delay(UPLOAD_INTERVAL_MS)
+            // Gagal beruntun (mis. sinyal hilang) → jeda bertahap agar tidak menguras baterai.
+            delay(UPLOAD_INTERVAL_MS * (1 + failures.coerceAtMost(5)))
             if (repository.session.token == null) continue
+            // Detak "masih online": HP diam di dalam ruangan bisa tidak mendapat titik GPS baru.
+            val now = System.currentTimeMillis()
+            val last = lastAccepted
+            if (now - lastSentAt >= HEARTBEAT_MS && last != null) {
+                queueLock.withLock { if (pending.isEmpty()) pending.addLast(pointOf(last, Instant.ofEpochMilli(now).toString(), "heartbeat")) }
+            }
             val batch = queueLock.withLock { pending.take(MAX_BATCH) }
             if (batch.isEmpty()) continue
             when (val res = repository.reportLocation(batch)) {
-                is ApiResult.Success -> queueLock.withLock { repeat(batch.size.coerceAtMost(pending.size)) { pending.removeFirst() } }
-                is ApiResult.Failure -> Log.w(TAG, "Gagal kirim lokasi: ${res.error.message}")
+                is ApiResult.Success -> {
+                    queueLock.withLock { repeat(batch.size.coerceAtMost(pending.size)) { pending.removeFirst() } }
+                    lastSentAt = now
+                    failures = 0
+                }
+                is ApiResult.Failure -> {
+                    failures++
+                    Log.w(TAG, "Gagal kirim lokasi: ${res.error.message}")
+                }
             }
         }
     }
+
+    private fun pointOf(location: Location, recordedAt: String, provider: String?) = LocationPoint(
+        latitude = location.latitude,
+        longitude = location.longitude,
+        accuracy = if (location.hasAccuracy()) location.accuracy else null,
+        speed = if (location.hasSpeed()) location.speed else null,
+        heading = if (location.hasBearing()) location.bearing else null,
+        battery = batteryLevel(),
+        isCharging = isCharging(),
+        provider = provider,
+        recordedAt = recordedAt,
+    )
 
     private fun batteryLevel(): Int? {
         val bm = getSystemService(Context.BATTERY_SERVICE) as? BatteryManager ?: return null
@@ -194,9 +244,17 @@ class LocationTrackingService : Service() {
         private const val TAG = "SindenTracking"
         private const val CHANNEL_ID = "sinden_tracking_channel"
         private const val NOTIFICATION_ID = 7301
-        private const val UPDATE_INTERVAL_MS = 30_000L
-        private const val MIN_ACCEPT_GAP_MS = 25_000L
-        private const val UPLOAD_INTERVAL_MS = 30_000L
+        // Bergerak: titik tiap ~3 dtk & dikirim tiap ~4 dtk (jeda tampil di pemantau ± 5–10 dtk).
+        private const val FAST_INTERVAL_MS = 3_000L
+        private const val SLOW_INTERVAL_MS = 20_000L
+        private const val NETWORK_INTERVAL_MS = 10_000L
+        private const val MIN_MOVING_GAP_MS = 2_500L
+        private const val STATIONARY_GAP_MS = 30_000L
+        private const val IDLE_AFTER_MS = 2 * 60_000L
+        private const val MOVING_SPEED_MPS = 1.0f
+        private const val MOVING_DISTANCE_M = 8f
+        private const val UPLOAD_INTERVAL_MS = 4_000L
+        private const val HEARTBEAT_MS = 60_000L
         private const val MAX_BATCH = 100
         private const val MAX_PENDING = 500
 

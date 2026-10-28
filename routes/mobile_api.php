@@ -1319,7 +1319,7 @@ Route::post('/api/mobile/location', function (Request $request) {
     } catch (\Throwable $e) {
         return mobile_error($e, 'Gagal menyimpan lokasi.');
     }
-})->middleware(['mobile.auth:location.report', 'throttle:60,1']);
+})->middleware(['mobile.auth:location.report', 'throttle:120,1']);
 
 Route::get('/api/mobile/tracking', function () {
     try {

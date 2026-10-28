@@ -26,8 +26,8 @@ android {
         applicationId = "id.my.sinden2.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 18
-        versionName = "1.5.0"
+        versionCode = 19
+        versionName = "1.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -124,6 +124,9 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.face.detection)
+
+    // Peta live Pantau Personel (OpenStreetMap, tanpa API key)
+    implementation(libs.osmdroid.android)
     // Sinkron notifikasi bersuara di latar belakang
     implementation(libs.androidx.work.runtime.ktx)
     // Notifikasi push (FCM). Konfigurasi Firebase diambil dari server saat runtime,

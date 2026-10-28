@@ -10,7 +10,8 @@ const props = defineProps({
     onlineThresholdSeconds: { type: Number, default: 300 },
 });
 
-const POLL_MS = 10000;
+// Pembaruan tiap 4 detik; marker dianimasikan selama interval ini agar bergerak mulus.
+const POLL_MS = 4000;
 const DEFAULT_CENTER = [-7.2575, 112.7521]; // Surabaya (Koarmada II)
 
 const people = ref(props.personnel);
@@ -21,12 +22,16 @@ const filter = ref('all'); // all | online | offline
 const selectedId = ref(null);
 const trailHours = ref(12);
 const trailLoading = ref(false);
+const follow = ref(true);
 
 const mapEl = ref(null);
 let map = null;
 let pollTimer = null;
 let trailLayer = null;
+let inFlight = false;
 const markers = new Map();
+const iconKeys = new Map();
+const anims = new Map();
 
 const onlineCount = computed(() => people.value.filter(p => p.is_online).length);
 
@@ -52,20 +57,57 @@ const initials = (name) => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2
 
 const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+const isMoving = (p) => (p.speed ?? 0) >= 1 && p.heading !== null && p.heading !== undefined;
+
 const markerIcon = (p, active) => L.divIcon({
     className: '',
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-    html: `<div style="width:36px;height:36px;border-radius:9999px;display:flex;align-items:center;justify-content:center;
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+    html: `<div style="position:relative;width:44px;height:44px">
+        ${isMoving(p) ? `<div style="position:absolute;inset:0;transform:rotate(${Math.round(p.heading)}deg);transition:transform .8s linear">
+            <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:10px solid ${active ? '#f59e0b' : '#2563eb'}"></div></div>` : ''}
+        <div style="position:absolute;left:4px;top:4px;width:36px;height:36px;border-radius:9999px;display:flex;align-items:center;justify-content:center;
         font:700 11px/1 Inter,sans-serif;color:#fff;border:3px solid ${active ? '#f59e0b' : '#fff'};
-        box-shadow:0 2px 6px rgba(15,23,42,.35);background:${p.is_online ? '#059669' : '#64748b'}">${escapeHtml(initials(p.name))}</div>`,
+        box-shadow:0 2px 6px rgba(15,23,42,.35);background:${p.is_online ? '#059669' : '#64748b'}">${escapeHtml(initials(p.name))}</div></div>`,
 });
+
+// Kunci ikon: ganti DOM marker hanya bila tampilannya berubah (hindari kedip tiap pembaruan).
+const iconKey = (p, active) => [active, p.is_online, isMoving(p) ? Math.round(p.heading / 10) : 'x', initials(p.name)].join('|');
+
+/** Geser marker dari posisi sekarang ke posisi baru secara halus selama POLL_MS. */
+const animateMarker = (id, m, to) => {
+    cancelAnimationFrame(anims.get(id));
+    const from = m.getLatLng();
+    const dist = map.distance(from, to);
+    if (dist < 0.5) return;
+    if (dist > 5000) { m.setLatLng(to); onMarkerMoved(id, L.latLng(to)); return; }
+    const start = performance.now();
+    const step = (now) => {
+        const f = Math.min(1, (now - start) / POLL_MS);
+        const pos = L.latLng(from.lat + (to[0] - from.lat) * f, from.lng + (to[1] - from.lng) * f);
+        m.setLatLng(pos);
+        onMarkerMoved(id, pos);
+        if (f < 1) anims.set(id, requestAnimationFrame(step));
+    };
+    anims.set(id, requestAnimationFrame(step));
+};
+
+const onMarkerMoved = (id, pos) => {
+    if (id !== selectedId.value) return;
+    if (follow.value) map.panTo(pos, { animate: false });
+    if (trailLayer) {
+        const pts = trailLayer.getLatLngs();
+        const last = pts[pts.length - 1];
+        if (!last || map.distance(last, pos) > 3) trailLayer.addLatLng(pos);
+    }
+};
 
 const popupHtml = (p) => `
     <div style="font:12px/1.4 Inter,sans-serif;min-width:180px">
         <div style="font-weight:700;font-size:13px">${escapeHtml(p.pangkat || '')} ${escapeHtml(p.name)}</div>
         <div style="color:#64748b">${escapeHtml(p.jabatan || p.nrp || '')}</div>
         <div style="margin-top:6px">${p.is_online ? '🟢 Online' : '⚪ Offline'} · ${escapeHtml(ageLabel(p.age_seconds))}</div>
+        ${(p.speed ?? 0) >= 1 ? `<div>Kecepatan ${Math.round(p.speed * 3.6)} km/j</div>` : ''}
         ${p.accuracy ? `<div>Akurasi ±${Math.round(p.accuracy)} m</div>` : ''}
         ${p.battery !== null && p.battery !== undefined ? `<div>Baterai ${p.battery}%${p.is_charging ? ' (mengisi)' : ''}</div>` : ''}
     </div>`;
@@ -78,21 +120,30 @@ const renderMarkers = () => {
         const pos = [p.latitude, p.longitude];
         const active = p.user_id === selectedId.value;
         let m = markers.get(p.user_id);
+        const key = iconKey(p, active);
         if (!m) {
             m = L.marker(pos, { icon: markerIcon(p, active) }).addTo(map);
             m.on('click', () => selectPerson(p.user_id, false));
+            m.bindPopup(popupHtml(p));
             markers.set(p.user_id, m);
+            iconKeys.set(p.user_id, key);
         } else {
-            m.setLatLng(pos);
-            m.setIcon(markerIcon(p, active));
+            animateMarker(p.user_id, m, pos);
+            if (iconKeys.get(p.user_id) !== key) {
+                m.setIcon(markerIcon(p, active));
+                iconKeys.set(p.user_id, key);
+            }
+            m.setPopupContent(popupHtml(p));
         }
         m.setZIndexOffset(active ? 1000 : (p.is_online ? 100 : 0));
-        m.bindPopup(popupHtml(p));
     }
     for (const [id, m] of markers) {
         if (!seen.has(id)) {
+            cancelAnimationFrame(anims.get(id));
+            anims.delete(id);
             map.removeLayer(m);
             markers.delete(id);
+            iconKeys.delete(id);
         }
     }
 };
@@ -104,6 +155,9 @@ const fitAll = () => {
 };
 
 const refresh = async () => {
+    // Tab tidak terlihat → jeda; permintaan sebelumnya belum selesai → lewati.
+    if (document.hidden || inFlight) return;
+    inFlight = true;
     try {
         const res = await fetch(route('tracking.data'), { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
         if (!res.ok) throw new Error(res.status);
@@ -114,6 +168,8 @@ const refresh = async () => {
         renderMarkers();
     } catch (e) {
         syncError.value = true;
+    } finally {
+        inFlight = false;
     }
 };
 
@@ -128,9 +184,7 @@ const loadTrail = async () => {
         const res = await fetch(route('tracking.history', { userId: selectedId.value, hours: trailHours.value }), { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
         const json = await res.json();
         const pts = (json.points || []).map(p => [p.latitude, p.longitude]);
-        if (pts.length > 1) {
-            trailLayer = L.polyline(pts, { color: '#2563eb', weight: 4, opacity: 0.75 }).addTo(map);
-        }
+        trailLayer = L.polyline(pts, { color: '#2563eb', weight: 4, opacity: 0.75 }).addTo(map);
     } finally {
         trailLoading.value = false;
     }
@@ -138,6 +192,7 @@ const loadTrail = async () => {
 
 const selectPerson = async (id, pan = true) => {
     selectedId.value = id;
+    follow.value = true;
     renderMarkers();
     const p = selected.value;
     if (p && pan) {
@@ -165,6 +220,8 @@ onMounted(async () => {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap',
     }).addTo(map);
+    // Menggeser peta manual = berhenti mengikuti personel terpilih.
+    map.on('dragstart', () => { follow.value = false; });
     renderMarkers();
     fitAll();
     pollTimer = setInterval(refresh, POLL_MS);
@@ -172,6 +229,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     clearInterval(pollTimer);
+    for (const a of anims.values()) cancelAnimationFrame(a);
     map?.remove();
     map = null;
 });
@@ -186,7 +244,7 @@ onBeforeUnmount(() => {
                 <div>
                     <h1 class="text-xl font-extrabold text-slate-800">Pantau Personel</h1>
                     <p class="text-xs text-slate-500">
-                        Posisi realtime dari aplikasi Sinden 2 Android · diperbarui otomatis setiap {{ POLL_MS / 1000 }} detik
+                        Posisi live dari aplikasi Sinden 2 Android · diperbarui otomatis setiap {{ POLL_MS / 1000 }} detik
                     </p>
                 </div>
                 <div class="flex items-center gap-2 text-xs">
@@ -267,6 +325,7 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 text-slate-600">
                             <span>Status</span><span class="font-bold" :class="selected.is_online ? 'text-emerald-600' : 'text-slate-500'">{{ selected.is_online ? 'Online' : 'Offline' }}</span>
                             <span>Pembaruan</span><span class="font-bold text-slate-800">{{ ageLabel(selected.age_seconds) }}</span>
+                            <span>Kecepatan</span><span class="font-bold text-slate-800">{{ (selected.speed ?? 0) >= 1 ? Math.round(selected.speed * 3.6) + ' km/j' : 'Diam' }}</span>
                             <span>Akurasi</span><span class="font-bold text-slate-800">{{ selected.accuracy ? '±' + Math.round(selected.accuracy) + ' m' : '-' }}</span>
                             <span>Baterai</span><span class="font-bold text-slate-800">{{ selected.battery ?? '-' }}{{ selected.battery !== null && selected.battery !== undefined ? '%' : '' }}</span>
                             <span>Perangkat</span><span class="font-bold text-slate-800 truncate">{{ selected.device || '-' }}</span>
@@ -280,6 +339,9 @@ onBeforeUnmount(() => {
                                 <option :value="24">24 jam</option>
                             </select>
                             <span v-if="trailLoading" class="text-slate-400">memuat…</span>
+                            <label class="inline-flex items-center gap-1 text-slate-600">
+                                <input v-model="follow" type="checkbox" class="rounded border-slate-300 text-blue-600"> Ikuti
+                            </label>
                             <button type="button" class="ml-auto px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold" @click="openInMaps(selected)">
                                 Buka di Maps
                             </button>

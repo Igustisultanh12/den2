@@ -33,7 +33,9 @@ abstract class LoadableViewModel<T> : ViewModel() {
 
     protected abstract suspend fun fetch(): ApiResult<T>
 
-    fun load(pullToRefresh: Boolean = false) {
+    /** [silent]: pembaruan otomatis berkala — kegagalan tidak dimunculkan sebagai pesan. */
+    fun load(pullToRefresh: Boolean = false, silent: Boolean = false) {
+        if (silent && loadJob?.isActive == true) return
         loadJob?.cancel()
         if (pullToRefresh) _refreshing.value = true
         else if (_state.value !is LoadState.Ready) _state.value = LoadState.Loading
@@ -41,7 +43,7 @@ abstract class LoadableViewModel<T> : ViewModel() {
             when (val res = fetch()) {
                 is ApiResult.Success -> _state.value = LoadState.Ready(res.data)
                 is ApiResult.Failure -> {
-                    if (_state.value is LoadState.Ready) messages.post(res.error.message)
+                    if (_state.value is LoadState.Ready) { if (!silent) messages.post(res.error.message) }
                     else _state.value = LoadState.Failed(res.error)
                 }
             }

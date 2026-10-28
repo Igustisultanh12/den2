@@ -39,6 +39,7 @@ data class TrackedPersonnelDto(
     @SerializedName("longitude") val longitude: Double = 0.0,
     @SerializedName("accuracy") val accuracy: Float? = null,
     @SerializedName("speed") val speed: Float? = null,
+    @SerializedName("heading") val heading: Float? = null,
     @SerializedName("battery") val battery: Int? = null,
     @SerializedName("is_charging") val isCharging: Boolean? = null,
     @SerializedName("device") val device: String? = null,
@@ -48,6 +49,18 @@ data class TrackedPersonnelDto(
 ) {
     val displayName: String get() = listOfNotNull(pangkat?.takeIf { it.isNotBlank() }, name).joinToString(" ")
 }
+
+/** Satu titik jejak (GET /api/mobile/tracking/{id}/history). */
+data class TrackPointDto(
+    @SerializedName("latitude") val latitude: Double = 0.0,
+    @SerializedName("longitude") val longitude: Double = 0.0,
+    @SerializedName("recorded_at") val recordedAt: String? = null,
+)
+
+data class TrackHistoryResponse(
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("points") val points: List<TrackPointDto>? = null,
+)
 
 data class TrackingResponse(
     @SerializedName("status") val status: String? = null,

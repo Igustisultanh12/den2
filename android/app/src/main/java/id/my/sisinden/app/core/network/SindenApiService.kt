@@ -61,6 +61,9 @@ interface SindenApiService {
     @GET("api/mobile/tracking")
     suspend fun tracking(): Response<TrackingResponse>
 
+    @GET("api/mobile/tracking/{id}/history")
+    suspend fun trackingHistory(@Path("id") userId: Int, @Query("hours") hours: Int): Response<TrackHistoryResponse>
+
     // ------------------------------------------------------ Notifikasi
     @GET("api/mobile/notifications")
     suspend fun notifications(): Response<NotificationResponse>

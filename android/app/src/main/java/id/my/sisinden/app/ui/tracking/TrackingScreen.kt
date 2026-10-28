@@ -51,19 +51,47 @@ import id.my.sisinden.app.data.model.TrackingResponse
 import id.my.sisinden.app.data.repository.SindenRepository
 import id.my.sisinden.app.ui.common.CollectMessages
 import id.my.sisinden.app.ui.common.LoadableViewModel
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewModelScope
+import id.my.sisinden.app.data.model.TrackPointDto
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.util.Locale
 
-/** Interval pembaruan otomatis daftar posisi saat layar terlihat. */
-private const val AUTO_REFRESH_MS = 15_000L
+/** Interval pembaruan otomatis posisi saat layar terlihat (marker dianimasikan selama interval ini). */
+private const val AUTO_REFRESH_MS = 4_000L
 
 class TrackingViewModel(private val repository: SindenRepository) : LoadableViewModel<TrackingResponse>() {
+    private val _trail = MutableStateFlow<List<TrackPointDto>>(emptyList())
+    val trail: StateFlow<List<TrackPointDto>> = _trail.asStateFlow()
+    private var trailJob: Job? = null
+
     init { load() }
 
     override suspend fun fetch(): ApiResult<TrackingResponse> = repository.tracking()
+
+    /** Jejak 2 jam terakhir personel terpilih (kosong bila tidak ada yang dipilih). */
+    fun loadTrail(userId: Int?) {
+        trailJob?.cancel()
+        _trail.value = emptyList()
+        if (userId == null) return
+        trailJob = viewModelScope.launch {
+            (repository.trackingHistory(userId, hours = 2) as? ApiResult.Success)?.let { _trail.value = it.data.points.orEmpty() }
+        }
+    }
 }
 
 private enum class TrackingFilter(val label: String) { ALL("Semua"), ONLINE("Online"), OFFLINE("Offline") }
+private enum class TrackingView(val label: String) { MAP("Peta"), LIST("Daftar") }
 
 /** Pantau Personel: posisi terakhir seluruh personel (Admin, Super Admin, Komandan). */
 @Composable
@@ -77,6 +105,10 @@ fun TrackingScreen(repository: SindenRepository, onBack: () -> Unit) {
 
     var query by rememberSaveable { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf(TrackingFilter.ALL) }
+    var view by rememberSaveable { mutableStateOf(TrackingView.MAP) }
+    var selectedId by rememberSaveable { mutableStateOf<Int?>(null) }
+    val trail by vm.trail.collectAsStateWithLifecycle()
+    LaunchedEffect(selectedId) { vm.loadTrail(selectedId) }
 
     // Segarkan otomatis hanya saat layar aktif (berhenti ketika aplikasi di latar).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -84,7 +116,7 @@ fun TrackingScreen(repository: SindenRepository, onBack: () -> Unit) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
                 delay(AUTO_REFRESH_MS)
-                vm.load()
+                vm.load(silent = true)
             }
         }
     }
@@ -101,11 +133,53 @@ fun TrackingScreen(repository: SindenRepository, onBack: () -> Unit) {
 
     SindenScaffold(
         title = "Pantau Personel",
-        subtitle = "Posisi realtime · diperbarui tiap ${AUTO_REFRESH_MS / 1000} detik",
+        subtitle = "Posisi live · diperbarui tiap ${AUTO_REFRESH_MS / 1000} detik",
         onBack = onBack,
         snackbarHostState = snackbar,
     ) { padding ->
         Column(Modifier.padding(padding)) {
+            FilterChipRow(TrackingView.entries, view, { it.label }, { view = it })
+            Spacer(Modifier.height(Spacing.sm))
+            if (view == TrackingView.MAP) {
+                LoadStateContent(state, onRetry = { vm.load() }) { data ->
+                    val all = data.personnel.orEmpty()
+                    val selected = all.firstOrNull { it.userId == selectedId }
+                    Box(Modifier.fillMaxSize()) {
+                        LiveTrackingMap(
+                            personnel = all,
+                            selectedId = selectedId,
+                            trail = trail,
+                            animateMs = AUTO_REFRESH_MS,
+                            onSelect = { selectedId = it },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        Surface(
+                            modifier = Modifier.align(Alignment.TopStart).padding(Spacing.sm),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                            shadowElevation = 2.dp,
+                        ) {
+                            Text(
+                                "${data.totalOnline} online · ${all.size} personel",
+                                style = MaterialTheme.typography.labelLarge,
+                                modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
+                            )
+                        }
+                        if (selected != null) {
+                            Box(Modifier.align(Alignment.BottomCenter).padding(Spacing.sm)) {
+                                PersonnelRow(
+                                    selected,
+                                    trailing = {
+                                        TextButton(onClick = { selectedId = null }) { Text("Lepas") }
+                                    },
+                                    onClick = { openMap(selected) },
+                                )
+                            }
+                        }
+                    }
+                }
+                return@Column
+            }
             SearchField(query, { query = it }, "Cari nama, NRP, atau jabatan", Modifier.padding(horizontal = Spacing.screen))
             Spacer(Modifier.height(Spacing.sm))
             FilterChipRow(TrackingFilter.entries, filter, { it.label }, { filter = it })
@@ -148,7 +222,14 @@ fun TrackingScreen(repository: SindenRepository, onBack: () -> Unit) {
                                 )
                             }
                         } else {
-                            items(shown, key = { it.userId }) { p -> PersonnelRow(p, onOpenMap = { openMap(p) }) }
+                            items(shown, key = { it.userId }) { p ->
+                                // Ketuk baris → tampilkan & ikuti di peta live; ikon peta → aplikasi peta eksternal.
+                                PersonnelRow(
+                                    p,
+                                    trailing = { IconButton(onClick = { openMap(p) }) { Icon(Icons.Outlined.Map, contentDescription = "Buka di aplikasi peta") } },
+                                    onClick = { selectedId = p.userId; view = TrackingView.MAP },
+                                )
+                            }
                         }
                     }
                 }
@@ -158,11 +239,12 @@ fun TrackingScreen(repository: SindenRepository, onBack: () -> Unit) {
 }
 
 @Composable
-private fun PersonnelRow(p: TrackedPersonnelDto, onOpenMap: () -> Unit) {
+private fun PersonnelRow(p: TrackedPersonnelDto, trailing: @Composable () -> Unit, onClick: () -> Unit) {
     ListRowCard(
         title = p.displayName.ifBlank { "Personel #${p.userId}" },
         subtitle = listOfNotNull(
             ageLabel(p.ageSeconds),
+            p.speed?.takeIf { it >= 1f }?.let { "${(it * 3.6f).toInt()} km/j" },
             p.accuracy?.let { "±${it.toInt()} m" },
             p.battery?.let { "Baterai $it%" + if (p.isCharging == true) " ⚡" else "" },
         ).joinToString(" · "),
@@ -170,9 +252,9 @@ private fun PersonnelRow(p: TrackedPersonnelDto, onOpenMap: () -> Unit) {
         leading = { InitialsAvatar(p.name ?: "?", highlight = p.isOnline) },
         trailing = {
             StatusChip(if (p.isOnline) "Online" else "Offline", if (p.isOnline) Tone.SUCCESS else Tone.NEUTRAL)
-            IconButton(onClick = onOpenMap) { Icon(Icons.Outlined.Map, contentDescription = "Buka di peta") }
+            trailing()
         },
-        onClick = onOpenMap,
+        onClick = onClick,
     )
 }
 
