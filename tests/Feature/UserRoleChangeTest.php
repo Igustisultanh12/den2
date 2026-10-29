@@ -46,8 +46,60 @@ class UserRoleChangeTest extends TestCase
         // Admin juga tidak boleh menurunkan Super Admin.
         $super = $this->user('super_admin');
         $this->actingAs($admin)->put(route('users.update', $super), $this->payload($super, ['role' => 'personel']))
-            ->assertSessionHasErrors('role');
+            ->assertForbidden();
         $this->assertSame('super_admin', $super->fresh()->role);
+    }
+
+    public function test_non_super_admin_cannot_see_or_manage_super_admin_accounts(): void
+    {
+        $admin = $this->user('admin');
+        $super = $this->user('super_admin', ['name' => 'Akun Super Rahasia']);
+        $pers = $this->user('personel');
+
+        $this->actingAs($admin)->get(route('users.index'))
+            ->assertInertia(fn ($page) => $page
+                ->where('allUsers', fn ($users) => collect($users)->pluck('id')->doesntContain($super->id) && collect($users)->pluck('id')->contains($pers->id)));
+
+        $this->actingAs($admin)->put(route('users.update', $super), $this->payload($super, ['name' => 'Diubah']))->assertForbidden();
+        $this->actingAs($admin)->patch(route('users.toggle', $super), ['password' => 'password'])->assertForbidden();
+        $this->actingAs($admin)->post(route('users.generate-token', $super))->assertForbidden();
+        $this->actingAs($admin)->post(route('users.change-password', $super), ['password' => 'baru1234'])->assertForbidden();
+        $this->actingAs($admin)->post(route('users.toggle-mfa', $super))->assertForbidden();
+        $this->actingAs($admin)->post(route('users.toggle-koperasi-access', $super))->assertForbidden();
+        $this->actingAs($admin)->post(route('users.toggle-mitra-access', $super->id))->assertForbidden();
+        $this->actingAs($admin)->delete(route('users.destroy', $super))->assertForbidden();
+
+        $fresh = $super->fresh();
+        $this->assertNotNull($fresh);
+        $this->assertSame('Akun Super Rahasia', $fresh->name);
+        $this->assertTrue($fresh->is_active);
+
+        // Super Admin tetap bisa melihat & mengelola sesama Super Admin.
+        $other = $this->user('super_admin');
+        $this->actingAs($other)->get(route('users.index'))
+            ->assertInertia(fn ($page) => $page
+                ->where('allUsers', fn ($users) => collect($users)->pluck('id')->contains($super->id)));
+        $this->actingAs($other)->put(route('users.update', $super), $this->payload($super, ['name' => 'Diubah Super']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Diubah Super', $super->fresh()->name);
+    }
+
+    public function test_mobile_api_hides_and_protects_super_admin_accounts(): void
+    {
+        $admin = $this->user('admin');
+        $super = $this->user('super_admin');
+        $token = $admin->createToken('test')->plainTextToken;
+
+        $ids = collect($this->withToken($token)->getJson('/api/mobile/users')->assertOk()->json('data'))->pluck('id');
+        $this->assertFalse($ids->contains($super->id));
+
+        $this->withToken($token)->putJson("/api/mobile/users/{$super->id}", ['is_active' => false])->assertForbidden();
+        $this->withToken($token)->deleteJson("/api/mobile/users/{$super->id}")->assertForbidden();
+        $this->withToken($token)->postJson('/api/mobile/users', ['name' => 'X', 'email' => 'x@x.test', 'nrp' => 'X1', 'role' => 'super_admin', 'password' => 'rahasia123'])
+            ->assertForbidden();
+
+        $this->assertTrue($super->fresh()->is_active);
+        $this->assertNull(User::where('nrp', 'X1')->first());
     }
 
     public function test_super_admin_can_grant_super_admin_but_not_change_own_role(): void

@@ -874,9 +874,9 @@ Route::delete('/api/mobile/violations/{id}', function ($id) {
 // =====================================================================
 // 7. KELOLA PENGGUNA (khusus Admin, sama seperti /users di web)
 // =====================================================================
-Route::get('/api/mobile/users', function () {
+Route::get('/api/mobile/users', function (Request $request) {
     try {
-        $users = User::latest()->get()->map(fn ($u) => [
+        $users = User::visibleTo($request->user())->latest()->get()->map(fn ($u) => [
             'id' => $u->id,
             'name' => $u->name,
             'email' => $u->email,
@@ -907,6 +907,9 @@ Route::post('/api/mobile/users', function (Request $request) {
             'password' => 'required|string|min:8|max:255',
         ]);
         if ($v->fails()) return mobile_validation_error($v);
+        if (in_array(strtolower(str_replace([' ', '-'], '_', $data['role'])), ['super_admin', 'superadmin'], true) && !$request->user()->isSuperAdmin()) {
+            return response()->json(['status' => 'error', 'message' => 'Hanya Super Admin yang dapat membuat akun Super Admin.'], 403);
+        }
 
         $user = User::create([
             'name' => $data['name'],
@@ -926,6 +929,9 @@ Route::post('/api/mobile/users', function (Request $request) {
 Route::put('/api/mobile/users/{id}', function (Request $request, $id) {
     try {
         $target = User::findOrFail($id);
+        if (!$target->isManageableBy($request->user())) {
+            return response()->json(['status' => 'error', 'message' => 'Akun Super Admin hanya dapat dikelola oleh Super Admin.'], 403);
+        }
         $data = mobile_payload($request);
         $v = Validator::make($data, ['is_active' => 'required|boolean']);
         if ($v->fails()) return mobile_validation_error($v);
@@ -947,6 +953,9 @@ Route::delete('/api/mobile/users/{id}', function (Request $request, $id) {
         $target = User::findOrFail($id);
         if ((int) $target->id === (int) $request->user()->id) {
             return response()->json(['status' => 'error', 'message' => 'Anda tidak dapat menghapus akun sendiri.'], 422);
+        }
+        if (!$target->isManageableBy($request->user())) {
+            return response()->json(['status' => 'error', 'message' => 'Akun Super Admin hanya dapat dikelola oleh Super Admin.'], 403);
         }
         $target->tokens()->delete();
         $target->delete();
@@ -1062,10 +1071,10 @@ Route::get('/api/mobile/categories', function () {
 // =====================================================================
 // 11. LOG PENGUNJUNG & AUDIT (Admin)
 // =====================================================================
-Route::get('/api/mobile/audit-logs', function () {
+Route::get('/api/mobile/audit-logs', function (Request $request) {
     try {
-        $visitors = \App\Models\VisitorLog::latest()->take(50)->get();
-        $audits = \App\Models\AuditLog::latest()->take(50)->get();
+        $visitors = User::hideSuperAdminRows(\App\Models\VisitorLog::query(), $request->user())->latest()->take(50)->get();
+        $audits = User::hideSuperAdminRows(\App\Models\AuditLog::query(), $request->user())->latest()->take(50)->get();
         return response()->json(['status' => 'success', 'visitor_logs' => $visitors, 'audit_logs' => $audits, 'data' => $visitors]);
     } catch (\Throwable $e) {
         return mobile_error($e, 'Gagal memuat log audit.');
@@ -1338,9 +1347,9 @@ Route::post('/api/mobile/location', function (Request $request) {
     }
 })->middleware(['mobile.auth:location.report', 'throttle:120,1']);
 
-Route::get('/api/mobile/tracking', function () {
+Route::get('/api/mobile/tracking', function (Request $request) {
     try {
-        $personnel = \App\Support\PersonnelTracking::snapshot();
+        $personnel = \App\Support\PersonnelTracking::snapshot($request->user());
         return response()->json([
             'status' => 'success',
             'server_time' => now()->toIso8601String(),
@@ -1355,6 +1364,9 @@ Route::get('/api/mobile/tracking', function () {
 
 Route::get('/api/mobile/tracking/{userId}/history', function (Request $request, int $userId) {
     try {
+        if (!\App\Support\PersonnelTracking::canViewHistory($request->user(), $userId)) {
+            return response()->json(['status' => 'error', 'message' => 'Jejak lokasi Super Admin hanya dapat dilihat oleh Super Admin.'], 403);
+        }
         return response()->json([
             'status' => 'success',
             'user_id' => $userId,

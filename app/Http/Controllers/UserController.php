@@ -23,12 +23,14 @@ class UserController extends Controller
     public function index()
     {
         return Inertia::render('Users/Index', [
-            'users' => User::where('id', '!=', auth()->id()) 
+            'users' => User::where('id', '!=', auth()->id())
+                ->visibleTo(auth()->user())
                 ->orderBy('created_at', 'desc')
-                ->orderBy('is_active', 'asc') 
+                ->orderBy('is_active', 'asc')
                 ->paginate(10),
 
             'allUsers' => User::where('id', '!=', auth()->id())
+                ->visibleTo(auth()->user())
                 ->orderBy('role', 'asc')
                 ->get(),
         ]);
@@ -334,7 +336,7 @@ class UserController extends Controller
     public function printTokenPdf(Request $request)
     {
         $idsParam = $request->query('ids');
-        $query = User::where('is_active', false)->whereNotNull('activation_token');
+        $query = User::where('is_active', false)->whereNotNull('activation_token')->visibleTo(auth()->user());
 
         if ($idsParam) {
             $ids = explode(',', $idsParam);
@@ -359,6 +361,7 @@ class UserController extends Controller
     public function printPdf(Request $request)
     {
         $users = User::where('id', '!=', auth()->id())
+            ->visibleTo(auth()->user())
             ->orderBy('role', 'asc')
             ->orderBy('name', 'asc')
             ->get();
@@ -379,6 +382,7 @@ class UserController extends Controller
      */
     public function generateToken(Request $request, User $user)
     {
+        $this->authorizeTarget($user);
         $token = strtoupper(Str::random(6));
         $expiresAt = now()->addMinutes(5);
 
@@ -432,6 +436,7 @@ class UserController extends Controller
      */
     public function toggle(Request $request, User $user)
     {
+        $this->authorizeTarget($user);
         $request->validate(['password' => 'required']);
 
         if (!Hash::check($request->password, auth()->user()->password)) {
@@ -474,6 +479,7 @@ class UserController extends Controller
      */
     public function changePassword(Request $request, User $user)
     {
+        $this->authorizeTarget($user);
         $request->validate([
             'password' => 'required|string|min:6',
         ], [
@@ -513,6 +519,7 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
+        $this->authorizeTarget($user);
         $request->validate([
             'name'     => 'required|string|max:255',
             'pangkat'  => 'required|string',
@@ -590,11 +597,18 @@ class UserController extends Controller
         return null;
     }
 
+    /** Akun Super Admin hanya dapat dikelola oleh Super Admin. */
+    private function authorizeTarget(User $target): void
+    {
+        abort_unless($target->isManageableBy(auth()->user()), 403, 'Akun Super Admin hanya dapat dikelola oleh Super Admin.');
+    }
+
     /**
      * TOGGLE HAK AKSES MITRA
      */
     public function toggleMitraAccess(User $user)
     {
+        $this->authorizeTarget($user);
         $user->update(['can_access_mitra' => !$user->can_access_mitra]);
 
         AuditLog::create([
@@ -614,6 +628,7 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
+        $this->authorizeTarget($user);
         $name = $user->name;
         $user->delete();
 
@@ -634,6 +649,7 @@ class UserController extends Controller
      */
     public function toggleKoperasiAccess(User $user)
     {
+        $this->authorizeTarget($user);
         $user->update(['can_manage_koperasi' => !$user->can_manage_koperasi]);
 
         AuditLog::create([
@@ -655,6 +671,7 @@ class UserController extends Controller
      */
     public function toggleMfa(User $user)
     {
+        $this->authorizeTarget($user);
         $newStatus = !$user->mfa_enabled;
         $user->update(['mfa_enabled' => $newStatus]);
 

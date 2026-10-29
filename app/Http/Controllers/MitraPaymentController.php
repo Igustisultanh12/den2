@@ -217,6 +217,7 @@ class MitraPaymentController extends Controller
         }
 
         $targetUser = User::findOrFail($userId);
+        abort_unless($targetUser->isManageableBy(auth()->user()), 403, 'Akun Super Admin hanya dapat dikelola oleh Super Admin.');
         $targetUser->can_access_mitra = !$targetUser->can_access_mitra;
         $targetUser->save();
 

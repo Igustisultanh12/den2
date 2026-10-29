@@ -84,11 +84,11 @@ Route::get('/dashboard', function () {
         }
     }
 
-    $recentVisitors = VisitorLog::latest()->take(5)->get()->map(function($log) {
+    $recentVisitors = User::hideSuperAdminRows(VisitorLog::query(), $user)->latest()->take(5)->get()->map(function($log) {
         $log->type = 'LOGIN'; 
         return $log;
     });
-    $recentAudits = AuditLog::latest()->take(5)->get()->map(function($log) {
+    $recentAudits = User::hideSuperAdminRows(AuditLog::query(), $user)->latest()->take(5)->get()->map(function($log) {
         $log->type = 'ADMIN_ACTION'; 
         $log->user_name = $log->admin_name; 
         $log->nrp = 'ADMIN'; 
@@ -103,7 +103,7 @@ Route::get('/dashboard', function () {
 
     $todayAttendancesCount = Attendance::where('attendance_date', $today)->count();
     $recentAttendances = in_array(strtolower($user->role), ['super_admin', 'superadmin', 'admin', 'komandan', 'pasops'])
-        ? Attendance::with('user')->where('attendance_date', $today)->latest()->take(10)->get()
+        ? User::hideSuperAdminRows(Attendance::with('user'), $user)->where('attendance_date', $today)->latest()->take(10)->get()
         : null;
 
     return Inertia::render('Dashboard', [

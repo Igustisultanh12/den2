@@ -18,7 +18,7 @@ class PersonnelTrackingController extends Controller
         $this->authorizeViewer($request);
 
         return Inertia::render('Tracking/Index', [
-            'personnel' => PersonnelTracking::snapshot(),
+            'personnel' => PersonnelTracking::snapshot($request->user()),
             'onlineThresholdSeconds' => PersonnelTracking::ONLINE_SECONDS,
         ]);
     }
@@ -30,13 +30,14 @@ class PersonnelTrackingController extends Controller
 
         return response()->json([
             'server_time' => now()->toIso8601String(),
-            'personnel' => PersonnelTracking::snapshot(),
+            'personnel' => PersonnelTracking::snapshot($request->user()),
         ]);
     }
 
     public function history(Request $request, int $userId)
     {
         $this->authorizeViewer($request);
+        abort_unless(PersonnelTracking::canViewHistory($request->user(), $userId), 403, 'Jejak lokasi Super Admin hanya dapat dilihat oleh Super Admin.');
 
         return response()->json([
             'user_id' => $userId,

@@ -87,10 +87,11 @@ class PersonnelTracking
 
     /**
      * Posisi terakhir seluruh personel aktif yang pernah mengirim lokasi.
+     * Lokasi Super Admin hanya terlihat oleh sesama Super Admin.
      *
      * @return array<int, array<string, mixed>>
      */
-    public static function snapshot(): array
+    public static function snapshot(?User $viewer = null): array
     {
         $now = now();
 
@@ -98,7 +99,7 @@ class PersonnelTracking
             // Jangan membatasi kolom: tabel users produksi tidak punya kolom "jabatan",
             // dan MySQL menolak kolom yang tidak ada (SQLite di test tidak).
             ->with('user')
-            ->whereHas('user', fn ($q) => $q->where('is_active', true))
+            ->whereHas('user', fn ($q) => $q->where('is_active', true)->visibleTo($viewer))
             ->orderByDesc('recorded_at')
             ->get()
             ->map(fn (PersonnelLocation $loc) => self::present($loc, $now))
@@ -131,6 +132,13 @@ class PersonnelTracking
             ])
             ->values()
             ->all();
+    }
+
+    /** Jejak Super Admin hanya boleh dibuka oleh Super Admin. */
+    public static function canViewHistory(?User $viewer, int $userId): bool
+    {
+        $target = User::find($userId);
+        return !$target || $target->isManageableBy($viewer);
     }
 
     public static function pruneHistory(): int

@@ -85,6 +85,41 @@ class User extends Authenticatable
         return in_array($r, ['super_admin', 'superadmin', 'admin'], true);
     }
 
+    /**
+     * Akun Super Admin hanya boleh dilihat/dikelola sesama Super Admin.
+     * $viewer bukan Super Admin => akun Super Admin disembunyikan dari query.
+     */
+    public function scopeVisibleTo($query, ?User $viewer)
+    {
+        if ($viewer && $viewer->isSuperAdmin()) {
+            return $query;
+        }
+        return $query->whereRaw("LOWER(REPLACE(REPLACE(COALESCE(role, ''), ' ', '_'), '-', '_')) NOT IN ('super_admin', 'superadmin')");
+    }
+
+    public function scopeSuperAdmins($query)
+    {
+        return $query->whereRaw("LOWER(REPLACE(REPLACE(COALESCE(role, ''), ' ', '_'), '-', '_')) IN ('super_admin', 'superadmin')");
+    }
+
+    /**
+     * Sembunyikan baris milik Super Admin (lokasi, log, presensi, dst.) dari $viewer
+     * yang bukan Super Admin. Baris tanpa pemilik (mis. tamu) tetap tampil.
+     */
+    public static function hideSuperAdminRows($query, ?User $viewer, string $column = 'user_id')
+    {
+        if ($viewer && $viewer->isSuperAdmin()) {
+            return $query;
+        }
+        return $query->where(fn ($q) => $q->whereNull($column)->orWhereNotIn($column, User::superAdmins()->select('id')));
+    }
+
+    /** True jika $actor boleh melihat/mengubah akun ini (Super Admin hanya oleh Super Admin). */
+    public function isManageableBy(?User $actor): bool
+    {
+        return !$this->isSuperAdmin() || ($actor && $actor->isSuperAdmin());
+    }
+
     public function isPersonel(): bool
     {
         $r = strtolower(str_replace([' ', '-'], '_', (string) ($this->role ?? '')));

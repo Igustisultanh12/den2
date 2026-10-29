@@ -18,7 +18,7 @@ class AuditTrailController extends Controller
             return response()->json(['trails' => []]);
         }
 
-        $logs = AuditLog::with('user')
+        $logs = \App\Models\User::hideSuperAdminRows(AuditLog::with('user'), $request->user())
             ->where(function ($q) use ($target) {
                 $q->where('target_personnel', 'like', "%{$target}%")
                   ->orWhere('description', 'like', "%{$target}%");

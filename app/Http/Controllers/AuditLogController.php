@@ -22,7 +22,7 @@ class AuditLogController extends Controller
 
         return Inertia::render('AuditLogs/Index', [
 
-            'logs' => AuditLog::with('user')
+            'logs' => \App\Models\User::hideSuperAdminRows(AuditLog::with('user'), auth()->user())
 
                 ->latest()
 
