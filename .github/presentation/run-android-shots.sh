@@ -41,7 +41,8 @@ for role in personel admin komandan sintel; do
   echo "== $role selesai dalam $(( $(date +%s) - start )) detik (exit $rc)"
   tail -n 30 "$dir/maestro.log"
   # takeScreenshot ditulis relatif ke folder flow atau folder output: kumpulkan semuanya.
-  find "$FLOWS" "$dir/debug" -maxdepth 3 -name '[0-9]*.png' -newermt "@$start" -exec mv -f {} "$dir/" \; 2>/dev/null
+  find "$FLOWS" "$dir/debug" -name '[0-9]*.png' -path '*takeScreenshot*' -exec cp -f {} "$dir/" \; 2>/dev/null
+  find "$FLOWS" -maxdepth 1 -name '[0-9]*.png' -exec mv -f {} "$dir/" \; 2>/dev/null
   adb shell screencap -p /sdcard/last.png && adb pull /sdcard/last.png "$dir/zz_last_screen.png" > /dev/null || true
   ls "$dir"
 done

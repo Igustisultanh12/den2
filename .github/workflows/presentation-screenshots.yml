@@ -49,6 +49,9 @@ jobs:
           sed -i 's#const val DEFAULT_BASE_URL = "https://sinden2.my.id"#const val DEFAULT_BASE_URL = "http://10.0.2.2:8000"#' \
             android/app/src/main/java/id/my/sisinden/app/core/data/SessionStore.kt
           sed -i 's#android:usesCleartextTraffic="false"#android:usesCleartextTraffic="true"#' android/app/src/main/AndroidManifest.xml
+          # Khusus APK demo di runner: FLAG_SECURE membuat screenshot hitam. APK rilis tidak terpengaruh.
+          sed -i '/FLAG_SECURE/d' android/app/src/main/java/id/my/sisinden/app/MainActivity.kt
+          ! grep -q FLAG_SECURE android/app/src/main/java/id/my/sisinden/app/MainActivity.kt
           grep -n 'DEFAULT_BASE_URL =' android/app/src/main/java/id/my/sisinden/app/core/data/SessionStore.kt
 
       - uses: actions/setup-java@v4
