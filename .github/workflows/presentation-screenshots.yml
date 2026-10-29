@@ -1,0 +1,101 @@
+name: Screenshot Paparan (Web demo + Android emulator)
+
+# Mengambil screenshot aplikasi Android SINDEN 2 dengan data contoh (fiktif)
+# dari server Laravel lokal di runner — TIDAK menyentuh server produksi.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ 'ppt/**' ]
+
+jobs:
+  android-screens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, sqlite3, gd, zip, dom
+          coverage: none
+
+      - name: Siapkan backend demo (SQLite + data contoh)
+        run: |
+          cp .env.example .env
+          sed -i 's#^DB_CONNECTION=.*#DB_CONNECTION=sqlite#' .env
+          sed -i '/^DB_DATABASE=/d' .env
+          echo "DB_DATABASE=$GITHUB_WORKSPACE/database/demo.sqlite" >> .env
+          echo "APP_TIMEZONE=Asia/Jakarta" >> .env
+          echo "APP_URL=http://10.0.2.2:8000" >> .env
+          composer install --no-interaction --prefer-dist --no-progress
+          php artisan key:generate --no-interaction
+          touch database/demo.sqlite
+          php artisan migrate --force --no-interaction
+          php artisan db:seed --class=SettingSeeder --force --no-interaction
+          php artisan db:seed --class=DemoPresentationSeeder --force --no-interaction
+          php artisan storage:link || true
+
+      - name: Jalankan server demo
+        run: |
+          PHP_CLI_SERVER_WORKERS=6 nohup php artisan serve --host=0.0.0.0 --port=8000 > "$RUNNER_TEMP/serve.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/login > /dev/null && break; sleep 1; done
+          curl -s -X POST http://127.0.0.1:8000/api/mobile/login -H 'Accept: application/json' -H 'Content-Type: application/json' \
+            -d '{"login":"personel@mail.com","email":"personel@mail.com","password":"password123","device_name":"ci"}' | head -c 200; echo
+
+      - name: Arahkan APK debug ke server demo
+        run: |
+          sed -i 's#const val DEFAULT_BASE_URL = "https://sinden2.my.id"#const val DEFAULT_BASE_URL = "http://10.0.2.2:8000"#' \
+            android/app/src/main/java/id/my/sisinden/app/core/data/SessionStore.kt
+          sed -i 's#android:usesCleartextTraffic="false"#android:usesCleartextTraffic="true"#' android/app/src/main/AndroidManifest.xml
+          grep -n 'DEFAULT_BASE_URL =' android/app/src/main/java/id/my/sisinden/app/core/data/SessionStore.kt
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK debug
+        working-directory: android
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Emulator + screenshot
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: bash .github/presentation/run-android-shots.sh
+
+      - name: Log server
+        if: always()
+        run: tail -n 200 "$RUNNER_TEMP/serve.log" || true
+
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-screenshots
+          path: |
+            shots/android/**/*.png
+            shots/android/**/*.log
+          if-no-files-found: warn

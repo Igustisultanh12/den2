@@ -1,0 +1,35 @@
+appId: id.my.sinden2.app.debug
+env:
+  ROLE: sintel
+---
+- runFlow: _login.yaml
+- runFlow:
+    file: _tab.yaml
+    optional: true
+    env:
+      TAB: "Jaga"
+      NAME: 03_jaga
+- runFlow:
+    file: _tab.yaml
+    optional: true
+    env:
+      TAB: "Presensi"
+      NAME: 04_presensi
+- runFlow:
+    file: _tab.yaml
+    optional: true
+    env:
+      TAB: "Menu"
+      NAME: 05_menu
+- runFlow:
+    file: _tab.yaml
+    optional: true
+    env:
+      TAB: "Profil"
+      NAME: 06_profil
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: notifications
+      NAME: 07_notifikasi

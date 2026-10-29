@@ -1,0 +1,48 @@
+appId: id.my.sinden2.app.debug
+---
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+- extendedWaitUntil:
+    visible: "Masuk Akun"
+    timeout: 60000
+- runFlow:
+    file: _pause.yaml
+    env:
+      MS: "2500"
+- takeScreenshot: 00_login
+- tapOn: "NRP, Username, atau Email"
+- inputText: "${ROLE}@mail.com"
+- tapOn: "Kata sandi"
+- inputText: "password123"
+- hideKeyboard
+- takeScreenshot: 00b_login_terisi
+- tapOn: "Masuk"
+- extendedWaitUntil:
+    visible: "Buat PIN Sinden 2"
+    timeout: 45000
+- takeScreenshot: 01_buat_pin
+- runFlow: _pin.yaml
+- extendedWaitUntil:
+    visible: "Ulangi PIN"
+    timeout: 10000
+- runFlow: _pin.yaml
+- runFlow:
+    when:
+      visible: "Nanti saja"
+    commands:
+      - takeScreenshot: 01b_biometrik
+      - tapOn: "Nanti saja"
+- runFlow:
+    file: _pause.yaml
+    env:
+      MS: "6000"
+- runFlow: _dismiss.yaml
+- takeScreenshot: 02_beranda
+- scroll
+- runFlow:
+    file: _pause.yaml
+    env:
+      MS: "1500"
+- takeScreenshot: 02b_beranda_bawah

@@ -1,0 +1,10 @@
+appId: id.my.sinden2.app.debug
+---
+# Pindah tab navigasi bawah berdasarkan label <TAB>, lalu screenshot <NAME>.
+- tapOn: "${TAB}"
+- runFlow:
+    file: _pause.yaml
+    env:
+      MS: "3500"
+- runFlow: _dismiss.yaml
+- takeScreenshot: ${NAME}

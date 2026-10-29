@@ -1,0 +1,9 @@
+appId: id.my.sinden2.app.debug
+---
+# PIN demo 135790 (bukan berurutan / tidak sama semua).
+- tapOn: "1"
+- tapOn: "3"
+- tapOn: "5"
+- tapOn: "7"
+- tapOn: "9"
+- tapOn: "0"

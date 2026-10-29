@@ -1,0 +1,95 @@
+appId: id.my.sinden2.app.debug
+env:
+  ROLE: admin
+---
+- runFlow: _login.yaml
+- runFlow:
+    file: _tab.yaml
+    optional: true
+    env:
+      TAB: "Jaga"
+      NAME: 03_jaga
+- runFlow:
+    file: _tab.yaml
+    optional: true
+    env:
+      TAB: "Presensi"
+      NAME: 04_presensi
+- runFlow:
+    file: _tab.yaml
+    optional: true
+    env:
+      TAB: "Menu"
+      NAME: 05_menu
+- runFlow:
+    file: _tab.yaml
+    optional: true
+    env:
+      TAB: "Profil"
+      NAME: 06_profil
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: notifications
+      NAME: 07_notifikasi
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: users
+      NAME: 10_pengguna
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: letters
+      NAME: 11_agenda_surat
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: skhpp
+      NAME: 12_skhpp
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: signature
+      NAME: 13_tte
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: tracking
+      NAME: 14_pantau_personel
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: violations
+      NAME: 15_pelanggaran
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: mitra
+      NAME: 16_mitra
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: commander
+      NAME: 17_rekening_komandan
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: chat
+      NAME: 18_chat
+- runFlow:
+    file: _open.yaml
+    optional: true
+    env:
+      LINK: settings
+      NAME: 19_pengaturan

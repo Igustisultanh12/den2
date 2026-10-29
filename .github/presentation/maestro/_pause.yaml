@@ -1,0 +1,7 @@
+appId: id.my.sinden2.app.debug
+---
+# Jeda sederhana: tunggu teks yang tidak pernah ada hingga batas waktu.
+- extendedWaitUntil:
+    visible: "__jeda_tidak_pernah_ada__"
+    timeout: ${MS}
+    optional: true

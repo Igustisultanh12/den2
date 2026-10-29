@@ -1,0 +1,14 @@
+appId: id.my.sinden2.app.debug
+---
+# Buka layar lewat deep link sinden2://app/<LINK> lalu simpan screenshot <NAME>.
+- openLink: "sinden2://app/${LINK}"
+- runFlow:
+    file: _pause.yaml
+    env:
+      MS: "1500"
+- runFlow: _dismiss.yaml
+- runFlow:
+    file: _pause.yaml
+    env:
+      MS: "3500"
+- takeScreenshot: ${NAME}

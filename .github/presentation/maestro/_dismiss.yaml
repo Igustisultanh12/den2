@@ -1,0 +1,32 @@
+appId: id.my.sinden2.app.debug
+---
+# Tutup kunci PIN / dialog sistem yang mungkin muncul.
+- runFlow:
+    when:
+      visible: "Masukkan PIN untuk melanjutkan"
+    file: _pin.yaml
+- runFlow:
+    when:
+      visible: "Nanti"
+    commands:
+      - tapOn: "Nanti"
+- runFlow:
+    when:
+      visible: "Nanti saja"
+    commands:
+      - tapOn: "Nanti saja"
+- runFlow:
+    when:
+      visible: "Izinkan"
+    commands:
+      - tapOn: "Izinkan"
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+- runFlow:
+    when:
+      visible: "While using the app"
+    commands:
+      - tapOn: "While using the app"
