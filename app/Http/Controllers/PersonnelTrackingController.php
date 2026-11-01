@@ -17,8 +17,9 @@ class PersonnelTrackingController extends Controller
     {
         $this->authorizeViewer($request);
 
+        // Web ikut menampilkan personel yang belum pernah mengirim lokasi (personel baru).
         return Inertia::render('Tracking/Index', [
-            'personnel' => PersonnelTracking::snapshot($request->user()),
+            'personnel' => PersonnelTracking::snapshot($request->user(), true),
             'onlineThresholdSeconds' => PersonnelTracking::ONLINE_SECONDS,
         ]);
     }
@@ -30,7 +31,7 @@ class PersonnelTrackingController extends Controller
 
         return response()->json([
             'server_time' => now()->toIso8601String(),
-            'personnel' => PersonnelTracking::snapshot($request->user()),
+            'personnel' => PersonnelTracking::snapshot($request->user(), true),
         ]);
     }
 

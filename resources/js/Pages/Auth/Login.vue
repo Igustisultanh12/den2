@@ -79,22 +79,29 @@ const form = useForm({
     remember: false,
     latitude: null,
     longitude: null,
+    accuracy: null,
+    location_mocked: false,
     redirect: '',
 });
 
 /**
  * FUNGSI: Deteksi GPS Kedinasan & Peringatan Lokasi
  */
-const showLocationWarning = (resolve, lat = null, lng = null) => {
+const showLocationWarning = (resolve, lat = null, lng = null, mocked = false) => {
     isLockingGPS.value = false;
     form.latitude = lat;
     form.longitude = lng;
-    gpsWarning.value = "Anda belum mengaktifkan lokasi";
+    form.location_mocked = Boolean(mocked);
+    gpsWarning.value = mocked ? 'Terdeteksi lokasi palsu' : (lat ? 'Akurasi lokasi rendah' : 'Lokasi / GPS belum aktif');
 
     Swal.fire({
         icon: 'warning',
-        title: 'PERINGATAN LOKASI',
-        text: 'Anda belum mengaktifkan lokasi',
+        title: mocked ? 'LOKASI PALSU TERDETEKSI' : 'PERINGATAN LOKASI',
+        html: mocked
+            ? 'Browser melaporkan lokasi tiruan. Login personel akan <b>ditolak</b> dan dilaporkan ke Admin.'
+            : (lat
+                ? 'Akurasi lokasi rendah. Aktifkan GPS / "Lokasi akurat" agar posisi Anda tepat.'
+                : 'GPS / izin lokasi belum aktif.<br><b>Personel wajib mengaktifkan GPS</b> &mdash; tanpa lokasi, login akan ditolak (kecuali akun Admin).'),
         showCancelButton: true,
         confirmButtonText: 'Lanjutkan',
         cancelButtonText: 'Batal',
@@ -113,6 +120,8 @@ const showLocationWarning = (resolve, lat = null, lng = null) => {
         } else {
             form.latitude = null;
             form.longitude = null;
+            form.accuracy = null;
+            form.location_mocked = false;
         }
     });
 };
@@ -134,14 +143,16 @@ const lockLocation = () => {
                 const accuracy = position.coords.accuracy;
                 const isMocked = position.mocked || (position.coords && position.coords.isMocked);
 
+                form.accuracy = accuracy ?? null;
                 // Jika terdeteksi mocked eksplisit atau akurasi perkiraan kasar (> 250m seperti di PC/laptop)
                 if (isMocked || accuracy > 250 || !lat || !lng) {
-                    showLocationWarning(resolve, lat, lng);
+                    showLocationWarning(resolve, lat, lng, isMocked);
                     return;
                 }
 
                 form.latitude = lat;
                 form.longitude = lng;
+                form.location_mocked = false;
                 isLockingGPS.value = false;
                 resolve();
             },
@@ -326,7 +337,7 @@ const submit = async () => {
                                 {{ form.latitude ? 'GPS Presisi Terkunci' : (gpsWarning ? 'Peringatan Lokasi' : 'Verifikasi GPS Sistem') }}
                             </p>
                             <p class="text-[9px] text-slate-400 uppercase mt-0.5 tracking-tight truncate">
-                                {{ gpsWarning || (form.latitude ? `Koordinat: ${form.latitude.toFixed(4)}, ${form.longitude.toFixed(4)}` : 'Disarankan Mengaktifkan GPS') }}
+                                {{ gpsWarning || (form.latitude ? `Koordinat: ${form.latitude.toFixed(4)}, ${form.longitude.toFixed(4)}` : 'Personel wajib mengaktifkan GPS') }}
                             </p>
                         </div>
                     </div>

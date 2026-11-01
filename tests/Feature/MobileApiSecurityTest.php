@@ -99,6 +99,7 @@ class MobileApiSecurityTest extends TestCase
             $t->string('provider')->nullable();
             $t->string('device')->nullable();
             $t->timestamp('recorded_at');
+            $t->timestamp('mock_detected_at')->nullable();
             $t->timestamps();
         });
         Schema::create('personnel_location_histories', function (Blueprint $t) {

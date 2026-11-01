@@ -44,6 +44,10 @@ class ApiClient(
                     403 -> {
                         val peek = runCatching { response.peekBody(1024).string() }.getOrNull().orEmpty()
                         if (peek.contains("account_inactive")) session.onAccountDisabled()
+                        if (peek.contains("mock_location")) {
+                            id.my.sisinden.app.core.tracking.MockLocation.markDetected()
+                            session.onMockLocation()
+                        }
                     }
                 }
             }

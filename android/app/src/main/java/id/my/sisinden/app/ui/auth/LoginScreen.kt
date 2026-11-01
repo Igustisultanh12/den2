@@ -150,11 +150,14 @@ fun LoginScreen(
                     )
                 }
 
-                if (logoutReason == LogoutReason.EXPIRED || logoutReason == LogoutReason.DISABLED) {
+                if (logoutReason == LogoutReason.EXPIRED || logoutReason == LogoutReason.DISABLED || logoutReason == LogoutReason.MOCK_LOCATION) {
                     Banner(
-                        text = if (logoutReason == LogoutReason.EXPIRED) "Sesi Anda telah berakhir. Silakan masuk kembali."
-                        else "Akun Anda dinonaktifkan oleh Admin.",
-                        tone = Tone.WARNING,
+                        text = when (logoutReason) {
+                            LogoutReason.EXPIRED -> "Sesi Anda telah berakhir. Silakan masuk kembali."
+                            LogoutReason.MOCK_LOCATION -> "Sesi diakhiri: terdeteksi aplikasi lokasi palsu (Fake GPS). Kejadian ini dilaporkan ke Admin."
+                            else -> "Akun Anda dinonaktifkan oleh Admin."
+                        },
+                        tone = if (logoutReason == LogoutReason.MOCK_LOCATION) Tone.DANGER else Tone.WARNING,
                     )
                 }
                 AnimatedVisibility(visible = state.errorMessage != null) {

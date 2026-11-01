@@ -25,6 +25,8 @@ class LoginRequest extends FormRequest
             'password' => ['required', 'string'],
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
+            'accuracy' => ['nullable', 'numeric'],
+            'location_mocked' => ['nullable', 'boolean'],
         ];
     }
 

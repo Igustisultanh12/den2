@@ -89,13 +89,17 @@ class PersonnelTracking
      * Posisi terakhir seluruh personel aktif yang pernah mengirim lokasi.
      * Lokasi Super Admin hanya terlihat oleh sesama Super Admin.
      *
+     * $includeWithoutLocation = true: personel aktif yang BELUM pernah mengirim lokasi
+     * (mis. personel baru yang belum login di aplikasi Android) ikut dikirim dengan
+     * koordinat null & has_location = false, agar tetap tampil di daftar Pantau Personel.
+     *
      * @return array<int, array<string, mixed>>
      */
-    public static function snapshot(?User $viewer = null): array
+    public static function snapshot(?User $viewer = null, bool $includeWithoutLocation = false): array
     {
         $now = now();
 
-        return PersonnelLocation::query()
+        $located = PersonnelLocation::query()
             // Jangan membatasi kolom: tabel users produksi tidak punya kolom "jabatan",
             // dan MySQL menolak kolom yang tidak ada (SQLite di test tidak).
             ->with('user')
@@ -105,6 +109,48 @@ class PersonnelTracking
             ->map(fn (PersonnelLocation $loc) => self::present($loc, $now))
             ->values()
             ->all();
+
+        if (!$includeWithoutLocation) {
+            return $located;
+        }
+
+        $without = User::query()
+            ->where('is_active', true)
+            ->visibleTo($viewer)
+            ->whereNotIn('id', PersonnelLocation::select('user_id'))
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $u) => self::presentWithoutLocation($u))
+            ->all();
+
+        return array_merge($located, $without);
+    }
+
+    /** @return array<string, mixed> */
+    private static function presentWithoutLocation(User $user): array
+    {
+        return [
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'pangkat' => $user->pangkat,
+            'nrp' => $user->nrp,
+            'jabatan' => $user->jabatan,
+            'role' => $user->role,
+            'latitude' => null,
+            'longitude' => null,
+            'accuracy' => null,
+            'speed' => null,
+            'heading' => null,
+            'battery' => null,
+            'is_charging' => null,
+            'device' => null,
+            'recorded_at' => null,
+            'age_seconds' => null,
+            'is_online' => false,
+            'has_location' => false,
+            'mock_detected' => false,
+            'mock_detected_at' => null,
+        ];
     }
 
     /**
@@ -170,6 +216,10 @@ class PersonnelTracking
             'recorded_at' => $loc->recorded_at?->toIso8601String(),
             'age_seconds' => $ageSeconds !== null ? (int) $ageSeconds : null,
             'is_online' => $ageSeconds !== null && $ageSeconds <= self::ONLINE_SECONDS,
+            'has_location' => true,
+            // Aplikasi lokasi palsu terdeteksi dalam 24 jam terakhir
+            'mock_detected' => $loc->mock_detected_at !== null && $loc->mock_detected_at->greaterThan($now->copy()->subDay()),
+            'mock_detected_at' => $loc->mock_detected_at?->toIso8601String(),
         ];
     }
 }

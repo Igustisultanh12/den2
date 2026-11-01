@@ -14,6 +14,8 @@ data class LocationPoint(
     @SerializedName("provider") val provider: String? = null,
     /** ISO-8601 waktu perangkat saat titik diambil. */
     @SerializedName("recorded_at") val recordedAt: String,
+    /** true bila titik berasal dari aplikasi lokasi palsu (server mengakhiri sesi). */
+    @SerializedName("is_mock") val isMock: Boolean = false,
 )
 
 data class LocationBatchRequest(

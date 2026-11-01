@@ -26,9 +26,13 @@ class AuthenticationTest extends TestCase
             'mfa_enabled' => false,
         ]);
 
+        // Personel wajib mengirim lokasi GPS saat login (App\Support\LocationGuard).
         $response = $this->post('/login', [
             'email' => $user->email,
             'password' => 'password',
+            'latitude' => -7.2575,
+            'longitude' => 112.7521,
+            'accuracy' => 15,
         ]);
 
         $this->assertAuthenticated();

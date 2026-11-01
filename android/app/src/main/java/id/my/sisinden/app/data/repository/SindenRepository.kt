@@ -64,7 +64,18 @@ class SindenRepository(
         beforeSessionStart: suspend () -> Unit = {},
     ): ApiResult<UserProfile> {
         val device = "Sinden 2 Android (${Build.MANUFACTURER} ${Build.MODEL})".take(100)
-        return when (val res = call { login(LoginRequest(username.trim(), password, device, turnstileToken)) }) {
+
+        // Keamanan lokasi: GPS wajib aktif & tanpa aplikasi lokasi palsu (diperiksa juga oleh server).
+        val location = id.my.sisinden.app.core.tracking.LoginLocationProvider.capture(appContext)
+        if (location.isMock) {
+            id.my.sisinden.app.core.tracking.MockLocation.markDetected()
+            return ApiResult.Failure(ApiError(ErrorKind.SERVER, "Terdeteksi aplikasi lokasi palsu (Fake GPS). Hapus / matikan aplikasi tersebut untuk dapat login."))
+        }
+        if (!location.gpsEnabled) {
+            return ApiResult.Failure(ApiError(ErrorKind.SERVER, "GPS / lokasi belum aktif. Aktifkan GPS untuk dapat login."))
+        }
+
+        return when (val res = call { login(LoginRequest(username.trim(), password, device, turnstileToken, location)) }) {
             is ApiResult.Success -> {
                 val token = res.data.token
                 val user = res.data.user

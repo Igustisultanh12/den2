@@ -162,6 +162,20 @@ Route::post('/api/mobile/login', function (Request $request) {
             return response()->json(['status' => 'error', 'message' => 'Akun belum aktif atau sedang ditangguhkan oleh Admin.'], 403);
         }
 
+        // KEAMANAN LOKASI: personel (non-Admin) wajib GPS aktif & tanpa aplikasi lokasi palsu.
+        // Aplikasi >= 1.8.1 wajib mengirim "location"; versi lama tetap boleh agar dapat diperbarui.
+        $loginLocation = isset($data['location']) && is_array($data['location']) ? $data['location'] : null;
+        if (\App\Support\LocationGuard::appliesTo($user)
+            && ($loginLocation !== null || \App\Support\LocationGuard::androidClientSendsLocation($request->userAgent()))) {
+            $check = \App\Support\LocationGuard::checkLogin($loginLocation);
+            if (!$check['ok']) {
+                if (($check['code'] ?? '') === 'mock_location') {
+                    \App\Support\LocationGuard::reportMock($user, 'login aplikasi Android', $loginLocation);
+                }
+                return response()->json(['status' => 'error', 'code' => $check['code'], 'message' => $check['message']], 403);
+            }
+        }
+
         if (!Schema::hasTable('personal_access_tokens')) {
             Log::critical('[MOBILE_API_LOGIN] Tabel personal_access_tokens belum dimigrasikan.');
             return response()->json([
@@ -172,6 +186,11 @@ Route::post('/api/mobile/login', function (Request $request) {
 
         $deviceName = substr((string) ($data['device_name'] ?? 'sinden_mobile_token'), 0, 100);
         $token = $user->createToken($deviceName)->plainTextToken;
+
+        if ($loginLocation !== null && is_numeric($loginLocation['latitude'] ?? null) && is_numeric($loginLocation['longitude'] ?? null)
+            && !filter_var($loginLocation['is_mock'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            \App\Support\LocationGuard::recordLoginPoint($user, $loginLocation, 'login', $deviceName);
+        }
 
         Log::info('[MOBILE_API_LOGIN] Sukses', ['user_id' => $user->id, 'ip' => $request->ip()]);
 
@@ -1351,9 +1370,30 @@ Route::post('/api/mobile/location', function (Request $request) {
             'points.*.is_charging' => 'nullable|boolean',
             'points.*.provider' => 'nullable|string|max:30',
             'points.*.recorded_at' => 'nullable|date',
+            'points.*.is_mock' => 'nullable|boolean',
             'device_model' => 'nullable|string|max:150',
         ]);
         if ($v->fails()) return mobile_validation_error($v);
+
+        // Lokasi palsu (Fake GPS) terdeteksi oleh aplikasi: tolak, laporkan ke Admin, akhiri sesi.
+        $mockPoint = collect($points)->first(fn ($p) => filter_var($p['is_mock'] ?? false, FILTER_VALIDATE_BOOLEAN));
+        if ($mockPoint) {
+            $user = $request->user();
+            \App\Support\LocationGuard::reportMock($user, 'aplikasi Android (pelacakan)', $mockPoint);
+            if (\App\Support\LocationGuard::appliesTo($user)) {
+                $user->currentAccessToken()?->delete();
+                return response()->json([
+                    'status' => 'error',
+                    'code' => 'mock_location',
+                    'message' => \App\Support\LocationGuard::MSG_MOCK_SESSION,
+                ], 403);
+            }
+            // Admin: titik palsu tidak disimpan, sesi tetap.
+            $points = array_values(array_filter($points, fn ($p) => !filter_var($p['is_mock'] ?? false, FILTER_VALIDATE_BOOLEAN)));
+            if (!$points) {
+                return response()->json(['status' => 'success', 'accepted' => 0, 'mock_detected' => true]);
+            }
+        }
 
         $location = \App\Support\PersonnelTracking::record($request->user(), $points, $data['device_model'] ?? null);
 

@@ -10,6 +10,16 @@ data class LoginRequest(
     @SerializedName("device_name") val deviceName: String,
     /** Token Cloudflare Turnstile (sekali pakai), diverifikasi server. */
     @SerializedName("cf_turnstile_token") val turnstileToken: String? = null,
+    /** Lokasi saat login: server menolak personel tanpa GPS aktif / dengan lokasi palsu. */
+    @SerializedName("location") val location: LoginLocation? = null,
+)
+
+data class LoginLocation(
+    @SerializedName("latitude") val latitude: Double? = null,
+    @SerializedName("longitude") val longitude: Double? = null,
+    @SerializedName("accuracy") val accuracy: Float? = null,
+    @SerializedName("is_mock") val isMock: Boolean = false,
+    @SerializedName("gps_enabled") val gpsEnabled: Boolean = false,
 )
 
 data class ActivateRequest(

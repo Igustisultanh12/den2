@@ -18,7 +18,7 @@ const people = ref(props.personnel);
 const lastSync = ref(new Date());
 const syncError = ref(false);
 const search = ref('');
-const filter = ref('all'); // all | online | offline
+const filter = ref('all'); // all | online | offline | nolocation
 const selectedId = ref(null);
 const trailHours = ref(12);
 const trailLoading = ref(false);
@@ -33,12 +33,27 @@ const markers = new Map();
 const iconKeys = new Map();
 const anims = new Map();
 
+/** Personel yang sudah pernah mengirim lokasi (punya koordinat). */
+const hasLoc = (p) => p.has_location !== false && p.latitude !== null && p.latitude !== undefined && p.longitude !== null && p.longitude !== undefined;
+
 const onlineCount = computed(() => people.value.filter(p => p.is_online).length);
+const noLocationCount = computed(() => people.value.filter(p => !hasLoc(p)).length);
+const locatedPeople = computed(() => people.value.filter(hasLoc));
+
+const matchesFilter = (p) => {
+    if (filter.value === 'online') return p.is_online;
+    if (filter.value === 'offline') return hasLoc(p) && !p.is_online;
+    if (filter.value === 'nolocation') return !hasLoc(p);
+    return true;
+};
+
+const statusLabel = (p) => (!hasLoc(p) ? 'Belum mengirim lokasi' : (p.is_online ? 'Online' : 'Offline'));
+const mockCount = computed(() => people.value.filter(p => p.mock_detected).length);
 
 const visiblePeople = computed(() => {
     const q = search.value.trim().toLowerCase();
     return people.value
-        .filter(p => filter.value === 'all' || (filter.value === 'online' ? p.is_online : !p.is_online))
+        .filter(matchesFilter)
         .filter(p => !q || [p.name, p.nrp, p.pangkat, p.jabatan].some(v => (v || '').toLowerCase().includes(q)))
         .sort((a, b) => Number(b.is_online) - Number(a.is_online) || (a.age_seconds ?? 1e12) - (b.age_seconds ?? 1e12));
 });
@@ -107,6 +122,7 @@ const popupHtml = (p) => `
         <div style="font-weight:700;font-size:13px">${escapeHtml(p.pangkat || '')} ${escapeHtml(p.name)}</div>
         <div style="color:#64748b">${escapeHtml(p.jabatan || p.nrp || '')}</div>
         <div style="margin-top:6px">${p.is_online ? '🟢 Online' : '⚪ Offline'} · ${escapeHtml(ageLabel(p.age_seconds))}</div>
+        ${p.mock_detected ? '<div style="margin-top:4px;color:#be123c;font-weight:700">⚠ Lokasi palsu terdeteksi (24 jam terakhir)</div>' : ''}
         ${(p.speed ?? 0) >= 1 ? `<div>Kecepatan ${Math.round(p.speed * 3.6)} km/j</div>` : ''}
         ${p.accuracy ? `<div>Akurasi ±${Math.round(p.accuracy)} m</div>` : ''}
         ${p.battery !== null && p.battery !== undefined ? `<div>Baterai ${p.battery}%${p.is_charging ? ' (mengisi)' : ''}</div>` : ''}
@@ -115,7 +131,7 @@ const popupHtml = (p) => `
 const renderMarkers = () => {
     if (!map) return;
     const seen = new Set();
-    for (const p of people.value) {
+    for (const p of locatedPeople.value) {
         seen.add(p.user_id);
         const pos = [p.latitude, p.longitude];
         const active = p.user_id === selectedId.value;
@@ -149,8 +165,8 @@ const renderMarkers = () => {
 };
 
 const fitAll = () => {
-    if (!map || people.value.length === 0) return;
-    const bounds = L.latLngBounds(people.value.map(p => [p.latitude, p.longitude]));
+    if (!map || locatedPeople.value.length === 0) return;
+    const bounds = L.latLngBounds(locatedPeople.value.map(p => [p.latitude, p.longitude]));
     map.fitBounds(bounds.pad(0.2), { maxZoom: 15 });
 };
 
@@ -178,7 +194,7 @@ const loadTrail = async () => {
         map.removeLayer(trailLayer);
         trailLayer = null;
     }
-    if (!selectedId.value) return;
+    if (!selectedId.value || !selected.value || !hasLoc(selected.value)) return;
     trailLoading.value = true;
     try {
         const res = await fetch(route('tracking.history', { userId: selectedId.value, hours: trailHours.value }), { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
@@ -195,7 +211,7 @@ const selectPerson = async (id, pan = true) => {
     follow.value = true;
     renderMarkers();
     const p = selected.value;
-    if (p && pan) {
+    if (p && pan && hasLoc(p)) {
         map.setView([p.latitude, p.longitude], Math.max(map.getZoom(), 16));
         markers.get(id)?.openPopup();
     }
@@ -250,6 +266,8 @@ onBeforeUnmount(() => {
                 <div class="flex items-center gap-2 text-xs">
                     <span class="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">{{ onlineCount }} online</span>
                     <span class="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 font-bold">{{ people.length }} personel</span>
+                    <span v-if="noLocationCount" class="px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 font-bold">{{ noLocationCount }} belum ada lokasi</span>
+                    <span v-if="mockCount" class="px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 font-bold">⚠ {{ mockCount }} lokasi palsu</span>
                     <span :class="syncError ? 'text-rose-600' : 'text-slate-400'" class="font-medium">
                         {{ syncError ? 'Gagal sinkron' : 'Sinkron ' + lastSync.toLocaleTimeString('id-ID') }}
                     </span>
@@ -264,9 +282,9 @@ onBeforeUnmount(() => {
                         placeholder="Cari nama, NRP, jabatan"
                         class="w-full rounded-2xl border-slate-200 bg-slate-50 text-xs px-4 py-2.5 focus:ring-blue-500 focus:border-blue-600"
                     >
-                    <div class="flex gap-1.5 mt-3">
+                    <div class="flex flex-wrap gap-1.5 mt-3">
                         <button
-                            v-for="f in [{ k: 'all', l: 'Semua' }, { k: 'online', l: 'Online' }, { k: 'offline', l: 'Offline' }]"
+                            v-for="f in [{ k: 'all', l: 'Semua' }, { k: 'online', l: 'Online' }, { k: 'offline', l: 'Offline' }, { k: 'nolocation', l: 'Belum ada lokasi' }]"
                             :key="f.k"
                             type="button"
                             class="px-3 py-1.5 rounded-full text-[11px] font-bold transition"
@@ -277,7 +295,7 @@ onBeforeUnmount(() => {
 
                     <div class="mt-3 flex-1 overflow-y-auto space-y-1.5 pr-1">
                         <p v-if="visiblePeople.length === 0" class="text-xs text-slate-400 text-center py-8">
-                            Belum ada personel yang mengirim lokasi.
+                            Tidak ada personel yang sesuai filter.
                         </p>
                         <button
                             v-for="p in visiblePeople"
@@ -289,12 +307,12 @@ onBeforeUnmount(() => {
                         >
                             <span
                                 class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
-                                :class="p.is_online ? 'bg-emerald-600' : 'bg-slate-400'"
+                                :class="p.is_online ? 'bg-emerald-600' : (hasLoc(p) ? 'bg-slate-400' : 'bg-amber-400')"
                             >{{ initials(p.name) }}</span>
                             <span class="min-w-0 flex-1">
-                                <span class="block text-xs font-bold text-slate-800 truncate">{{ p.pangkat }} {{ p.name }}</span>
-                                <span class="block text-[11px] text-slate-500 truncate">
-                                    {{ p.is_online ? 'Online' : 'Offline' }} · {{ ageLabel(p.age_seconds) }}
+                                <span class="block text-xs font-bold text-slate-800 truncate">{{ p.pangkat }} {{ p.name }}<span v-if="p.mock_detected" class="ml-1 text-rose-600" title="Lokasi palsu terdeteksi">⚠</span></span>
+                                <span class="block text-[11px] truncate" :class="hasLoc(p) ? 'text-slate-500' : 'text-amber-700'">
+                                    {{ statusLabel(p) }}<template v-if="hasLoc(p)"> · {{ ageLabel(p.age_seconds) }}</template>
                                     <template v-if="p.battery !== null && p.battery !== undefined"> · 🔋{{ p.battery }}%</template>
                                 </span>
                             </span>
@@ -322,7 +340,14 @@ onBeforeUnmount(() => {
                             </div>
                             <button type="button" class="text-slate-400 hover:text-slate-700 font-bold" @click="clearSelection">✕</button>
                         </div>
-                        <div class="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 text-slate-600">
+                        <div v-if="selected.mock_detected" class="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 leading-relaxed font-semibold">
+                            ⚠ Aplikasi lokasi palsu (Fake GPS) terdeteksi pada personel ini. Sesi otomatis diakhiri dan tercatat di log audit.
+                        </div>
+                        <div v-if="!hasLoc(selected)" class="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 leading-relaxed">
+                            Personel ini <b>belum pernah mengirim lokasi</b>. Posisi akan muncul setelah personel login di aplikasi
+                            Sinden 2 Android dan mengizinkan akses lokasi, atau melakukan presensi dengan GPS.
+                        </div>
+                        <div v-else class="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 text-slate-600">
                             <span>Status</span><span class="font-bold" :class="selected.is_online ? 'text-emerald-600' : 'text-slate-500'">{{ selected.is_online ? 'Online' : 'Offline' }}</span>
                             <span>Pembaruan</span><span class="font-bold text-slate-800">{{ ageLabel(selected.age_seconds) }}</span>
                             <span>Kecepatan</span><span class="font-bold text-slate-800">{{ (selected.speed ?? 0) >= 1 ? Math.round(selected.speed * 3.6) + ' km/j' : 'Diam' }}</span>
@@ -330,7 +355,7 @@ onBeforeUnmount(() => {
                             <span>Baterai</span><span class="font-bold text-slate-800">{{ selected.battery ?? '-' }}{{ selected.battery !== null && selected.battery !== undefined ? '%' : '' }}</span>
                             <span>Perangkat</span><span class="font-bold text-slate-800 truncate">{{ selected.device || '-' }}</span>
                         </div>
-                        <div class="flex items-center gap-2 mt-3">
+                        <div v-if="hasLoc(selected)" class="flex items-center gap-2 mt-3">
                             <label class="text-slate-500">Jejak</label>
                             <select v-model.number="trailHours" class="rounded-xl border-slate-200 text-[11px] py-1 pl-2 pr-7" @change="loadTrail">
                                 <option :value="1">1 jam</option>

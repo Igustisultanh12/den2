@@ -126,6 +126,13 @@ class LocationTrackingService : Service() {
      * kurang akurat tidak menimpa titik GPS yang masih segar.
      */
     private fun onLocation(location: Location) {
+        // Lokasi palsu: kirim segera (tanpa saringan) agar server mengakhiri sesi & memberi tahu Admin.
+        if (location.isMockCompat()) {
+            MockLocation.report(location)
+            val point = pointOf(location, Instant.ofEpochMilli(location.time).toString(), location.provider)
+            scope.launch { queueLock.withLock { pending.addLast(point) } }
+            return
+        }
         val last = lastAccepted
         val gap = if (last == null) Long.MAX_VALUE else location.time - last.time
         if (gap < MIN_MOVING_GAP_MS) return
@@ -191,6 +198,7 @@ class LocationTrackingService : Service() {
         isCharging = isCharging(),
         provider = provider,
         recordedAt = recordedAt,
+        isMock = location.isMockCompat(),
     )
 
     private fun batteryLevel(): Int? {

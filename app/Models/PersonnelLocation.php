@@ -19,9 +19,11 @@ class PersonnelLocation extends Model
         'provider',
         'device',
         'recorded_at',
+        'mock_detected_at',
     ];
 
     protected $casts = [
+        'mock_detected_at' => 'datetime',
         'latitude' => 'double',
         'longitude' => 'double',
         'accuracy' => 'float',

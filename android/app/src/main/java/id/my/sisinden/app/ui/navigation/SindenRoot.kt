@@ -181,11 +181,15 @@ private fun AuthNavigation(repository: SindenRepository, state: SessionState.Log
     GlassBackground {
     NavHost(navController = nav, startDestination = Routes.LOGIN) {
         composable(Routes.LOGIN) {
-            LoginScreen(
-                repository = repository,
-                logoutReason = state?.reason,
-                onOpenActivation = { nav.navigate(Routes.ACTIVATION) },
-            )
+            // Keamanan: login baru dapat dilakukan setelah izin lokasi & GPS aktif,
+            // dan tertutup bila aplikasi lokasi palsu terdeteksi (pelacakan belum dimulai).
+            LocationGate(startTracking = false) {
+                LoginScreen(
+                    repository = repository,
+                    logoutReason = state?.reason,
+                    onOpenActivation = { nav.navigate(Routes.ACTIVATION) },
+                )
+            }
         }
         composable(Routes.ACTIVATION) {
             ActivationScreen(

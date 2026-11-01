@@ -1,3 +1,14 @@
+# Sinden 2 Android v1.8.1 (versionCode 27)
+
+## Keamanan lokasi
+
+- **GPS wajib sebelum login**: layar login baru tampil setelah izin lokasi diberikan dan GPS aktif; lokasi saat login dikirim ke server dan personel tanpa GPS ditolak.
+- **Deteksi aplikasi lokasi palsu (Fake GPS / mock location)**: saat login maupun selama aplikasi berjalan. Bila terdeteksi, aplikasi tertutup layar peringatan, server mengakhiri sesi, Admin menerima notifikasi, dan kejadian tercatat di log audit serta ditandai ⚠ di Pantau Personel.
+- Admin & Super Admin dikecualikan dari penolakan server.
+
+> Setelah semua personel memperbarui ke v1.8.1, atur **Versi minimum aplikasi** di Pengaturan menjadi `1.8.1` agar aplikasi lama (tanpa deteksi lokasi palsu) tidak dapat dipakai lagi.
+
+---
 # Sinden 2 Android v1.8.0 (versionCode 26)
 
 ## Perubahan

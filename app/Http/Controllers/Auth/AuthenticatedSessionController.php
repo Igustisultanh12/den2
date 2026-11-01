@@ -74,6 +74,30 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
+        // KEAMANAN LOKASI: personel (non-Admin) wajib GPS aktif & tanpa aplikasi lokasi palsu.
+        $isWebForm = !$request->wantsJson() && !$request->expectsJson() && !$request->is('api/*');
+        if ($isWebForm && \App\Support\LocationGuard::appliesTo($user)) {
+            $loc = [
+                'latitude' => $request->input('latitude'),
+                'longitude' => $request->input('longitude'),
+                'accuracy' => $request->input('accuracy'),
+                'is_mock' => $request->boolean('location_mocked'),
+            ];
+            $check = \App\Support\LocationGuard::checkLogin($loc);
+            if (!$check['ok']) {
+                if (($check['code'] ?? '') === 'mock_location') {
+                    \App\Support\LocationGuard::reportMock($user, 'login web', $loc);
+                }
+                Auth::guard('web')->logout();
+                if ($request->hasSession()) {
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+                }
+                return back()->withErrors(['email' => $check['message']]);
+            }
+            \App\Support\LocationGuard::recordLoginPoint($user, $loc, 'web-login', 'Browser: ' . substr((string) $request->userAgent(), 0, 120));
+        }
+
         if ($request->wantsJson() || $request->expectsJson() || $request->is('api/*')) {
             $token = method_exists($user, 'createToken') 
                 ? $user->createToken('sinden_mobile_token')->plainTextToken 

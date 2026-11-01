@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.GppBad
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.Icon
@@ -38,7 +39,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import id.my.sisinden.app.core.tracking.MockLocation
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -61,12 +66,17 @@ import id.my.sisinden.app.core.ui.theme.Spacing
  * Gerbang wajib lokasi: aplikasi utama baru tampil setelah izin lokasi presisi,
  * izin lokasi "sepanjang waktu", dan GPS perangkat aktif. Setelah terpenuhi,
  * pelacakan realtime dimulai (dihentikan saat logout oleh SindenRoot).
+ *
+ * Juga dipasang di layar login ([startTracking] = false): personel tidak dapat
+ * login sebelum GPS aktif. Bila aplikasi lokasi palsu (Fake GPS) terdeteksi,
+ * seluruh aplikasi tertutup layar peringatan.
  */
 @Composable
-fun LocationGate(content: @Composable () -> Unit) {
+fun LocationGate(startTracking: Boolean = true, content: @Composable () -> Unit) {
     val context = LocalContext.current
     var readiness by remember { mutableStateOf(LocationAccess.readiness(context)) }
     val recheck = { readiness = LocationAccess.readiness(context) }
+    val mockDetected by MockLocation.detected.collectAsStateWithLifecycle()
 
     // Periksa ulang setiap kali pengguna kembali dari dialog izin / Pengaturan.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -76,11 +86,78 @@ fun LocationGate(content: @Composable () -> Unit) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(readiness.ready) {
-        if (readiness.ready) LocationTrackingService.start(context.applicationContext)
+    LaunchedEffect(readiness.ready, startTracking) {
+        if (readiness.ready && startTracking) LocationTrackingService.start(context.applicationContext)
     }
 
-    if (readiness.ready) content() else LocationRequiredScreen(readiness, onChanged = recheck)
+    when {
+        mockDetected -> MockLocationScreen()
+        readiness.ready -> content()
+        else -> LocationRequiredScreen(readiness, onChanged = recheck)
+    }
+}
+
+/** Layar blokir saat aplikasi lokasi palsu (Fake GPS / mock location) terdeteksi. */
+@Composable
+private fun MockLocationScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var checking by remember { mutableStateOf(false) }
+    var stillMock by remember { mutableStateOf(false) }
+
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(Spacing.screen),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            IconBadge(Icons.Outlined.GppBad, MaterialTheme.colorScheme.error, size = 72.dp, iconSize = 36.dp)
+            Spacer(Modifier.height(Spacing.lg))
+            Text("Lokasi palsu terdeteksi", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(Spacing.sm))
+            Text(
+                "Sinden 2 mendeteksi aplikasi lokasi palsu (Fake GPS / mock location) di perangkat ini. " +
+                    "Demi keamanan sistem, aplikasi tidak dapat dipakai dan kejadian ini telah dilaporkan ke Admin.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(Spacing.lg))
+            SindenCard(Modifier.fillMaxWidth()) {
+                Text("Cara memulihkan:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(Spacing.xs))
+                Text(
+                    "1. Hapus / matikan aplikasi Fake GPS.\n" +
+                        "2. Buka Pengaturan → Opsi Pengembang → \"Pilih aplikasi lokasi tiruan\" → Tidak ada.\n" +
+                        "3. Pastikan GPS aktif, lalu tekan Periksa ulang.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            if (stillMock) {
+                Spacer(Modifier.height(Spacing.md))
+                Hint("Lokasi palsu masih terdeteksi. Pastikan langkah di atas sudah dilakukan.")
+            }
+            Spacer(Modifier.height(Spacing.lg))
+            PrimaryButton(
+                "Periksa ulang",
+                loading = checking,
+                onClick = {
+                    checking = true
+                    scope.launch {
+                        stillMock = MockLocation.recheck(context.applicationContext)
+                        checking = false
+                    }
+                },
+            )
+            TextButton(onClick = {
+                runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            }) { Text("Buka Opsi Pengembang") }
+        }
+    }
 }
 
 @Composable

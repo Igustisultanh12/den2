@@ -11,7 +11,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /** Alasan sesi berakhir, untuk pesan di layar login. */
-enum class LogoutReason { USER, EXPIRED, DISABLED }
+enum class LogoutReason { USER, EXPIRED, DISABLED, MOCK_LOCATION }
 
 sealed interface SessionState {
     data object Restoring : SessionState
@@ -90,5 +90,11 @@ class SessionManager(
     fun onAccountDisabled() {
         if (token == null) return
         scope.launch { end(LogoutReason.DISABLED) }
+    }
+
+    /** Dipanggil saat server mengakhiri sesi karena lokasi palsu (403 mock_location). */
+    fun onMockLocation() {
+        if (token == null) return
+        scope.launch { end(LogoutReason.MOCK_LOCATION) }
     }
 }
