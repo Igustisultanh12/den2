@@ -121,34 +121,65 @@ data class SkhppMemberInput(
     val jabatan: String,
 )
 
-// ===================================================== Rekening Komandan
+// =================================================== Arsip & Nomor SKHPP
 
-data class CommanderTxDto(
+data class SkhppArchiveDto(
     @SerializedName("id") val id: Int = 0,
+    @SerializedName("jenis") val jenis: String? = null,          // D | P
+    @SerializedName("sumber") val sumber: String? = null,        // sinden | manual
+    @SerializedName("priority") val priority: String? = null,
+    @SerializedName("nomor_urut") val nomorUrut: Int? = null,
+    /** "12" atau nomor sisipan "12a". */
+    @SerializedName("nomor_urut_label") val nomorUrutLabel: String? = null,
+    @SerializedName("nomor_skhpp") val nomorSkhpp: String? = null,
     @SerializedName("tanggal") val tanggal: String? = null,
-    @SerializedName("jenis") val jenis: String? = null,
-    @SerializedName("jumlah") val jumlah: Double = 0.0,
+    @SerializedName("nama") val nama: String? = null,
+    @SerializedName("perihal") val perihal: String? = null,
+    @SerializedName("peruntukan") val peruntukan: String? = null,
     @SerializedName("keterangan") val keterangan: String? = null,
-    @SerializedName("petugas_input") val petugasInput: String? = null,
+    @SerializedName("status") val status: String? = null,        // menunggu_pdf | tersimpan | dicabut
+    @SerializedName("status_label") val statusLabel: String? = null,
+    @SerializedName("skhpp_status") val skhppStatus: String? = null,
+    @SerializedName("has_file") val hasFile: Boolean = false,
+    @SerializedName("created_by") val createdBy: String? = null,
 ) {
-    val isIncome: Boolean get() = jenis.equals("MASUK", ignoreCase = true)
-    val dateOnly: String? get() = tanggal?.take(10)
+    val jenisLabel: String get() = if (jenis == "P") "SKHPP-P" else "SKHPP-D"
+    val isManual: Boolean get() = sumber == "manual"
+    val isRevoked: Boolean get() = status == "dicabut"
+    val canUpload: Boolean get() = !nomorSkhpp.isNullOrBlank() && !isRevoked
+
+    /** Tahap SKHPP dari menu Penerbitan (null untuk SKHPP manual). */
+    val stageLabel: String?
+        get() = if (isManual) null else when (skhppStatus) {
+            "approved" -> "TTE Komandan terbit"
+            "rejected" -> "Dikembalikan untuk revisi"
+            null -> if (isRevoked) "SKHPP dihapus" else null
+            else -> "Menunggu TTE/TTD Komandan"
+        }
 }
 
-data class CommanderAccountResponse(
-    @SerializedName("status") val status: String? = null,
-    @SerializedName("total_masuk") val totalMasuk: Double = 0.0,
-    @SerializedName("total_keluar") val totalKeluar: Double = 0.0,
-    @SerializedName("saldo_akhir") val saldoAkhir: Double = 0.0,
-    @SerializedName("can_manage") val canManage: Boolean = false,
-    @SerializedName("data") val data: List<CommanderTxDto>? = null,
+data class SkhppNumberSummary(
+    @SerializedName("last") val last: Int = 0,
+    @SerializedName("next") val next: Int = 1,
 )
 
-data class CommanderTxRequest(
-    @SerializedName("tanggal") val tanggal: String,
+data class SkhppArchiveResponse(
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("year") val year: Int = 0,
+    @SerializedName("summary") val summary: Map<String, SkhppNumberSummary>? = null,
+    @SerializedName("data") val data: List<SkhppArchiveDto>? = null,
+)
+
+/** Sifat SKHPP selalu RAHASIA (diatur server). */
+data class SkhppNumberRequest(
     @SerializedName("jenis") val jenis: String,
-    @SerializedName("jumlah") val jumlah: Double,
-    @SerializedName("keterangan") val keterangan: String,
+    @SerializedName("tanggal") val tanggal: String,
+    /** Opsional: nomor khusus / sisipan, mis. "12a". */
+    @SerializedName("custom_nomor_urut") val customNomorUrut: String?,
+    @SerializedName("perihal") val perihal: String,
+    @SerializedName("nama") val nama: String?,
+    @SerializedName("peruntukan") val peruntukan: String?,
+    @SerializedName("keterangan") val keterangan: String?,
 )
 
 // ================================================================= Mitra

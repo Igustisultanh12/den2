@@ -353,40 +353,44 @@ class SkhppController extends Controller
         $romanMonth = SkhppNumberService::romanMonth((int) date('n'));
         $jenis = SkhppNumberService::jenisFor($skhpp->kategori_personel);
 
-        $priority = strtoupper((string) $request->input('priority', 'R')); // R (RAHASIA), B (BIASA), K (KILAT), SR
-        if (!array_key_exists($priority, SkhppNumberService::PRIORITIES)) {
-            $priority = 'R';
-        }
+        $priority = SkhppNumberService::PRIORITY; // SKHPP selalu RAHASIA
 
+        // Nomor khusus (boleh sisipan berhuruf, mis. "12a")
+        $custom = null;
         if ($request->filled('custom_nomor_urut')) {
-            $custom = (int) $request->custom_nomor_urut;
-            if ($custom < 1) {
-                return back()->with('error', 'Nomor urut SKHPP tidak valid.');
+            $custom = SkhppNumberService::parse($request->custom_nomor_urut);
+            if (!$custom) {
+                return back()->with('error', 'Nomor urut SKHPP tidak valid. Gunakan angka, boleh diikuti huruf sisipan (cth: 12 atau 12a).');
             }
-            if (SkhppNumberService::isTaken($jenis, $currentYear, $custom, null, $skhpp->id)) {
-                return back()->with('error', "Nomor urut {$custom} SKHPP-{$jenis} tahun {$currentYear} sudah dipakai. Gunakan nomor lain.");
+            if (SkhppNumberService::isTaken($jenis, $currentYear, $custom[0], null, $skhpp->id, $custom[1])) {
+                $label = SkhppNumberService::label(...$custom);
+                return back()->with('error', "Nomor urut {$label} SKHPP-{$jenis} tahun {$currentYear} sudah dipakai. Gunakan nomor lain.");
             }
         }
 
         // PENOMORAN TERPISAH SKHPP-D & SKHPP-P (BERSAMBUNG DENGAN NOMOR MANUAL DI ARSIP SKHPP)
         // & PERTAHANKAN NOMOR SAAT PENGAJUAN ULANG / SUDAH DIATUR ADMIN
-        [$nextSeq, $formattedNo] = SkhppNumberService::withLock($jenis, function () use ($request, $skhpp, $user, $jenis, $currentYear, $romanMonth, $priority) {
-            if ($request->filled('custom_nomor_urut')) {
-                $nextSeq = (int) $request->custom_nomor_urut;
+        [$nextSeq, $formattedNo] = SkhppNumberService::withLock($jenis, function () use ($request, $skhpp, $user, $jenis, $currentYear, $romanMonth, $priority, $custom) {
+            if ($custom) {
+                [$nextSeq, $suffix] = $custom;
             } elseif (!empty($skhpp->nomor_urut) && (int) $skhpp->nomor_urut > 0) {
                 $nextSeq = (int) $skhpp->nomor_urut;
+                $suffix = $skhpp->nomor_sisipan ?: null;
             } else {
                 $nextSeq = SkhppNumberService::nextSequence($jenis, $currentYear);
+                $suffix = null;
             }
+            $label = SkhppNumberService::label($nextSeq, $suffix);
 
             $formattedNo = $request->filled('custom_nomor_skhpp')
                 ? trim($request->custom_nomor_skhpp)
-                : SkhppNumberService::format($priority, $nextSeq, $romanMonth, $currentYear);
+                : SkhppNumberService::format($priority, $label, $romanMonth, $currentYear);
 
             $skhpp->update([
                 'status' => 'approved',
                 'nomor_skhpp' => $formattedNo,
                 'nomor_urut' => $nextSeq,
+                'nomor_sisipan' => $suffix,
                 'bulan_romawi' => $romanMonth,
                 'tahun' => $currentYear,
                 'tanggal_skhpp' => now(),
@@ -398,7 +402,7 @@ class SkhppController extends Controller
             $archive = SkhppArchive::syncFromSkhpp($skhpp);
             $archive->update(['priority' => $priority]);
 
-            return [$nextSeq, $formattedNo];
+            return [$label, $formattedNo];
         });
 
         // TTE TERBIT: PDF RESMI LANGSUNG TERSIMPAN DI ARSIP SKHPP
@@ -708,31 +712,37 @@ class SkhppController extends Controller
             return back()->with('error', 'Hanya Admin yang berwenang mengoperasikan fitur Atur Nomor.');
         }
 
+        // Angka, boleh diikuti huruf sisipan (cth: 12 atau 12a)
         $request->validate([
-            'custom_nomor_urut' => 'required|integer|min:1',
-        ]);
+            'custom_nomor_urut' => ['required', SkhppNumberService::SEQUENCE_RULE],
+        ], ['custom_nomor_urut.regex' => 'Nomor urut berupa angka, boleh diikuti huruf sisipan (cth: 12 atau 12a).']);
 
         $skhpp = Skhpp::findOrFail($id);
-        $nextSeq = (int)$request->custom_nomor_urut;
+        $parsed = SkhppNumberService::parse($request->custom_nomor_urut);
+        if (!$parsed) {
+            return back()->with('error', 'Nomor urut SKHPP tidak valid.');
+        }
+        [$seq, $suffix] = $parsed;
+        $nextSeq = SkhppNumberService::label($seq, $suffix);
 
         $currentYear = (int) date('Y');
         $romanMonth = SkhppNumberService::romanMonth((int) date('n'));
 
         $jenis = SkhppNumberService::jenisFor($skhpp->kategori_personel);
         $targetCode = 'SKHPP-' . $jenis;
-        $archive = SkhppArchive::where('skhpp_id', $skhpp->id)->first();
-        $priority = $archive?->priority ?: 'R';
+        $priority = SkhppNumberService::PRIORITY; // SKHPP selalu RAHASIA
 
-        if (SkhppNumberService::isTaken($jenis, $currentYear, $nextSeq, null, $skhpp->id)) {
+        if (SkhppNumberService::isTaken($jenis, $currentYear, $seq, null, $skhpp->id, $suffix)) {
             return back()->with('error', "Nomor urut {$nextSeq} {$targetCode} tahun {$currentYear} sudah dipakai (SINDEN / manual). Gunakan nomor lain.");
         }
 
         $formattedNo = SkhppNumberService::format($priority, $nextSeq, $romanMonth, $currentYear);
 
-        SkhppNumberService::withLock($jenis, function () use ($skhpp, $formattedNo, $nextSeq, $romanMonth, $currentYear) {
+        SkhppNumberService::withLock($jenis, function () use ($skhpp, $formattedNo, $seq, $suffix, $romanMonth, $currentYear) {
             $skhpp->update([
                 'nomor_skhpp' => $formattedNo,
-                'nomor_urut' => $nextSeq,
+                'nomor_urut' => $seq,
+                'nomor_sisipan' => $suffix,
                 'bulan_romawi' => $romanMonth,
                 'tahun' => $currentYear,
             ]);

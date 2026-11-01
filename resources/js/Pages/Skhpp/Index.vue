@@ -43,7 +43,7 @@ const resetFilter = () => {
 };
 
 const approveSkhpp = (skhpp) => {
-    const defaultSeq = (skhpp.nomor_urut || '');
+    const defaultSeq = skhpp.nomor_urut ? `${skhpp.nomor_urut}${skhpp.nomor_sisipan || ''}` : '';
     const katCode = (skhpp.kategori_personel === 'perusahaan') ? 'SKHPP-P (Mitra Kerja/Perusahaan)' : 'SKHPP-D (Dinas Militer & PNS)';
 
     Swal.fire({
@@ -57,17 +57,8 @@ const approveSkhpp = (skhpp) => {
                 
                 <div>
                     <label class="block font-bold uppercase mb-1 text-slate-700 text-[10px]">Nomor Urut ${skhpp.kategori_personel === 'perusahaan' ? 'SKHPP-P' : 'SKHPP-D'} (Isi untuk Loncati Nomor)</label>
-                    <input id="swal-nomor-urut" type="number" value="${defaultSeq}" class="w-full text-xs font-bold p-2.5 border rounded-xl" placeholder="Kosongkan untuk otomatis urutan selanjutnya (cth: ${skhpp.kategori_personel === 'perusahaan' ? '15' : '180'})" />
-                    <span class="text-[9px] text-slate-400 mt-1 block">*Penomoran SKHPP-P dan SKHPP-D terpisah & independen.</span>
-                </div>
-
-                <div>
-                    <label class="block font-bold uppercase mb-1 text-slate-700 text-[10px]">Derajat Kecepatan / Prioritas Surat</label>
-                    <select id="swal-priority" class="w-full text-xs font-bold p-2.5 border rounded-xl">
-                        <option value="R" selected>R (RAHASIA)  Format: R / [NOMOR] / SKHPP / [BULAN] / [TAHUN]</option>
-                        <option value="B">B (BIASA)  Format: B / [NOMOR] / SKHPP / [BULAN] / [TAHUN]</option>
-                        <option value="K">K (KILAT)  Format: K / [NOMOR] / SKHPP / [BULAN] / [TAHUN]</option>
-                    </select>
+                    <input id="swal-nomor-urut" type="text" maxlength="10" value="${defaultSeq}" class="w-full text-xs font-bold p-2.5 border rounded-xl" placeholder="Kosongkan untuk otomatis (boleh sisipan, cth: ${skhpp.kategori_personel === 'perusahaan' ? '15a' : '180a'})" />
+                    <span class="text-[9px] text-slate-400 mt-1 block">*Penomoran SKHPP-P dan SKHPP-D terpisah. Sifat selalu RAHASIA: R / [NOMOR] / SKHPP / [BULAN] / [TAHUN]</span>
                 </div>
             </div>
         `,
@@ -77,9 +68,12 @@ const approveSkhpp = (skhpp) => {
         cancelButtonText: 'Batal',
         confirmButtonColor: '#059669',
         preConfirm: () => {
-            const seq = document.getElementById('swal-nomor-urut').value;
-            const prio = document.getElementById('swal-priority').value;
-            return { custom_nomor_urut: seq, priority: prio };
+            const seq = document.getElementById('swal-nomor-urut').value.trim();
+            if (seq && !/^\d+[a-zA-Z]{0,3}$/.test(seq)) {
+                Swal.showValidationMessage('Nomor urut berupa angka, boleh diikuti huruf sisipan (cth: 12 atau 12a).');
+                return false;
+            }
+            return seq ? { custom_nomor_urut: seq } : {};
         }
     }).then((result) => {
         if (result.isConfirmed && result.value) {
@@ -99,7 +93,7 @@ const changeNomorSkhpp = (skhpp) => {
                 <p class="text-slate-600">Atur atau ubah nomor urut khusus untuk <b>${skhpp.nama}</b> (${katCode}):</p>
                 <div>
                     <label class="block font-bold uppercase mb-1 text-slate-700 text-[10px]">Nomor Urut Baru (${katCode})</label>
-                    <input id="swal-new-seq" type="number" value="${skhpp.nomor_urut || ''}" class="w-full text-xs font-bold p-2.5 border rounded-xl" placeholder="Ketik nomor urut (contoh: ${skhpp.kategori_personel === 'perusahaan' ? '15' : '180'})" />
+                    <input id="swal-new-seq" type="text" maxlength="10" value="${skhpp.nomor_urut ? `${skhpp.nomor_urut}${skhpp.nomor_sisipan || ''}` : ''}" class="w-full text-xs font-bold p-2.5 border rounded-xl" placeholder="Ketik nomor urut (contoh: ${skhpp.kategori_personel === 'perusahaan' ? '15 atau 15a' : '180 atau 180a'})" />
                     <span class="text-[9px] text-slate-400 mt-1 block">*Nomor urut ${katCode} berjalan independen tanpa mempengaruhi kategori lain.</span>
                 </div>
             </div>
@@ -108,7 +102,12 @@ const changeNomorSkhpp = (skhpp) => {
         confirmButtonText: 'Simpan Nomor',
         confirmButtonColor: '#2563eb',
         preConfirm: () => {
-            return document.getElementById('swal-new-seq').value;
+            const seq = document.getElementById('swal-new-seq').value.trim();
+            if (!/^\d+[a-zA-Z]{0,3}$/.test(seq)) {
+                Swal.showValidationMessage('Nomor urut berupa angka, boleh diikuti huruf sisipan (cth: 12 atau 12a).');
+                return false;
+            }
+            return seq;
         }
     }).then((result) => {
         if (result.isConfirmed && result.value) {

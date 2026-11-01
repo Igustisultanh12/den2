@@ -2,7 +2,7 @@ package id.my.sisinden.app.ui.navigation
 
 import android.net.Uri
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Create
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.Gavel
@@ -49,7 +49,7 @@ enum class Feature(
     LETTER_LOGS(Routes.LETTERS, "Agenda Surat", "Penomoran & rekap surat", Icons.Outlined.Email, Perm.LETTER_LOGS_VIEW, FeatureGroup.ADMINISTRASI, Tone.INFO),
     SKHPP(Routes.SKHPP, "SKHPP", "Hasil penelitian personel", Icons.Outlined.VerifiedUser, Perm.SKHPP_VIEW, FeatureGroup.ADMINISTRASI, Tone.SUCCESS),
     SIGNATURE(Routes.SIGNATURE, "Tanda Tangan", "Antrean TTE Komandan", Icons.Outlined.Create, Perm.SIGNATURE_VIEW, FeatureGroup.ADMINISTRASI, Tone.WARNING),
-    COMMANDER(Routes.COMMANDER, "Rekening Komandan", "Mutasi rekening komandan", Icons.Outlined.AccountBalance, Perm.COMMANDER_VIEW, FeatureGroup.KEUANGAN, Tone.NEUTRAL),
+    SKHPP_ARCHIVE(Routes.SKHPP_ARCHIVE, "Arsip SKHPP", "Arsip PDF & nomor SKHPP-D / P", Icons.Outlined.Archive, Perm.SKHPP_ARCHIVE_VIEW, FeatureGroup.ADMINISTRASI, Tone.SUCCESS),
     MITRA(Routes.MITRA, "Mitra", "Pembayaran mitra bulanan", Icons.Outlined.People, Perm.MITRA_VIEW, FeatureGroup.KEUANGAN, Tone.WARNING),
     TRACKING(Routes.TRACKING, "Pantau Personel", "Posisi realtime personel", Icons.Outlined.PersonPinCircle, Perm.TRACKING_VIEW, FeatureGroup.PERSONEL, Tone.INFO),
     VIOLATIONS(Routes.VIOLATIONS, "Pelanggaran", "Catatan disiplin prajurit", Icons.Outlined.Gavel, Perm.VIOLATIONS_VIEW, FeatureGroup.PERSONEL, Tone.DANGER),
@@ -65,7 +65,7 @@ enum class Feature(
             LETTER_LOGS -> TilePalette.Sky
             SKHPP -> TilePalette.Violet
             SIGNATURE -> TilePalette.Orange
-            COMMANDER -> TilePalette.Blue
+            SKHPP_ARCHIVE -> TilePalette.Teal
             MITRA -> TilePalette.Sky
             TRACKING -> TilePalette.Teal
             VIOLATIONS -> TilePalette.Rose
@@ -95,7 +95,7 @@ object Routes {
     const val SKHPP = "skhpp"
     const val SKHPP_FORM = "skhpp_form"
     const val SIGNATURE = "signature"
-    const val COMMANDER = "commander"
+    const val SKHPP_ARCHIVE = "skhpp_archive"
     const val MITRA = "mitra"
     const val VIOLATIONS = "violations"
     const val VIOLATION_FORM = "violation_form"

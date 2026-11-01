@@ -158,6 +158,52 @@ class SkhppArchiveTest extends TestCase
         $this->assertSame(51, (int) SkhppArchive::max('nomor_urut'));
     }
 
+    public function test_skhpp_is_always_rahasia_and_supports_inserted_numbers_with_letters(): void
+    {
+        $admin = $this->user('admin');
+        $operator = $this->user('personel', ['feature_access' => ['skhpp_archive']]);
+        $roman = \App\Services\SkhppNumberService::romanMonth((int) date('n'));
+
+        // Sifat yang dikirim selain R diabaikan: SKHPP selalu RAHASIA.
+        $this->requestManual($operator, 'D', ['priority' => 'B']);
+        $this->assertSame("R / 1 / SKHPP / {$roman} / {$this->year}", SkhppArchive::latest('id')->value('nomor_skhpp'));
+        $this->requestManual($operator, 'D');                       // 2
+
+        // Personel boleh nomor sisipan dari nomor yang sudah terbit.
+        $this->requestManual($operator, 'D', ['custom_nomor_urut' => '1A'])->assertSessionHas('success');
+        $sisipan = SkhppArchive::latest('id')->first();
+        $this->assertSame("R / 1a / SKHPP / {$roman} / {$this->year}", $sisipan->nomor_skhpp);
+        $this->assertSame(1, $sisipan->nomor_urut);
+        $this->assertSame('a', $sisipan->nomor_sisipan);
+        $this->assertSame('1a', $sisipan->nomor_urut_label);
+
+        // Sisipan yang sama tidak boleh dipakai dua kali.
+        $this->requestManual($operator, 'D', ['custom_nomor_urut' => '1a'])->assertSessionHas('error');
+        // Personel tidak boleh meloncati nomor / sisipan dari nomor yang belum terbit.
+        $this->requestManual($operator, 'D', ['custom_nomor_urut' => '50'])->assertSessionHas('error');
+        $this->requestManual($operator, 'D', ['custom_nomor_urut' => '9a'])->assertSessionHas('error');
+        // Format tidak valid ditolak.
+        $this->requestManual($operator, 'D', ['custom_nomor_urut' => 'a1'])->assertSessionHasErrors('custom_nomor_urut');
+
+        // Nomor otomatis tetap lanjut dari angka terbesar (sisipan tidak menggeser urutan).
+        $this->requestManual($operator, 'D');
+        $this->assertSame(3, (int) SkhppArchive::latest('id')->value('nomor_urut'));
+
+        // Menu SINDEN: Komandan menyetujui dengan nomor sisipan & sifat lain diabaikan.
+        $s = $this->skhpp($admin);
+        $this->actingAs($admin)->post(route('skhpp.approve', $s->id), ['priority' => 'K', 'custom_nomor_urut' => '2b'])->assertSessionHas('success');
+        $s->refresh();
+        $this->assertSame("R / 2b / SKHPP / {$roman} / {$this->year}", $s->nomor_skhpp);
+        $this->assertSame('b', $s->nomor_sisipan);
+        $this->assertSame('b', SkhppArchive::where('skhpp_id', $s->id)->value('nomor_sisipan'));
+
+        // Atur nomor (Admin) juga menerima sisipan & menolak yang sudah dipakai.
+        $s2 = $this->skhpp($admin);
+        $this->actingAs($admin)->post(route('skhpp.update-number', $s2->id), ['custom_nomor_urut' => '2b'])->assertSessionHas('error');
+        $this->actingAs($admin)->post(route('skhpp.update-number', $s2->id), ['custom_nomor_urut' => '2c'])->assertSessionHas('success');
+        $this->assertSame("R / 2c / SKHPP / {$roman} / {$this->year}", $s2->fresh()->nomor_skhpp);
+    }
+
     public function test_deleting_numbered_skhpp_marks_archive_revoked_and_number_is_not_reused(): void
     {
         $admin = $this->user('admin');
@@ -249,6 +295,42 @@ class SkhppArchiveTest extends TestCase
 
         $this->assertSame(6, \App\Services\SkhppNumberService::nextSequence('D', 2026));
         $this->assertSame(3, \App\Services\SkhppNumberService::nextSequence('P', 2026));
+    }
+
+    public function test_mobile_api_lists_requests_uploads_and_streams_archive(): void
+    {
+        $operator = $this->user('personel', ['feature_access' => ['skhpp_archive']]);
+        $token = $operator->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->postJson('/api/mobile/skhpp-archives', [
+            'jenis' => 'P', 'priority' => 'B', 'tanggal' => now()->toDateString(), 'perihal' => 'SKHPP mitra dari HP',
+        ])->assertOk()->assertJsonPath('status', 'success');
+
+        $archive = SkhppArchive::latest('id')->first();
+        $this->assertSame('P', $archive->jenis);
+        $this->assertSame(1, $archive->nomor_urut);
+
+        $this->withToken($token)->getJson('/api/mobile/skhpp-archives?jenis=P')
+            ->assertOk()
+            ->assertJsonPath('data.0.nomor_skhpp', $archive->nomor_skhpp)
+            ->assertJsonPath('data.0.status', 'menunggu_pdf')
+            ->assertJsonPath('summary.P.next', 2);
+
+        // Validasi dikembalikan sebagai JSON 422.
+        $this->withToken($token)->postJson('/api/mobile/skhpp-archives', ['jenis' => 'X'])->assertStatus(422);
+
+        $this->withToken($token)->post("/api/mobile/skhpp-archives/{$archive->id}/upload", [
+            'file' => UploadedFile::fake()->create('skhpp.pdf', 20, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertOk()->assertJsonPath('status', 'success');
+        $this->assertSame(SkhppArchive::STATUS_TERSIMPAN, $archive->fresh()->status);
+
+        $this->withToken($token)->get("/api/mobile/pdf/skhpp-archive/{$archive->id}")
+            ->assertOk()->assertHeader('Content-Type', 'application/pdf');
+
+        // Tanpa fitur Arsip SKHPP: ditolak.
+        $other = $this->user('personel');
+        $this->withToken($other->createToken('t')->plainTextToken)->getJson('/api/mobile/skhpp-archives')->assertForbidden();
+        $this->assertNotContains('skhpp_archive.view', \App\Support\MobileAccess::grantedAbilities($other));
     }
 
     public function test_personel_without_archive_feature_is_blocked(): void

@@ -14,12 +14,15 @@ use Illuminate\Support\Facades\DB;
  * nomor manual. Aturan:
  *   - SKHPP-D (Dinas Militer & PNS) dan SKHPP-P (Mitra/Perusahaan) punya urutan sendiri.
  *   - Urutan berlanjut per tahun; nomor manual melanjutkan nomor SINDEN dan sebaliknya.
- *   - Format: {sifat} / {urut} / SKHPP / {bulan romawi} / {tahun}  (contoh: R / 171 / SKHPP / VIII / 2026)
+ *   - Sifat SKHPP selalu RAHASIA (R).
+ *   - Format: R / {urut} / SKHPP / {bulan romawi} / {tahun}  (contoh: R / 171 / SKHPP / VIII / 2026)
  */
 class SkhppNumberService
 {
     public const ROMAN = [1 => 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-    public const PRIORITIES = ['B' => 'BIASA', 'R' => 'RAHASIA', 'K' => 'KILAT', 'SR' => 'SANGAT RAHASIA'];
+    /** SKHPP selalu bersifat RAHASIA. */
+    public const PRIORITY = 'R';
+    public const PRIORITIES = ['R' => 'RAHASIA'];
 
     public static function jenisFor(?string $kategoriPersonel): string
     {
@@ -31,10 +34,36 @@ class SkhppNumberService
         return self::ROMAN[$month] ?? 'I';
     }
 
-    public static function format(string $priority, int $sequence, string $romanMonth, int $year): string
+    /** @param int|string $sequence angka urut atau label sisipan (mis. "12a") */
+    public static function format(string $priority, int|string $sequence, string $romanMonth, int $year): string
     {
         return "{$priority} / {$sequence} / SKHPP / {$romanMonth} / {$year}";
     }
+
+    /**
+     * Uraikan nomor urut ketikan petugas: "12" => [12, null], "12A" => [12, "a"].
+     * Mengembalikan null bila formatnya tidak valid.
+     *
+     * @return array{0:int,1:?string}|null
+     */
+    public static function parse(int|string|null $input): ?array
+    {
+        if (!preg_match('/^\s*0*(\d{1,6})\s*([a-zA-Z]{1,3})?\s*$/', (string) $input, $m) || (int) $m[1] < 1) {
+            return null;
+        }
+        $suffix = isset($m[2]) && $m[2] !== '' ? strtolower($m[2]) : null;
+
+        return [(int) $m[1], $suffix];
+    }
+
+    /** "12" atau "12a" */
+    public static function label(int $sequence, ?string $suffix): string
+    {
+        return $sequence . ($suffix ?? '');
+    }
+
+    /** Aturan validasi nomor urut (angka, boleh diikuti 1–3 huruf sisipan). */
+    public const SEQUENCE_RULE = 'regex:/^\s*\d{1,6}\s*[a-zA-Z]{0,3}\s*$/';
 
     /** Nomor urut terbesar yang sudah terpakai untuk jenis & tahun tersebut. */
     public static function lastSequence(string $jenis, int $year): int
@@ -75,9 +104,14 @@ class SkhppNumberService
     }
 
     /** Apakah nomor urut sudah dipakai (oleh SKHPP SINDEN maupun manual). */
-    public static function isTaken(string $jenis, int $year, int $sequence, ?int $ignoreArchiveId = null, ?int $ignoreSkhppId = null): bool
+    public static function isTaken(string $jenis, int $year, int $sequence, ?int $ignoreArchiveId = null, ?int $ignoreSkhppId = null, ?string $suffix = null): bool
     {
+        $sameSuffix = fn ($q) => $suffix === null
+            ? $q->where(fn ($w) => $w->whereNull('nomor_sisipan')->orWhere('nomor_sisipan', ''))
+            : $q->where('nomor_sisipan', $suffix);
+
         $archive = SkhppArchive::where('jenis', $jenis)->where('tahun', $year)->where('nomor_urut', $sequence)
+            ->where($sameSuffix)
             ->where('status', '!=', SkhppArchive::STATUS_DICABUT)
             ->when($ignoreArchiveId, fn ($q) => $q->where('id', '!=', $ignoreArchiveId))
             ->when($ignoreSkhppId, fn ($q) => $q->where(fn ($w) => $w->whereNull('skhpp_id')->orWhere('skhpp_id', '!=', $ignoreSkhppId)))
@@ -87,6 +121,7 @@ class SkhppNumberService
         }
 
         $skhpp = Skhpp::where('tahun', $year)->where('nomor_urut', $sequence)
+            ->where($sameSuffix)
             ->when($ignoreSkhppId, fn ($q) => $q->where('id', '!=', $ignoreSkhppId));
         $jenis === 'P'
             ? $skhpp->where('kategori_personel', 'perusahaan')

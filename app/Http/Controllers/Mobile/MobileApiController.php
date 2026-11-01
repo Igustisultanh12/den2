@@ -197,6 +197,13 @@ class MobileApiController extends Controller
         return $this->pdfResponse(fn () => app(SkhppController::class)->exportPdf($id));
     }
 
+    public function skhppArchivePdf(int $id)
+    {
+        $archive = \App\Models\SkhppArchive::findOrFail($id);
+        // Permission `skhpp_archive.view` ditegakkan oleh middleware route.
+        return $this->pdfResponse(fn () => app(\App\Http\Controllers\SkhppArchiveController::class)->file($archive));
+    }
+
     /**
      * Pastikan respons benar-benar PDF; kegagalan dikembalikan sebagai JSON
      * yang dapat dibaca aplikasi (bukan halaman HTML).

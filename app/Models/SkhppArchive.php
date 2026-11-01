@@ -30,7 +30,7 @@ class SkhppArchive extends Model
 
     protected $fillable = [
         'skhpp_id', 'letter_log_id', 'sumber', 'jenis', 'priority',
-        'nomor_urut', 'bulan_romawi', 'tahun', 'nomor_skhpp', 'tanggal',
+        'nomor_urut', 'nomor_sisipan', 'bulan_romawi', 'tahun', 'nomor_skhpp', 'tanggal',
         'nama', 'perihal', 'peruntukan', 'keterangan', 'status',
         'file_path', 'file_disk', 'uploaded_at', 'uploaded_by', 'created_by',
     ];
@@ -44,7 +44,13 @@ class SkhppArchive extends Model
 
     protected $hidden = ['file_path', 'file_disk'];
 
-    protected $appends = ['status_label', 'jenis_label', 'has_file'];
+    protected $appends = ['status_label', 'jenis_label', 'has_file', 'nomor_urut_label'];
+
+    /** "12" atau "12a" (nomor sisipan). */
+    public function getNomorUrutLabelAttribute(): ?string
+    {
+        return $this->nomor_urut ? $this->nomor_urut . ($this->nomor_sisipan ?? '') : null;
+    }
 
     public function skhpp()
     {
@@ -101,6 +107,7 @@ class SkhppArchive extends Model
             'sumber' => 'sinden',
             'jenis' => \App\Services\SkhppNumberService::jenisFor($skhpp->kategori_personel),
             'nomor_urut' => $skhpp->nomor_urut ?: null,
+            'nomor_sisipan' => $skhpp->nomor_sisipan ?: null,
             'bulan_romawi' => $skhpp->bulan_romawi ?: null,
             'tahun' => $skhpp->tahun ?: null,
             'nomor_skhpp' => $skhpp->nomor_skhpp ?: null,

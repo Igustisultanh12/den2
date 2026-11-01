@@ -9,7 +9,6 @@ use App\Services\SkhppPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 /**
@@ -71,7 +70,6 @@ class SkhppArchiveController extends Controller
             'summary' => $summary,
             'year' => $year,
             'years' => SkhppArchive::whereNotNull('tahun')->distinct()->orderByDesc('tahun')->pluck('tahun'),
-            'priorities' => SkhppNumberService::PRIORITIES,
             'statusLabels' => SkhppArchive::STATUS_LABELS,
             'canManage' => $request->user()->isAdmin(),
         ]);
@@ -82,7 +80,6 @@ class SkhppArchiveController extends Controller
     {
         $data = $request->validate([
             'jenis' => 'required|in:D,P',
-            'priority' => ['nullable', Rule::in(array_keys(SkhppNumberService::PRIORITIES))],
             'tanggal' => 'nullable|date',
         ]);
 
@@ -92,7 +89,7 @@ class SkhppArchiveController extends Controller
 
         return response()->json([
             'sequence' => $seq,
-            'formatted' => SkhppNumberService::format($data['priority'] ?? 'R', $seq, SkhppNumberService::romanMonth((int) $date->format('n')), $year),
+            'formatted' => SkhppNumberService::format(SkhppNumberService::PRIORITY, $seq, SkhppNumberService::romanMonth((int) $date->format('n')), $year),
         ]);
     }
 
@@ -102,42 +99,51 @@ class SkhppArchiveController extends Controller
         $user = $request->user();
         $data = $request->validate([
             'jenis' => 'required|in:D,P',
-            'priority' => ['required', Rule::in(array_keys(SkhppNumberService::PRIORITIES))],
             'tanggal' => 'required|date',
             'nama' => 'nullable|string|max:255',
             'perihal' => 'required|string|max:255',
             'peruntukan' => 'nullable|string|max:2000',
             'keterangan' => 'nullable|string|max:2000',
-            'custom_nomor_urut' => 'nullable|integer|min:1|max:999999',
+            // Angka, boleh diikuti huruf sisipan (cth: 12 atau 12a)
+            'custom_nomor_urut' => ['nullable', SkhppNumberService::SEQUENCE_RULE],
             'file' => 'nullable|file|mimes:pdf|max:20480',
-        ]);
-
-        if (!empty($data['custom_nomor_urut']) && !$user->isAdmin()) {
-            return back()->with('error', 'Hanya Admin yang dapat menentukan nomor urut SKHPP secara khusus.');
-        }
+        ], ['custom_nomor_urut.regex' => 'Nomor urut berupa angka, boleh diikuti huruf sisipan (cth: 12 atau 12a).']);
 
         $date = \Carbon\Carbon::parse($data['tanggal']);
         $year = (int) $date->format('Y');
         $roman = SkhppNumberService::romanMonth((int) $date->format('n'));
         $jenis = $data['jenis'];
 
-        if (!empty($data['custom_nomor_urut']) && SkhppNumberService::isTaken($jenis, $year, (int) $data['custom_nomor_urut'])) {
-            return back()->with('error', "Nomor urut {$data['custom_nomor_urut']} SKHPP-{$jenis} tahun {$year} sudah dipakai.");
+        $custom = null;
+        if (!empty($data['custom_nomor_urut'])) {
+            $custom = SkhppNumberService::parse($data['custom_nomor_urut']);
+            if (!$custom) {
+                return back()->with('error', 'Nomor urut SKHPP tidak valid.');
+            }
+            $label = SkhppNumberService::label(...$custom);
+
+            // Personel non-Admin hanya boleh nomor sisipan (berhuruf) dari nomor yang sudah terbit,
+            // agar urutan otomatis tidak bisa diloncati.
+            if (!$user->isAdmin() && ($custom[1] === null || $custom[0] > SkhppNumberService::lastSequence($jenis, $year))) {
+                return back()->with('error', "Nomor khusus hanya boleh berupa nomor sisipan dari nomor yang sudah terbit (cth: 12a). Untuk meloncati nomor, hubungi Admin.");
+            }
+            if (SkhppNumberService::isTaken($jenis, $year, $custom[0], null, null, $custom[1])) {
+                return back()->with('error', "Nomor urut {$label} SKHPP-{$jenis} tahun {$year} sudah dipakai.");
+            }
         }
 
-        $archive = SkhppNumberService::withLock($jenis, function () use ($data, $user, $date, $year, $roman, $jenis) {
-            $seq = !empty($data['custom_nomor_urut'])
-                ? (int) $data['custom_nomor_urut']
-                : SkhppNumberService::nextSequence($jenis, $year);
+        $archive = SkhppNumberService::withLock($jenis, function () use ($data, $user, $date, $year, $roman, $jenis, $custom) {
+            [$seq, $suffix] = $custom ?? [SkhppNumberService::nextSequence($jenis, $year), null];
 
             return SkhppArchive::create([
                 'sumber' => 'manual',
                 'jenis' => $jenis,
-                'priority' => $data['priority'],
+                'priority' => SkhppNumberService::PRIORITY, // SKHPP selalu RAHASIA
                 'nomor_urut' => $seq,
+                'nomor_sisipan' => $suffix,
                 'bulan_romawi' => $roman,
                 'tahun' => $year,
-                'nomor_skhpp' => SkhppNumberService::format($data['priority'], $seq, $roman, $year),
+                'nomor_skhpp' => SkhppNumberService::format(SkhppNumberService::PRIORITY, SkhppNumberService::label($seq, $suffix), $roman, $year),
                 'tanggal' => $date->toDateString(),
                 'nama' => $data['nama'] ?? null,
                 'perihal' => $data['perihal'],

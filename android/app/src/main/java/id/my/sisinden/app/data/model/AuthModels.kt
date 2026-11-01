@@ -56,7 +56,6 @@ data class UserProfile(
     @SerializedName("can_access_skhpp") val legacySkhpp: Boolean? = null,
     @SerializedName("can_access_signature") val legacySignature: Boolean? = null,
     @SerializedName("can_access_cash") val legacyCash: Boolean? = null,
-    @SerializedName("can_access_commander") val legacyCommander: Boolean? = null,
     @SerializedName("can_access_mitra") val legacyMitra: Boolean? = null,
     @SerializedName("can_access_technical_cash") val legacyTechnicalCash: Boolean? = null,
     @SerializedName("can_access_violations") val legacyViolations: Boolean? = null,
@@ -104,7 +103,6 @@ data class UserProfile(
         if (legacySkhpp == true) p += listOf(Perm.SKHPP_VIEW)
         if (legacySignature == true) p += Perm.SIGNATURE_VIEW
         if (legacyCash == true) p += listOf(Perm.CASH_VIEW, Perm.CASH_MANAGE)
-        if (legacyCommander == true) p += Perm.COMMANDER_VIEW
         if (legacyMitra == true) p += listOf(Perm.MITRA_VIEW, Perm.MITRA_MANAGE)
         if (legacyTechnicalCash == true) p += listOf(Perm.TECHNICAL_CASH_VIEW, Perm.TECHNICAL_CASH_MANAGE)
         if (legacyViolations == true) p += Perm.VIOLATIONS_VIEW

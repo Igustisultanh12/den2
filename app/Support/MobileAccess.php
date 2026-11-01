@@ -147,6 +147,11 @@ class MobileAccess
             'skhpp.delete' => $admin,
             'skhpp.pdf' => $f('skhpp') || $f('signature'),
 
+            // Arsip & Nomor SKHPP (terpisah dari Agenda Surat)
+            'skhpp_archive.view' => $f('skhpp_archive'),
+            'skhpp_archive.create' => $f('skhpp_archive'),
+            'skhpp_archive.upload' => $f('skhpp_archive'),
+
             'signature.view' => $f('signature'),
             'signature.approve' => $commanderApproval && $f('signature'),
 

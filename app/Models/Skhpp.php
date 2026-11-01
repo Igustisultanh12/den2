@@ -16,6 +16,7 @@ class Skhpp extends Model
         'is_pernikahan',
         'nomor_skhpp',
         'nomor_urut',
+        'nomor_sisipan', // huruf nomor sisipan, mis. "a" untuk nomor 12a
         'bulan_romawi',
         'tahun',
         'tanggal_skhpp',

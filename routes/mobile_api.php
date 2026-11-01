@@ -357,6 +357,82 @@ Route::get('/api/mobile/duty-roster', [MobileApiController::class, 'dutyRoster']
 Route::get('/api/mobile/pdf/sp-jaga/{id}', [MobileApiController::class, 'dutyRosterPdf'])->whereNumber('id')->middleware('mobile.auth:duty_roster.pdf');
 Route::get('/api/mobile/pdf/letter-logs', [MobileApiController::class, 'letterLogsPdf'])->middleware('mobile.auth:letter_logs.pdf');
 Route::get('/api/mobile/pdf/skhpp/{id}', [MobileApiController::class, 'skhppPdf'])->whereNumber('id')->middleware('mobile.auth:skhpp.pdf');
+Route::get('/api/mobile/pdf/skhpp-archive/{id}', [MobileApiController::class, 'skhppArchivePdf'])->whereNumber('id')->middleware('mobile.auth:skhpp_archive.view');
+
+// =====================================================================
+// ARSIP & NOMOR SKHPP (App\Models\SkhppArchive) — logika sama dengan web
+// =====================================================================
+Route::get('/api/mobile/skhpp-archives', function (Request $request) {
+    try {
+        $query = \App\Models\SkhppArchive::with(['skhpp:id,status', 'creator:id,name'])
+            ->orderByRaw('CASE WHEN tahun IS NULL THEN 1 ELSE 0 END')
+            ->orderByDesc('tahun')->orderByDesc('created_at')->orderByDesc('id');
+
+        if ($request->filled('search')) {
+            $s = trim((string) $request->search);
+            $query->where(fn ($q) => $q->where('nomor_skhpp', 'like', "%{$s}%")
+                ->orWhere('nama', 'like', "%{$s}%")
+                ->orWhere('perihal', 'like', "%{$s}%"));
+        }
+        if (in_array($request->jenis, ['D', 'P'], true)) {
+            $query->where('jenis', $request->jenis);
+        }
+        if (array_key_exists((string) $request->status, \App\Models\SkhppArchive::STATUS_LABELS)) {
+            $query->where('status', $request->status);
+        }
+
+        $data = $query->take(300)->get()->map(fn ($a) => [
+            'id' => $a->id,
+            'jenis' => $a->jenis,
+            'sumber' => $a->sumber,
+            'priority' => $a->priority,
+            'nomor_urut' => $a->nomor_urut,
+            'nomor_urut_label' => $a->nomor_urut_label,
+            'nomor_skhpp' => $a->nomor_skhpp,
+            'tanggal' => $a->tanggal?->format('Y-m-d') ?? $a->created_at?->format('Y-m-d'),
+            'nama' => $a->nama,
+            'perihal' => $a->perihal,
+            'peruntukan' => $a->peruntukan,
+            'keterangan' => $a->keterangan,
+            'status' => $a->status,
+            'status_label' => $a->status_label,
+            'skhpp_status' => $a->skhpp?->status,
+            'has_file' => $a->has_file,
+            'created_by' => $a->creator?->name,
+        ]);
+
+        $year = (int) date('Y');
+        $summary = [];
+        foreach (['D', 'P'] as $j) {
+            $summary[$j] = [
+                'last' => \App\Services\SkhppNumberService::lastSequence($j, $year),
+                'next' => \App\Services\SkhppNumberService::nextSequence($j, $year),
+            ];
+        }
+
+        return response()->json(['status' => 'success', 'year' => $year, 'summary' => $summary, 'data' => $data]);
+    } catch (\Throwable $e) {
+        return mobile_error($e, 'Gagal memuat arsip SKHPP.');
+    }
+})->middleware('mobile.auth:skhpp_archive.view');
+
+// Minta nomor SKHPP manual: memakai SkhppArchiveController@store milik web (penguncian nomor sama).
+Route::post('/api/mobile/skhpp-archives', function (Request $request) {
+    $request->merge(mobile_payload($request));
+    return mobile_delegate(
+        fn () => app(\App\Http\Controllers\SkhppArchiveController::class)->store($request),
+        'Nomor SKHPP berhasil dibuat.'
+    );
+})->middleware(['mobile.auth:skhpp_archive.create', 'throttle:20,1']);
+
+// Unggah PDF SKHPP (multipart: file).
+Route::post('/api/mobile/skhpp-archives/{id}/upload', function (Request $request, $id) {
+    $archive = \App\Models\SkhppArchive::findOrFail($id);
+    return mobile_delegate(
+        fn () => app(\App\Http\Controllers\SkhppArchiveController::class)->upload($request, $archive),
+        'PDF SKHPP tersimpan.'
+    );
+})->whereNumber('id')->middleware(['mobile.auth:skhpp_archive.upload', 'throttle:20,1']);
 
 Route::get('/api/mobile/notifications', [MobileApiController::class, 'notifications'])->middleware('mobile.auth:notifications.view');
 Route::post('/api/mobile/notifications/read-all', [MobileApiController::class, 'markAllNotificationsRead'])->middleware('mobile.auth:notifications.view');

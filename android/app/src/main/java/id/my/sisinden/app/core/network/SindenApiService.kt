@@ -154,18 +154,20 @@ interface SindenApiService {
     @POST("api/mobile/signature-requests/{id}/reject")
     suspend fun rejectSignature(@Path("id") id: Int, @Body body: SignatureDecisionRequest): Response<SimpleResponse>
 
-    // ------------------------------------------------------ Rekening Komandan
-    @GET("api/mobile/commander-account")
-    suspend fun commanderAccount(@Query("month") month: String? = null): Response<CommanderAccountResponse>
+    // ------------------------------------------------------ Arsip & Nomor SKHPP
+    @GET("api/mobile/skhpp-archives")
+    suspend fun skhppArchives(
+        @Query("search") search: String? = null,
+        @Query("jenis") jenis: String? = null,
+        @Query("status") status: String? = null,
+    ): Response<SkhppArchiveResponse>
 
-    @POST("api/mobile/commander-account")
-    suspend fun createCommanderTx(@Body request: CommanderTxRequest): Response<SimpleResponse>
+    @POST("api/mobile/skhpp-archives")
+    suspend fun requestSkhppNumber(@Body request: SkhppNumberRequest): Response<SimpleResponse>
 
-    @PUT("api/mobile/commander-account/{id}")
-    suspend fun updateCommanderTx(@Path("id") id: Int, @Body request: CommanderTxRequest): Response<SimpleResponse>
-
-    @DELETE("api/mobile/commander-account/{id}")
-    suspend fun deleteCommanderTx(@Path("id") id: Int): Response<SimpleResponse>
+    @Multipart
+    @POST("api/mobile/skhpp-archives/{id}/upload")
+    suspend fun uploadSkhppArchive(@Path("id") id: Int, @Part file: MultipartBody.Part): Response<SimpleResponse>
 
     // ------------------------------------------------------ Mitra
     @GET("api/mobile/mitra")

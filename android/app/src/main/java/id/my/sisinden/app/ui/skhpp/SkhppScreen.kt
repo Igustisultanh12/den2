@@ -20,7 +20,6 @@ import androidx.compose.material.icons.outlined.Undo
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -233,22 +232,14 @@ fun SkhppScreen(
     }
 
     approving?.let { s ->
-        var priority by rememberSaveable { mutableStateOf("R") }
         FormSheet(title = "Setujui SKHPP", onDismiss = { approving = null }) {
             Text(
-                "SKHPP atas nama ${s.nama.orEmpty()} akan diberi nomor resmi dan TTE Komandan, sama seperti persetujuan di web.",
+                "SKHPP atas nama ${s.nama.orEmpty()} akan diberi nomor resmi bersifat RAHASIA (R / [nomor] / SKHPP / …) dan TTE Komandan. PDF resmi otomatis tersimpan di Arsip SKHPP.",
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Spacer(Modifier.height(Spacing.md))
-            Text("Derajat surat", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                listOf("R" to "Rahasia", "B" to "Biasa", "K" to "Kilat").forEach { (code, label) ->
-                    FilterChip(selected = priority == code, onClick = { priority = code }, label = { Text("$code — $label") })
-                }
-            }
             Spacer(Modifier.height(Spacing.lg))
             PrimaryButton("Setujui & terbitkan", loading = busy, onClick = {
-                vm.approve(s.id, priority) { approving = null; detail = null }
+                vm.approve(s.id, "R") { approving = null; detail = null }
             })
         }
     }

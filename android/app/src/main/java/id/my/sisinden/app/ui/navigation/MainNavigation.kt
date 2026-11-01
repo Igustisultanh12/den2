@@ -63,7 +63,7 @@ import id.my.sisinden.app.core.security.Perm
 import id.my.sisinden.app.core.security.PermissionSet
 import id.my.sisinden.app.data.repository.SindenRepository
 import id.my.sisinden.app.ui.attendance.AttendanceScreen
-import id.my.sisinden.app.ui.commander.CommanderScreen
+import id.my.sisinden.app.ui.skhpp.SkhppArchiveScreen
 import id.my.sisinden.app.ui.tracking.TrackingScreen
 import id.my.sisinden.app.ui.common.AccessDeniedScreen
 import id.my.sisinden.app.ui.dashboard.DashboardScreen
@@ -305,9 +305,9 @@ fun MainNavigation(
                     )
                 }
             }
-            composable(Routes.COMMANDER, deepLinks = appDeepLink("commander")) {
-                Guard(currentPerms(), Perm.COMMANDER_VIEW, back) {
-                    CommanderScreen(repository, currentPerms(), onBack = back, onOpenPdf = openPdf)
+            composable(Routes.SKHPP_ARCHIVE, deepLinks = appDeepLink("skhpp-archive")) {
+                Guard(currentPerms(), Perm.SKHPP_ARCHIVE_VIEW, back) {
+                    SkhppArchiveScreen(repository, currentPerms(), onBack = back, onOpenPdf = openPdf)
                 }
             }
             composable(Routes.MITRA, deepLinks = appDeepLink("mitra")) {

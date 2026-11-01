@@ -11,7 +11,6 @@ const props = defineProps({
     summary: { type: Object, default: () => ({}) },
     year: Number,
     years: { type: Array, default: () => [] },
-    priorities: { type: Object, default: () => ({}) },
     statusLabels: { type: Object, default: () => ({}) },
     canManage: Boolean,
 });
@@ -51,7 +50,6 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const requestForm = useForm({
     jenis: 'D',
-    priority: 'R',
     tanggal: today(),
     nama: '',
     perihal: '',
@@ -65,7 +63,7 @@ const loadPreview = async () => {
     preview.value.loading = true;
     try {
         const { data } = await axios.get(route('skhpp-archives.next-number'), {
-            params: { jenis: requestForm.jenis, priority: requestForm.priority, tanggal: requestForm.tanggal },
+            params: { jenis: requestForm.jenis, tanggal: requestForm.tanggal },
         });
         preview.value = { ...data, loading: false };
     } catch (e) {
@@ -82,14 +80,15 @@ const openRequest = (jenis = 'D') => {
     loadPreview();
 };
 
-watch(() => [requestForm.jenis, requestForm.priority, requestForm.tanggal], () => {
+watch(() => [requestForm.jenis, requestForm.tanggal], () => {
     if (showRequestModal.value) loadPreview();
 });
 
 const previewNumber = computed(() => {
-    if (requestForm.custom_nomor_urut && preview.value.formatted) {
+    const custom = String(requestForm.custom_nomor_urut || '').trim();
+    if (custom && preview.value.formatted) {
         const parts = preview.value.formatted.split(' / ');
-        parts[1] = String(requestForm.custom_nomor_urut);
+        parts[1] = custom.replace(/^0+(?=\d)/, '').toLowerCase();
         return parts.join(' / ');
     }
     return preview.value.formatted;
@@ -373,11 +372,9 @@ const formatDate = (d) => {
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
-                    <label class="block text-[10px] font-extrabold uppercase text-slate-500">Sifat
-                        <select v-model="requestForm.priority" class="mt-1 w-full rounded-xl border-slate-200 text-xs">
-                            <option v-for="(label, key) in priorities" :key="key" :value="key">{{ key }} — {{ label }}</option>
-                        </select>
-                    </label>
+                    <div class="block text-[10px] font-extrabold uppercase text-slate-500">Sifat
+                        <p class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800 normal-case">R — RAHASIA</p>
+                    </div>
                     <label class="block text-[10px] font-extrabold uppercase text-slate-500">Tanggal
                         <input v-model="requestForm.tanggal" type="date" required class="mt-1 w-full rounded-xl border-slate-200 text-xs" />
                     </label>
@@ -389,8 +386,12 @@ const formatDate = (d) => {
                     <p class="text-[10px] text-slate-400 mt-1">Nomor final dikunci saat disimpan agar tidak bentrok dengan petugas lain.</p>
                 </div>
 
-                <label v-if="canManage" class="block text-[10px] font-extrabold uppercase text-slate-500">Nomor urut khusus (opsional, Admin)
-                    <input v-model="requestForm.custom_nomor_urut" type="number" min="1" placeholder="Kosongkan untuk nomor berikutnya" class="mt-1 w-full rounded-xl border-slate-200 text-xs" />
+                <label class="block text-[10px] font-extrabold uppercase text-slate-500">Nomor urut khusus / sisipan (opsional)
+                    <input v-model="requestForm.custom_nomor_urut" type="text" maxlength="10" placeholder="Kosongkan untuk nomor berikutnya — cth sisipan: 12a" class="mt-1 w-full rounded-xl border-slate-200 text-xs" />
+                    <span class="block mt-1 normal-case font-semibold text-slate-400">
+                        {{ canManage ? 'Angka biasa (loncat nomor) atau angka + huruf untuk nomor sisipan, mis. 12a.' : 'Nomor sisipan dari nomor yang sudah terbit, mis. 12a. Loncat nomor hanya oleh Admin.' }}
+                    </span>
+                    <span v-if="requestForm.errors.custom_nomor_urut" class="text-rose-600 normal-case">{{ requestForm.errors.custom_nomor_urut }}</span>
                 </label>
 
                 <label class="block text-[10px] font-extrabold uppercase text-slate-500">Perihal *

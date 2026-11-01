@@ -44,10 +44,9 @@ object Perm {
     const val CASH_MANAGE = "cash.manage"
     const val CASH_PDF = "cash.pdf"
 
-    const val COMMANDER_VIEW = "commander_account.view"
-    const val COMMANDER_MANAGE = "commander_account.manage"
-    const val COMMANDER_PDF = "commander_account.pdf"
-
+    const val SKHPP_ARCHIVE_VIEW = "skhpp_archive.view"
+    const val SKHPP_ARCHIVE_CREATE = "skhpp_archive.create"
+    const val SKHPP_ARCHIVE_UPLOAD = "skhpp_archive.upload"
 
     const val MITRA_VIEW = "mitra.view"
     const val MITRA_MANAGE = "mitra.manage"

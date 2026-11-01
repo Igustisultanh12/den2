@@ -245,12 +245,17 @@ class SindenRepository(
     suspend fun approveSignature(id: Int) = call { approveSignature(id, SignatureDecisionRequest()) }
     suspend fun rejectSignature(id: Int, note: String) = call { rejectSignature(id, SignatureDecisionRequest(note)) }
 
-    // ----------------------------------------------- Rekening Komandan
+    // ---------------------------------------------- Arsip & Nomor SKHPP
 
-    suspend fun commanderAccount(month: String?) = call { commanderAccount(month) }
-    suspend fun createCommanderTx(request: CommanderTxRequest) = call { createCommanderTx(request) }
-    suspend fun updateCommanderTx(id: Int, request: CommanderTxRequest) = call { updateCommanderTx(id, request) }
-    suspend fun deleteCommanderTx(id: Int) = call { deleteCommanderTx(id) }
+    suspend fun skhppArchives(search: String?, jenis: String?, status: String?) =
+        call { skhppArchives(search?.takeIf { it.isNotBlank() }, jenis, status) }
+
+    suspend fun requestSkhppNumber(request: SkhppNumberRequest) = call { requestSkhppNumber(request) }
+
+    suspend fun uploadSkhppArchive(id: Int, fileName: String, bytes: ByteArray): ApiResult<SimpleResponse> {
+        val part = MultipartBody.Part.createFormData("file", fileName, bytes.toRequestBody("application/pdf".toMediaType()))
+        return call { uploadSkhppArchive(id, part) }
+    }
 
     // ----------------------------------------------------------- Mitra
 

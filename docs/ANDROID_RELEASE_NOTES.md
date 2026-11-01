@@ -1,3 +1,13 @@
+# Sinden 2 Android v1.8.0 (versionCode 26)
+
+## Perubahan
+
+- **Baru: Arsip SKHPP** (menu Administrasi Surat) — daftar arsip SKHPP-D / SKHPP-P, minta nomor SKHPP manual (melanjutkan urutan yang sama dengan menu Penerbitan SKHPP, boleh nomor sisipan berhuruf seperti `12a`), unggah PDF dari penyimpanan HP, dan lihat PDF. Tampil hanya bila fitur "Arsip & Nomor SKHPP" diberikan Admin.
+- SKHPP selalu bersifat **RAHASIA**; pilihan derajat R/B/K saat menyetujui SKHPP dihapus.
+- Modul **Rekening Komandan** dihapus.
+- Menu mengikuti akses fitur yang diatur Admin / Super Admin di Kelola Pengguna (bawaan role Personel: Chat, SP Jaga, Presensi, Notifikasi).
+
+---
 # Sinden 2 Android v1.4.0 (versionCode 13)
 
 Aplikasi kini berdiri sendiri sebagai **Sinden 2** (Denintel Koarmada 2), terpisah dari SISINDEN Kodaeral V, dan terhubung ke server **https://sinden2.my.id**.

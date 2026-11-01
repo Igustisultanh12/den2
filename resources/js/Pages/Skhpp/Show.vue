@@ -26,26 +26,18 @@ const downloadPdf = () => {
 };
 
 const approveSkhpp = () => {
-    const defaultSeq = (props.skhpp.nomor_urut || 1);
+    const defaultSeq = props.skhpp.nomor_urut ? `${props.skhpp.nomor_urut}${props.skhpp.nomor_sisipan || ''}` : '';
 
     Swal.fire({
         title: 'OTORISASI TTD KOMANDAN',
         html: `
             <div class="text-left text-xs space-y-3 font-sans">
-                <p class="text-slate-600">Nomor SKHPP akan diterbitkan & tersinkronisasi otomatis ke <b>Buku Agenda Surat SINDEN (Letter Logs)</b>:</p>
-                
-                <div>
-                    <label class="block font-bold uppercase mb-1 text-slate-700">Nomor Urut SKHPP (Bisa diisi manual jika ada arsip terlewat)</label>
-                    <input id="swal-nomor-urut-show" type="number" value="${defaultSeq}" class="w-full text-xs font-bold p-2.5 border rounded-xl" placeholder="Masukkan nomor urut (contoh: 171)" />
-                </div>
+                <p class="text-slate-600">Nomor SKHPP (sifat <b>RAHASIA</b>) diterbitkan dan PDF resmi otomatis tersimpan di <b>Arsip SKHPP</b>:</p>
 
                 <div>
-                    <label class="block font-bold uppercase mb-1 text-slate-700">Derajat Kecepatan / Prioritas (Logika Penyamaran Kode SKHPP)</label>
-                    <select id="swal-priority-show" class="w-full text-xs font-bold p-2.5 border rounded-xl">
-                        <option value="R" selected>R (RAHASIA)  Format: R / [NOMOR] / SKHPP / [BULAN] / [TAHUN]</option>
-                        <option value="B">B (BIASA)  Format: B / [NOMOR] / SKHPP / [BULAN] / [TAHUN]</option>
-                        <option value="K">K (KILAT)  Format: K / [NOMOR] / SKHPP / [BULAN] / [TAHUN]</option>
-                    </select>
+                    <label class="block font-bold uppercase mb-1 text-slate-700">Nomor Urut SKHPP (opsional)</label>
+                    <input id="swal-nomor-urut-show" type="text" maxlength="10" value="${defaultSeq}" class="w-full text-xs font-bold p-2.5 border rounded-xl" placeholder="Kosongkan untuk nomor berikutnya (boleh sisipan, cth: 171a)" />
+                    <span class="text-[9px] text-slate-400 mt-1 block">Format: R / [NOMOR] / SKHPP / [BULAN] / [TAHUN]</span>
                 </div>
             </div>
         `,
@@ -55,9 +47,12 @@ const approveSkhpp = () => {
         cancelButtonText: 'Batal',
         confirmButtonColor: '#059669',
         preConfirm: () => {
-            const seq = document.getElementById('swal-nomor-urut-show').value;
-            const prio = document.getElementById('swal-priority-show').value;
-            return { custom_nomor_urut: seq, priority: prio };
+            const seq = document.getElementById('swal-nomor-urut-show').value.trim();
+            if (seq && !/^\d+[a-zA-Z]{0,3}$/.test(seq)) {
+                Swal.showValidationMessage('Nomor urut berupa angka, boleh diikuti huruf sisipan (cth: 12 atau 12a).');
+                return false;
+            }
+            return seq ? { custom_nomor_urut: seq } : {};
         }
     }).then((result) => {
         if (result.isConfirmed && result.value) {
