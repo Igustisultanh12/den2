@@ -29,7 +29,7 @@ class SkhppArchive extends Model
     ];
 
     protected $fillable = [
-        'skhpp_id', 'letter_log_id', 'sumber', 'jenis', 'priority',
+        'skhpp_id', 'letter_log_id', 'sumber', 'jenis', 'sub_category_id', 'priority',
         'nomor_urut', 'nomor_sisipan', 'bulan_romawi', 'tahun', 'nomor_skhpp', 'tanggal',
         'nama', 'perihal', 'peruntukan', 'keterangan', 'status',
         'file_path', 'file_disk', 'uploaded_at', 'uploaded_by', 'created_by',
@@ -55,6 +55,12 @@ class SkhppArchive extends Model
     public function skhpp()
     {
         return $this->belongsTo(Skhpp::class, 'skhpp_id');
+    }
+
+    /** Sub-kategori SKHPP (mis. Dik, Nikah) dari menu Kategori Surat. */
+    public function subCategory()
+    {
+        return $this->belongsTo(SubCategory::class, 'sub_category_id');
     }
 
     public function creator()
@@ -120,6 +126,12 @@ class SkhppArchive extends Model
         if (!$archive->exists) {
             $archive->priority = $archive->priority ?: 'R';
             $archive->created_by = $skhpp->submitted_by;
+        }
+
+        // Sub-kategori (Dik, Nikah, ...): tebak otomatis bila belum diisi / tidak cocok lagi dengan jenisnya.
+        if (!$archive->sub_category_id
+            || !\App\Services\SkhppNumberService::subCategoryBelongs($archive->sub_category_id, $archive->jenis)) {
+            $archive->sub_category_id = \App\Services\SkhppNumberService::guessSubCategoryId($skhpp);
         }
 
         if ($archive->status !== self::STATUS_DICABUT) {

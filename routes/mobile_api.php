@@ -364,7 +364,7 @@ Route::get('/api/mobile/pdf/skhpp-archive/{id}', [MobileApiController::class, 's
 // =====================================================================
 Route::get('/api/mobile/skhpp-archives', function (Request $request) {
     try {
-        $query = \App\Models\SkhppArchive::with(['skhpp:id,status', 'creator:id,name'])
+        $query = \App\Models\SkhppArchive::with(['skhpp:id,status', 'creator:id,name', 'subCategory:id,name'])
             ->orderByRaw('CASE WHEN tahun IS NULL THEN 1 ELSE 0 END')
             ->orderByDesc('tahun')->orderByDesc('created_at')->orderByDesc('id');
 
@@ -380,10 +380,15 @@ Route::get('/api/mobile/skhpp-archives', function (Request $request) {
         if (array_key_exists((string) $request->status, \App\Models\SkhppArchive::STATUS_LABELS)) {
             $query->where('status', $request->status);
         }
+        if ($request->filled('sub_category_id') && ctype_digit((string) $request->sub_category_id)) {
+            $query->where('sub_category_id', (int) $request->sub_category_id);
+        }
 
         $data = $query->take(300)->get()->map(fn ($a) => [
             'id' => $a->id,
             'jenis' => $a->jenis,
+            'sub_category_id' => $a->sub_category_id,
+            'sub_category_name' => $a->subCategory?->name,
             'sumber' => $a->sumber,
             'priority' => $a->priority,
             'nomor_urut' => $a->nomor_urut,
@@ -410,7 +415,14 @@ Route::get('/api/mobile/skhpp-archives', function (Request $request) {
             ];
         }
 
-        return response()->json(['status' => 'success', 'year' => $year, 'summary' => $summary, 'data' => $data]);
+        return response()->json([
+            'status' => 'success',
+            'year' => $year,
+            'summary' => $summary,
+            // Sub-kategori SKHPP-D / SKHPP-P (Dik, Nikah, ...) untuk pilihan di form
+            'sub_categories' => \App\Services\SkhppNumberService::subCategories(),
+            'data' => $data,
+        ]);
     } catch (\Throwable $e) {
         return mobile_error($e, 'Gagal memuat arsip SKHPP.');
     }

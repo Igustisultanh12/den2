@@ -25,7 +25,7 @@ class SkhppArchiveController extends Controller
 {
     public function index(Request $request)
     {
-        $query = SkhppArchive::with(['skhpp:id,status,nama,catatan_revisi', 'creator:id,name', 'uploader:id,name'])
+        $query = SkhppArchive::with(['skhpp:id,status,nama,catatan_revisi', 'creator:id,name', 'uploader:id,name', 'subCategory:id,name'])
             ->orderByRaw('CASE WHEN tahun IS NULL THEN 1 ELSE 0 END')
             ->orderByDesc('tahun')
             ->orderByDesc('created_at')
@@ -52,6 +52,9 @@ class SkhppArchiveController extends Controller
         if ($request->filled('tahun') && ctype_digit((string) $request->tahun)) {
             $query->where('tahun', (int) $request->tahun);
         }
+        if ($request->filled('sub_category_id') && ctype_digit((string) $request->sub_category_id)) {
+            $query->where('sub_category_id', (int) $request->sub_category_id);
+        }
 
         $year = (int) date('Y');
         $summary = [];
@@ -66,8 +69,10 @@ class SkhppArchiveController extends Controller
 
         return Inertia::render('SkhppArchive/Index', [
             'archives' => $query->paginate(20)->withQueryString(),
-            'filters' => $request->only(['search', 'jenis', 'status', 'sumber', 'tahun']),
+            'filters' => $request->only(['search', 'jenis', 'status', 'sumber', 'tahun', 'sub_category_id']),
             'summary' => $summary,
+            // Sub-kategori SKHPP-D / SKHPP-P (Dik, Nikah, ...) dari menu Kategori Surat
+            'subCategories' => SkhppNumberService::subCategories(),
             'year' => $year,
             'years' => SkhppArchive::whereNotNull('tahun')->distinct()->orderByDesc('tahun')->pluck('tahun'),
             'statusLabels' => SkhppArchive::STATUS_LABELS,
@@ -99,6 +104,7 @@ class SkhppArchiveController extends Controller
         $user = $request->user();
         $data = $request->validate([
             'jenis' => 'required|in:D,P',
+            'sub_category_id' => 'nullable|integer',
             'tanggal' => 'required|date',
             'nama' => 'nullable|string|max:255',
             'perihal' => 'required|string|max:255',
@@ -113,6 +119,11 @@ class SkhppArchiveController extends Controller
         $year = (int) $date->format('Y');
         $roman = SkhppNumberService::romanMonth((int) $date->format('n'));
         $jenis = $data['jenis'];
+
+        $subId = !empty($data['sub_category_id']) ? (int) $data['sub_category_id'] : null;
+        if (!SkhppNumberService::subCategoryBelongs($subId, $jenis)) {
+            return back()->with('error', "Sub-kategori tidak termasuk SKHPP-{$jenis}.");
+        }
 
         $custom = null;
         if (!empty($data['custom_nomor_urut'])) {
@@ -132,12 +143,13 @@ class SkhppArchiveController extends Controller
             }
         }
 
-        $archive = SkhppNumberService::withLock($jenis, function () use ($data, $user, $date, $year, $roman, $jenis, $custom) {
+        $archive = SkhppNumberService::withLock($jenis, function () use ($data, $user, $date, $year, $roman, $jenis, $custom, $subId) {
             [$seq, $suffix] = $custom ?? [SkhppNumberService::nextSequence($jenis, $year), null];
 
             return SkhppArchive::create([
                 'sumber' => 'manual',
                 'jenis' => $jenis,
+                'sub_category_id' => $subId,
                 'priority' => SkhppNumberService::PRIORITY, // SKHPP selalu RAHASIA
                 'nomor_urut' => $seq,
                 'nomor_sisipan' => $suffix,
@@ -218,7 +230,11 @@ class SkhppArchiveController extends Controller
         $user = $request->user();
         abort_unless($user->isAdmin() || (int) $archive->created_by === (int) $user->id, 403, 'Hanya Admin atau pembuat arsip yang dapat mengubah data ini.');
 
-        $rules = ['keterangan' => 'nullable|string|max:2000'];
+        $rules = [
+            'keterangan' => 'nullable|string|max:2000',
+            // Sub-kategori boleh dikoreksi untuk SKHPP manual maupun dari menu SINDEN.
+            'sub_category_id' => 'nullable|integer',
+        ];
         if ($archive->sumber === 'manual') {
             $rules += [
                 'nama' => 'nullable|string|max:255',
@@ -226,7 +242,16 @@ class SkhppArchiveController extends Controller
                 'peruntukan' => 'nullable|string|max:2000',
             ];
         }
-        $archive->update($request->validate($rules));
+        $data = $request->validate($rules);
+        if ($request->exists('sub_category_id')) {
+            $data['sub_category_id'] = !empty($data['sub_category_id']) ? (int) $data['sub_category_id'] : null;
+            if (!SkhppNumberService::subCategoryBelongs($data['sub_category_id'], $archive->jenis)) {
+                return back()->with('error', "Sub-kategori tidak termasuk SKHPP-{$archive->jenis}.");
+            }
+        } else {
+            unset($data['sub_category_id']);
+        }
+        $archive->update($data);
 
         $this->audit($request, 'UPDATE_ARSIP_SKHPP', $archive->nomor_skhpp, "Mengubah data Arsip SKHPP No: " . ($archive->nomor_skhpp ?: $archive->id));
 

@@ -39,9 +39,9 @@ class SkhppArchiveTest extends TestCase
         return User::factory()->create(array_merge(['role' => $role, 'is_active' => true, 'must_change_password' => false, 'mfa_enabled' => false], $attrs));
     }
 
-    private function skhpp(User $by, string $kategori = 'militer'): Skhpp
+    private function skhpp(User $by, string $kategori = 'militer', array $attrs = []): Skhpp
     {
-        $s = Skhpp::forceCreate([
+        $s = Skhpp::forceCreate(array_merge([
             'kategori_personel' => $kategori,
             'is_pernikahan' => false,
             'surat_pengantar' => 'Surat pengantar',
@@ -57,7 +57,7 @@ class SkhppArchiveTest extends TestCase
             'verification_code' => 'SKHPP-' . Str::upper(Str::random(10)),
             'submitted_by' => $by->id,
             'submitted_at' => now(),
-        ]);
+        ], $attrs));
         SkhppArchive::syncFromSkhpp($s); // sama seperti SkhppController@store
 
         return $s;
@@ -204,6 +204,62 @@ class SkhppArchiveTest extends TestCase
         $this->assertSame("R / 2c / SKHPP / {$roman} / {$this->year}", $s2->fresh()->nomor_skhpp);
     }
 
+    public function test_sub_categories_dik_and_nikah_are_kept_per_skhpp_type(): void
+    {
+        $admin = $this->user('admin');
+        $operator = $this->user('personel', ['feature_access' => ['skhpp_archive']]);
+        $catD = Category::forceCreate(['name' => 'SKHPP Dinas', 'code' => 'SKHPP-D', 'start_number' => 1]);
+        $catP = Category::forceCreate(['name' => 'SKHPP Mitra', 'code' => 'SKHPP-P', 'start_number' => 1]);
+        $dik = \App\Models\SubCategory::forceCreate(['category_id' => $catD->id, 'name' => 'Dik']);
+        $nikah = \App\Models\SubCategory::forceCreate(['category_id' => $catD->id, 'name' => 'Nikah']);
+        $proyek = \App\Models\SubCategory::forceCreate(['category_id' => $catP->id, 'name' => 'Proyek']);
+
+        // Halaman arsip mengirim pilihan sub-kategori per jenis.
+        $this->actingAs($operator)->get(route('skhpp-archives.index'))
+            ->assertInertia(fn ($page) => $page
+                ->where('subCategories.D', fn ($s) => collect($s)->pluck('name')->sort()->values()->all() === ['Dik', 'Nikah'])
+                ->where('subCategories.P', fn ($s) => collect($s)->pluck('name')->all() === ['Proyek']));
+
+        // Manual dengan sub-kategori SKHPP-D Dik.
+        $this->requestManual($operator, 'D', ['sub_category_id' => $dik->id])->assertSessionHas('success');
+        $this->assertSame($dik->id, (int) SkhppArchive::latest('id')->value('sub_category_id'));
+        // Sub-kategori SKHPP-P tidak boleh dipakai untuk SKHPP-D.
+        $this->requestManual($operator, 'D', ['sub_category_id' => $proyek->id])->assertSessionHas('error');
+
+        // Sub-kategori tidak memisahkan urutan: Dik & tanpa sub tetap satu urutan SKHPP-D.
+        $this->requestManual($operator, 'D');
+        $this->assertSame(2, (int) SkhppArchive::latest('id')->value('nomor_urut'));
+
+        // SKHPP dari menu: pengajuan pernikahan otomatis "Nikah"; peruntukan pendidikan => "Dik".
+        $nikahSkhpp = $this->skhpp($admin, 'militer', ['is_pernikahan' => true, 'peruntukan' => 'Pengajuan nikah dinas']);
+        $this->assertSame($nikah->id, (int) SkhppArchive::where('skhpp_id', $nikahSkhpp->id)->value('sub_category_id'));
+
+        $dikSkhpp = $this->skhpp($admin); // peruntukan "Pendidikan"
+        $this->assertSame($dik->id, (int) SkhppArchive::where('skhpp_id', $dikSkhpp->id)->value('sub_category_id'));
+
+        // Koreksi sub-kategori di arsip (juga untuk SKHPP SINDEN).
+        $archive = SkhppArchive::where('skhpp_id', $dikSkhpp->id)->first();
+        $this->actingAs($admin)->put(route('skhpp-archives.update', $archive), ['sub_category_id' => $nikah->id])->assertSessionHas('success');
+        $this->assertSame($nikah->id, (int) $archive->fresh()->sub_category_id);
+        // Sinkron ulang dari menu tidak menimpa pilihan yang valid.
+        SkhppArchive::syncFromSkhpp($dikSkhpp->fresh());
+        $this->assertSame($nikah->id, (int) $archive->fresh()->sub_category_id);
+
+        // Filter per sub-kategori.
+        $this->actingAs($admin)->get(route('skhpp-archives.index', ['sub_category_id' => $dik->id]))
+            ->assertInertia(fn ($page) => $page->where('archives.data', fn ($rows) => collect($rows)->pluck('sub_category_id')->unique()->values()->all() === [$dik->id]));
+
+        // API mobile ikut mengirim sub-kategori.
+        $token = $operator->createToken('t')->plainTextToken;
+        $this->withToken($token)->getJson('/api/mobile/skhpp-archives?jenis=D')
+            ->assertOk()
+            ->assertJsonPath('sub_categories.P.0.name', 'Proyek');
+        $this->withToken($token)->postJson('/api/mobile/skhpp-archives', [
+            'jenis' => 'D', 'sub_category_id' => $nikah->id, 'tanggal' => now()->toDateString(), 'perihal' => 'dari HP',
+        ])->assertOk();
+        $this->assertSame('Nikah', SkhppArchive::latest('id')->first()->subCategory->name);
+    }
+
     public function test_deleting_numbered_skhpp_marks_archive_revoked_and_number_is_not_reused(): void
     {
         $admin = $this->user('admin');
@@ -272,8 +328,14 @@ class SkhppArchiveTest extends TestCase
         LetterLog::forceCreate(['full_number' => 'R / 2 / SKHPP / IV / 2026', 'sequence' => '2', 'priority' => 'R', 'category_id' => $catP->id, 'subject' => 'SKHPP-P lama', 'date' => '2026-04-01', 'is_archived' => false]);
         \App\Models\Letter::forceCreate(['type' => 'keluar', 'security_level' => 'biasa', 'category_id' => $catD->id, 'letter_number' => 'B / 5 / SKHPP / III / 2026', 'subject' => 'SKHPP manual lama', 'date' => '2026-03-05', 'issuer' => 'x', 'file_path' => 'archives/lama.pdf']);
 
+        $sub = \App\Models\SubCategory::forceCreate(['category_id' => $catD->id, 'name' => 'Dik']);
+        LetterLog::where('full_number', 'B / 5 / SKHPP / III / 2026')->update(['sub_category_id' => $sub->id]);
+
         SkhppArchive::query()->delete();
         (require database_path('migrations/2026_11_02_110000_create_skhpp_archives_table.php'))->up();
+        (require database_path('migrations/2026_11_02_120000_add_nomor_sisipan_to_skhpp_tables.php'))->up();
+        (require database_path('migrations/2026_11_02_130000_add_sub_category_to_skhpp_archives_table.php'))->up();
+        $this->assertSame($sub->id, (int) SkhppArchive::where('nomor_skhpp', 'B / 5 / SKHPP / III / 2026')->value('sub_category_id'), 'Sub-kategori lama dari Agenda Surat ikut terbawa');
 
         $this->assertSame(3, SkhppArchive::count(), 'SKHPP SINDEN tidak terduplikasi dari Agenda Surat');
 

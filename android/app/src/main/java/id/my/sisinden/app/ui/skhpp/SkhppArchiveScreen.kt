@@ -44,6 +44,7 @@ import id.my.sisinden.app.core.network.ApiResult
 import id.my.sisinden.app.core.security.Perm
 import id.my.sisinden.app.core.security.PermissionSet
 import id.my.sisinden.app.core.ui.components.DateField
+import id.my.sisinden.app.core.ui.components.DropdownField
 import id.my.sisinden.app.core.ui.components.EmptyState
 import id.my.sisinden.app.core.ui.components.FilterChipRow
 import id.my.sisinden.app.core.ui.components.FormSheet
@@ -64,6 +65,7 @@ import id.my.sisinden.app.core.util.Fmt
 import id.my.sisinden.app.data.model.SkhppArchiveDto
 import id.my.sisinden.app.data.model.SkhppArchiveResponse
 import id.my.sisinden.app.data.model.SkhppNumberRequest
+import id.my.sisinden.app.data.model.SkhppSubCategoryDto
 import id.my.sisinden.app.data.repository.SindenRepository
 import id.my.sisinden.app.ui.common.CollectMessages
 import id.my.sisinden.app.ui.common.LoadableViewModel
@@ -284,10 +286,11 @@ fun SkhppArchiveScreen(
     }
 
     requesting?.let { initialJenis ->
-        val summary = (state as? id.my.sisinden.app.core.ui.components.LoadState.Ready)?.data?.summary
+        val ready = (state as? id.my.sisinden.app.core.ui.components.LoadState.Ready)?.data
         RequestNumberSheet(
             initialJenis = initialJenis,
-            nextNumber = { j -> summary?.get(j)?.next },
+            nextNumber = { j -> ready?.summary?.get(j)?.next },
+            subCategories = { j -> ready?.subCategories?.get(j).orEmpty() },
             busy = busy,
             onDismiss = { requesting = null },
             onSubmit = { req -> vm.requestNumber(req) { requesting = null } },
@@ -299,11 +302,14 @@ fun SkhppArchiveScreen(
 private fun RequestNumberSheet(
     initialJenis: String,
     nextNumber: (String) -> Int?,
+    subCategories: (String) -> List<SkhppSubCategoryDto>,
     busy: Boolean,
     onDismiss: () -> Unit,
     onSubmit: (SkhppNumberRequest) -> Unit,
 ) {
     var jenis by rememberSaveable { mutableStateOf(initialJenis) }
+    var subId by rememberSaveable { mutableStateOf<Int?>(null) }
+    val subOptions = subCategories(jenis)
     var tanggal by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
     var custom by rememberSaveable { mutableStateOf("") }
     var perihal by rememberSaveable { mutableStateOf("") }
@@ -322,10 +328,26 @@ private fun RequestNumberSheet(
         Text("Jenis", style = MaterialTheme.typography.labelLarge)
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             listOf("D" to "Dinas Militer & PNS", "P" to "Mitra / Perusahaan").forEach { (code, label) ->
-                FilterChip(selected = jenis == code, onClick = { jenis = code }, label = { Text("SKHPP-$code · $label") })
+                FilterChip(
+                    selected = jenis == code,
+                    onClick = { if (jenis != code) { jenis = code; subId = null } },
+                    label = { Text("SKHPP-$code · $label") },
+                )
             }
         }
         Spacer(Modifier.height(Spacing.sm))
+        if (subOptions.isNotEmpty()) {
+            // Pilihan pertama = tanpa sub-kategori.
+            val none = SkhppSubCategoryDto(0, "Tanpa sub-kategori")
+            DropdownField(
+                label = "Sub-kategori SKHPP-$jenis",
+                options = listOf(none) + subOptions,
+                selected = subOptions.firstOrNull { it.id == subId } ?: none,
+                optionLabel = { it.name.orEmpty() },
+                onSelect = { subId = it.id.takeIf { id -> id > 0 } },
+            )
+            Spacer(Modifier.height(Spacing.sm))
+        }
         val shown = custom.trim().trimStart('0').lowercase().ifBlank { nextNumber(jenis)?.toString() }
         shown?.let {
             Text(
@@ -364,6 +386,7 @@ private fun RequestNumberSheet(
                     onSubmit(
                         SkhppNumberRequest(
                             jenis = jenis,
+                            subCategoryId = subId,
                             tanggal = tanggal,
                             customNomorUrut = custom.trim().ifBlank { null },
                             perihal = perihal.trim(),

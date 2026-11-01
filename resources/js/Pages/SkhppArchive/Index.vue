@@ -11,6 +11,7 @@ const props = defineProps({
     summary: { type: Object, default: () => ({}) },
     year: Number,
     years: { type: Array, default: () => [] },
+    subCategories: { type: Object, default: () => ({ D: [], P: [] }) }, // Dik, Nikah, ... per SKHPP-D / SKHPP-P
     statusLabels: { type: Object, default: () => ({}) },
     canManage: Boolean,
 });
@@ -30,6 +31,15 @@ const filterForm = ref({
     status: props.filters.status || '',
     sumber: props.filters.sumber || '',
     tahun: props.filters.tahun || '',
+    sub_category_id: props.filters.sub_category_id || '',
+});
+
+// Pilihan sub-kategori pada filter: ikut jenis yang dipilih (atau semua).
+const filterSubOptions = computed(() => {
+    const j = filterForm.value.jenis;
+    const list = j ? (props.subCategories[j] || []).map(s => ({ ...s, jenis: j }))
+        : ['D', 'P'].flatMap(k => (props.subCategories[k] || []).map(s => ({ ...s, jenis: k })));
+    return list;
 });
 
 let searchTimer = null;
@@ -41,7 +51,12 @@ watch(() => filterForm.value.search, () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(applyFilters, 400);
 });
-watch(() => [filterForm.value.jenis, filterForm.value.status, filterForm.value.sumber, filterForm.value.tahun], applyFilters);
+watch(() => filterForm.value.jenis, () => {
+    if (filterForm.value.sub_category_id && !filterSubOptions.value.some(s => String(s.id) === String(filterForm.value.sub_category_id))) {
+        filterForm.value.sub_category_id = '';
+    }
+});
+watch(() => [filterForm.value.jenis, filterForm.value.status, filterForm.value.sumber, filterForm.value.tahun, filterForm.value.sub_category_id], applyFilters);
 
 // --- MINTA NOMOR SKHPP MANUAL ---
 const showRequestModal = ref(false);
@@ -50,6 +65,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const requestForm = useForm({
     jenis: 'D',
+    sub_category_id: '',
     tanggal: today(),
     nama: '',
     perihal: '',
@@ -79,6 +95,11 @@ const openRequest = (jenis = 'D') => {
     showRequestModal.value = true;
     loadPreview();
 };
+
+const requestSubOptions = computed(() => props.subCategories[requestForm.jenis] || []);
+watch(() => requestForm.jenis, () => {
+    if (!requestSubOptions.value.some(s => String(s.id) === String(requestForm.sub_category_id))) requestForm.sub_category_id = '';
+});
 
 watch(() => [requestForm.jenis, requestForm.tanggal], () => {
     if (showRequestModal.value) loadPreview();
@@ -140,7 +161,8 @@ const openPdf = (archive) => {
 
 // --- UBAH DATA ---
 const editTarget = ref(null);
-const editForm = useForm({ nama: '', perihal: '', peruntukan: '', keterangan: '' });
+const editForm = useForm({ nama: '', perihal: '', peruntukan: '', keterangan: '', sub_category_id: '' });
+const editSubOptions = computed(() => (editTarget.value ? (props.subCategories[editTarget.value.jenis] || []) : []));
 const canEdit = (a) => props.canManage || a.created_by === page.props.auth.user?.id;
 
 const openEdit = (archive) => {
@@ -149,6 +171,7 @@ const openEdit = (archive) => {
     editForm.perihal = archive.perihal || '';
     editForm.peruntukan = archive.peruntukan || '';
     editForm.keterangan = archive.keterangan || '';
+    editForm.sub_category_id = archive.sub_category_id || '';
     editForm.clearErrors();
 };
 
@@ -255,13 +278,17 @@ const formatDate = (d) => {
             </div>
 
             <!-- FILTER -->
-            <div class="bg-white border border-slate-200 rounded-3xl p-4 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div class="bg-white border border-slate-200 rounded-3xl p-4 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                 <input v-model="filterForm.search" type="text" placeholder="Cari nomor, nama, perihal..."
                     class="lg:col-span-2 w-full rounded-xl border-slate-200 text-xs focus:border-emerald-500 focus:ring-emerald-500" />
                 <select v-model="filterForm.jenis" class="rounded-xl border-slate-200 text-xs">
                     <option value="">Semua Jenis</option>
                     <option value="D">SKHPP-D</option>
                     <option value="P">SKHPP-P</option>
+                </select>
+                <select v-model="filterForm.sub_category_id" class="rounded-xl border-slate-200 text-xs">
+                    <option value="">Semua Sub-Kategori</option>
+                    <option v-for="s in filterSubOptions" :key="s.id" :value="String(s.id)">{{ filterForm.jenis ? s.name : `SKHPP-${s.jenis} · ${s.name}` }}</option>
                 </select>
                 <select v-model="filterForm.status" class="rounded-xl border-slate-200 text-xs">
                     <option value="">Semua Status</option>
@@ -297,7 +324,7 @@ const formatDate = (d) => {
                         <tbody class="divide-y divide-slate-100">
                             <tr v-for="a in archives.data" :key="a.id" class="hover:bg-slate-50/60 align-top">
                                 <td class="px-4 py-3">
-                                    <span :class="a.jenis === 'D' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'" class="px-2 py-0.5 rounded-md text-[9px] font-black">SKHPP-{{ a.jenis }}</span>
+                                    <span :class="a.jenis === 'D' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'" class="px-2 py-0.5 rounded-md text-[9px] font-black">SKHPP-{{ a.jenis }}<template v-if="a.sub_category"> {{ a.sub_category.name }}</template></span>
                                     <p class="mt-1 font-black text-slate-900 whitespace-nowrap">{{ a.nomor_skhpp || 'Belum bernomor' }}</p>
                                     <p v-if="!a.nomor_skhpp" class="text-[10px] text-slate-400">Nomor terbit saat TTE Komandan</p>
                                 </td>
@@ -370,6 +397,14 @@ const formatDate = (d) => {
                         <p class="text-[10px] text-slate-500">{{ j === 'D' ? 'Dinas Militer & PNS' : 'Mitra Kerja / Perusahaan' }}</p>
                     </button>
                 </div>
+
+                <label class="block text-[10px] font-extrabold uppercase text-slate-500">Sub-Kategori SKHPP-{{ requestForm.jenis }}
+                    <select v-model="requestForm.sub_category_id" class="mt-1 w-full rounded-xl border-slate-200 text-xs">
+                        <option value="">— Tanpa sub-kategori —</option>
+                        <option v-for="s in requestSubOptions" :key="s.id" :value="s.id">{{ s.name }}</option>
+                    </select>
+                    <span v-if="!requestSubOptions.length" class="block mt-1 normal-case font-semibold text-slate-400">Belum ada sub-kategori. Tambahkan di menu Kategori Surat (kategori SKHPP-{{ requestForm.jenis }}).</span>
+                </label>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div class="block text-[10px] font-extrabold uppercase text-slate-500">Sifat
@@ -445,6 +480,12 @@ const formatDate = (d) => {
             <form @submit.prevent="submitEdit" class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 space-y-3">
                 <h3 class="text-sm font-black uppercase text-slate-900">Ubah Data Arsip</h3>
                 <p class="text-xs font-bold text-slate-700">{{ editTarget.nomor_skhpp || 'Belum bernomor' }}</p>
+                <label class="block text-[10px] font-extrabold uppercase text-slate-500">Sub-Kategori SKHPP-{{ editTarget.jenis }}
+                    <select v-model="editForm.sub_category_id" class="mt-1 w-full rounded-xl border-slate-200 text-xs">
+                        <option value="">— Tanpa sub-kategori —</option>
+                        <option v-for="s in editSubOptions" :key="s.id" :value="s.id">{{ s.name }}</option>
+                    </select>
+                </label>
                 <template v-if="editTarget.sumber === 'manual'">
                     <label class="block text-[10px] font-extrabold uppercase text-slate-500">Perihal *
                         <input v-model="editForm.perihal" type="text" required class="mt-1 w-full rounded-xl border-slate-200 text-xs" />

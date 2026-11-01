@@ -126,6 +126,9 @@ data class SkhppMemberInput(
 data class SkhppArchiveDto(
     @SerializedName("id") val id: Int = 0,
     @SerializedName("jenis") val jenis: String? = null,          // D | P
+    /** Sub-kategori SKHPP (mis. Dik, Nikah) dari menu Kategori Surat. */
+    @SerializedName("sub_category_id") val subCategoryId: Int? = null,
+    @SerializedName("sub_category_name") val subCategoryName: String? = null,
     @SerializedName("sumber") val sumber: String? = null,        // sinden | manual
     @SerializedName("priority") val priority: String? = null,
     @SerializedName("nomor_urut") val nomorUrut: Int? = null,
@@ -143,7 +146,10 @@ data class SkhppArchiveDto(
     @SerializedName("has_file") val hasFile: Boolean = false,
     @SerializedName("created_by") val createdBy: String? = null,
 ) {
-    val jenisLabel: String get() = if (jenis == "P") "SKHPP-P" else "SKHPP-D"
+    /** "SKHPP-D" atau "SKHPP-D Nikah" bila ada sub-kategori. */
+    val jenisLabel: String
+        get() = (if (jenis == "P") "SKHPP-P" else "SKHPP-D") +
+            (subCategoryName?.takeIf { it.isNotBlank() }?.let { " $it" } ?: "")
     val isManual: Boolean get() = sumber == "manual"
     val isRevoked: Boolean get() = status == "dicabut"
     val canUpload: Boolean get() = !nomorSkhpp.isNullOrBlank() && !isRevoked
@@ -163,16 +169,24 @@ data class SkhppNumberSummary(
     @SerializedName("next") val next: Int = 1,
 )
 
+data class SkhppSubCategoryDto(
+    @SerializedName("id") val id: Int = 0,
+    @SerializedName("name") val name: String? = null,
+)
+
 data class SkhppArchiveResponse(
     @SerializedName("status") val status: String? = null,
     @SerializedName("year") val year: Int = 0,
     @SerializedName("summary") val summary: Map<String, SkhppNumberSummary>? = null,
+    /** Sub-kategori per jenis: {"D": [...], "P": [...]}. */
+    @SerializedName("sub_categories") val subCategories: Map<String, List<SkhppSubCategoryDto>>? = null,
     @SerializedName("data") val data: List<SkhppArchiveDto>? = null,
 )
 
 /** Sifat SKHPP selalu RAHASIA (diatur server). */
 data class SkhppNumberRequest(
     @SerializedName("jenis") val jenis: String,
+    @SerializedName("sub_category_id") val subCategoryId: Int?,
     @SerializedName("tanggal") val tanggal: String,
     /** Opsional: nomor khusus / sisipan, mis. "12a". */
     @SerializedName("custom_nomor_urut") val customNomorUrut: String?,

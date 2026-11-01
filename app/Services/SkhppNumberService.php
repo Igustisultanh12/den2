@@ -65,6 +65,74 @@ class SkhppNumberService
     /** Aturan validasi nomor urut (angka, boleh diikuti 1–3 huruf sisipan). */
     public const SEQUENCE_RULE = 'regex:/^\s*\d{1,6}\s*[a-zA-Z]{0,3}\s*$/';
 
+    /** Kategori surat SKHPP-D / SKHPP-P (dikelola di menu Kategori Surat). */
+    public static function categoryIds(string $jenis): \Illuminate\Support\Collection
+    {
+        return Category::skhpp()->get(['id', 'code'])
+            ->filter(fn ($c) => (str_contains(strtoupper($c->code), '-P') ? 'P' : 'D') === $jenis)
+            ->pluck('id');
+    }
+
+    /**
+     * Sub-kategori SKHPP per jenis, mis. ['D' => [{id, name}, ...], 'P' => [...]].
+     * Sumbernya sama dengan sub-kategori Agenda Surat (tabel sub_categories).
+     */
+    public static function subCategories(): array
+    {
+        $out = ['D' => [], 'P' => []];
+        foreach (['D', 'P'] as $jenis) {
+            $ids = self::categoryIds($jenis);
+            if ($ids->isNotEmpty()) {
+                $out[$jenis] = \App\Models\SubCategory::whereIn('category_id', $ids)
+                    ->orderBy('name')->get(['id', 'name'])
+                    ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name])->values()->all();
+            }
+        }
+        return $out;
+    }
+
+    /** Apakah sub-kategori milik kategori SKHPP jenis tersebut. */
+    public static function subCategoryBelongs(?int $subCategoryId, string $jenis): bool
+    {
+        if (!$subCategoryId) {
+            return true;
+        }
+        return \App\Models\SubCategory::where('id', $subCategoryId)
+            ->whereIn('category_id', self::categoryIds($jenis))->exists();
+    }
+
+    /**
+     * Tebak sub-kategori untuk SKHPP dari menu SINDEN: pengajuan pernikahan => "Nikah",
+     * selain itu nama sub-kategori yang muncul di teks peruntukan (mis. "Dik" pada "Pendidikan").
+     */
+    public static function guessSubCategoryId(Skhpp $skhpp): ?int
+    {
+        $subs = self::subCategories()[self::jenisFor($skhpp->kategori_personel)] ?? [];
+        if (!$subs) {
+            return null;
+        }
+
+        if ($skhpp->is_pernikahan) {
+            foreach ($subs as $s) {
+                if (str_contains(strtolower($s['name']), 'nikah')) {
+                    return $s['id'];
+                }
+            }
+        }
+
+        $text = strtolower((string) $skhpp->peruntukan);
+        // Nama terpanjang dulu agar "Dik Lanjut" menang atas "Dik".
+        usort($subs, fn ($a, $b) => strlen($b['name']) <=> strlen($a['name']));
+        foreach ($subs as $s) {
+            $name = strtolower(trim($s['name']));
+            if ($name !== '' && strlen($name) >= 3 && str_contains($text, $name)) {
+                return $s['id'];
+            }
+        }
+
+        return null;
+    }
+
     /** Nomor urut terbesar yang sudah terpakai untuk jenis & tahun tersebut. */
     public static function lastSequence(string $jenis, int $year): int
     {
@@ -77,9 +145,7 @@ class SkhppNumberService
         $fromSkhpp = (int) ($skhppQuery->max('nomor_urut') ?? 0);
 
         // Nomor SKHPP lama yang pernah di-booking lewat Agenda Surat (sebelum dipisah).
-        $catIds = Category::skhpp()->get(['id', 'code'])
-            ->filter(fn ($c) => (str_contains(strtoupper($c->code), '-P') ? 'P' : 'D') === $jenis)
-            ->pluck('id');
+        $catIds = self::categoryIds($jenis);
         $fromAgenda = 0;
         if ($catIds->isNotEmpty()) {
             $fromAgenda = (int) LetterLog::whereIn('category_id', $catIds)
