@@ -4,6 +4,8 @@ Sumber kebenaran: `app/Support/MobileAccess.php` (server). Aplikasi Android hany
 
 Tabel di bawah dihasilkan langsung dari kode `MobileAccess` untuk personel tanpa flag khusus (bukan diketik manual).
 
+> **Pembaruan (Nov 2026) — Akses Fitur per Personel.** Admin & Super Admin kini dapat mengaktifkan/menonaktifkan setiap fitur menu per personel di **Kelola Pengguna → Detail → Akses Fitur Menu** (`users.feature_access`, sumber kebenaran `app/Support/FeatureAccess.php`). Fitur yang dinonaktifkan hilang dari menu web, ditolak di rute web (middleware `feature:<kunci>`), dan permission mobile terkait menjadi `false`. Bila belum diatur khusus, berlaku bawaan peran seperti tabel ini, **kecuali role Personel (`personel`/`user`) yang bawaannya kini hanya Komunikasi & VC (Chat), SP Jaga (lihat), dan Explorer Backup** — fitur lain muncul setelah diberikan Admin / Super Admin (kolom `personel` & `user` pada tabel di atas menggambarkan aturan lama). Modul **Simpan Pinjam** dan **Rekening Komandan** telah dihapus (permission `commander_account.*` tidak ada lagi). SKHPP kini memiliki **Arsip & Nomor SKHPP** tersendiri (`skhpp_archive`), terpisah dari Agenda/Arsip Surat.
+
 ## 1. Permission per role (tanpa flag tambahan)
 
 | Permission | admin | komandan | wadan | pasops | staf | personel | anggotasintel | danunitteknis | kaurmintel | paurset | user |
@@ -34,9 +36,6 @@ Tabel di bawah dihasilkan langsung dari kode `MobileAccess` untuk personel tanpa
 | `cash.view` | ✅ | — | — | — | — | — | — | — | — | — | — |
 | `cash.manage` | ✅ | — | — | — | — | — | — | — | — | — | — |
 | `cash.pdf` | ✅ | — | — | — | — | — | — | — | — | — | — |
-| `commander_account.view` | ✅ | ✅ | — | — | — | — | — | — | — | — | ✅ |
-| `commander_account.manage` | ✅ | — | — | — | — | — | — | — | — | — | ✅ |
-| `commander_account.pdf` | ✅ | ✅ | — | — | — | — | — | — | — | — | ✅ |
 | `mitra.view` | ✅ | — | — | — | — | — | — | — | — | — | — |
 | `mitra.manage` | ✅ | — | — | — | — | — | — | — | — | — | — |
 | `technical_cash.view` | ✅ | — | — | — | — | — | — | ✅ | — | — | — |
@@ -60,10 +59,10 @@ Tabel di bawah dihasilkan langsung dari kode `MobileAccess` untuk personel tanpa
 | `can_access_ibu_beti = true` | flag kompatibilitas `can_access_ibu_beti` (modul belum ada di mobile) | `IbuBetiAccountController` |
 | Jabatan mengandung "anggota sintel" | diperlakukan sebagai Anggota Sintel (menu umum disembunyikan) | `AuthenticatedLayout.vue` (`isAnggotaSintel`) |
 | `is_active = false` | login ditolak (403), token aktif ditolak & dicabut saat admin menonaktifkan | `UserController` |
-| Pengecualian berbasis nama (sudah ada di web) | Kas pangkalan: 3 nama tertentu; Mitra/Kas Unit Teknis/Rekening Komandan/SKHPP-approve: developer; SP Jaga admin: 2 nama | `MobileAccess::CASH_EXTRA_NAMES`, `DEVELOPER_NAMES`, `SP_JAGA_ADMIN_NAMES` |
+| `feature_access` (Kelola Pengguna → Akses Fitur Menu) | fitur nonaktif ⇒ seluruh permission modul tsb `false` | `App\Support\FeatureAccess` |
+| Pengecualian berbasis nama (sudah ada di web) | Kas pangkalan: 3 nama tertentu; Mitra/Kas Unit Teknis/SKHPP-approve: developer; SP Jaga admin: 2 nama | `MobileAccess::CASH_EXTRA_NAMES`, `DEVELOPER_NAMES`, `SP_JAGA_ADMIN_NAMES` |
 
 Catatan:
-- Rekening Komandan: web mengizinkan role `admin` **dan `user`** untuk melihat & mengubah; komandan hanya melihat. Aturan ini dipertahankan apa adanya untuk paritas — mohon ditinjau pemilik sistem.
 - Hapus SKHPP di web tidak memiliki pembatasan role; di mobile dibatasi **admin** (lebih ketat, karena mencabut validitas dokumen).
 - Draf/pengajuan SP Jaga (status selain `published`) hanya terlihat oleh admin, Pasops, Komandan, dan nama yang sama seperti di web.
 

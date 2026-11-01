@@ -19,10 +19,11 @@ class LetterLogController extends Controller
      */
     public function index()
     {
+        // SKHPP-D / SKHPP-P memiliki buku nomor sendiri di menu Arsip & Nomor SKHPP.
         return Inertia::render('LetterLogs/Index', [
-            'categories' => Category::all(),
-            'sub_categories' => LetterSubCategory::all(), 
-            'logs' => LetterLog::with(['category', 'subCategory'])->latest()->paginate(1000),
+            'categories' => Category::withoutSkhpp()->get(),
+            'sub_categories' => LetterSubCategory::all(),
+            'logs' => LetterLog::withoutSkhpp()->with(['category', 'subCategory'])->latest()->paginate(1000),
             'priorities' => [
                 'B' => 'BIASA',
                 'R' => 'RAHASIA',
@@ -39,9 +40,12 @@ class LetterLogController extends Controller
     public function getNextNumber(Request $request)
     {
         $request->validate(['category_id' => 'required|exists:categories,id']);
-        
+
         $category = Category::find($request->category_id);
-        
+        if ($category->isSkhpp()) {
+            return response()->json(['message' => 'Nomor SKHPP diminta melalui menu Arsip & Nomor SKHPP.'], 422);
+        }
+
         // Cari data terakhir berdasarkan kategori dan tahun berjalan
         $lastLog = LetterLog::where('category_id', $category->id)
             ->whereYear('date', date('Y'))
@@ -85,7 +89,11 @@ class LetterLogController extends Controller
             DB::beginTransaction();
 
             $category = Category::find($request->category_id);
-            
+            if ($category->isSkhpp()) {
+                DB::rollBack();
+                return back()->with('error', 'Nomor SKHPP tidak lagi dibooking lewat Agenda Surat. Gunakan menu Arsip & Nomor SKHPP agar nomor melanjutkan urutan SKHPP-D / SKHPP-P.');
+            }
+
             $timestamp = strtotime($request->date);
             $year = date('Y', $timestamp);
             $month = date('n', $timestamp);
@@ -148,7 +156,7 @@ class LetterLogController extends Controller
      */
     public function downloadPdf(Request $request)
     {
-        $query = LetterLog::with(['category', 'subCategory']);
+        $query = LetterLog::withoutSkhpp()->with(['category', 'subCategory']);
 
         if ($request->has('category_id') && $request->category_id != '') {
             $query->where('category_id', $request->category_id);

@@ -64,6 +64,13 @@ class LetterLog extends Model
         return $query->whereYear('date', date('Y'));
     }
 
+    /** Agenda surat tanpa nomor SKHPP (SKHPP punya buku nomor sendiri: skhpp_archives). */
+    public function scopeWithoutSkhpp($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('category_id')
+            ->orWhereNotIn('category_id', Category::skhpp()->select('id')));
+    }
+
     /**
      * TAMBAHAN: Helper untuk mengecek apakah log sudah memiliki file fisik.
      * Mempermudah pengecekan di sistem arsip.

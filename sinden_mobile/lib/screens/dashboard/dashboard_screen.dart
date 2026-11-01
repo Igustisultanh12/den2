@@ -10,7 +10,6 @@ import '../letter_logs/letter_logs_screen.dart';
 import '../letters/letters_draft_screen.dart';
 import '../categories/categories_screen.dart';
 import '../skhpp/skhpp_list_screen.dart';
-import '../commander/commander_account_screen.dart';
 import '../mitra/mitra_screen.dart';
 import '../violations/violations_screen.dart';
 import '../signature/signature_screen.dart';
@@ -291,14 +290,6 @@ class DashboardScreen extends StatelessWidget {
               mainAxisSpacing: 12,
               crossAxisSpacing: 10,
               children: [
-                _buildMenuItem(
-                  context: context,
-                  title: 'Rekening Dan',
-                  icon: Icons.credit_card_outlined,
-                  color: const Color(0xFF047857),
-                  hasAccess: user?.canAccessCommander ?? false,
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CommanderAccountScreen())),
-                ),
                 _buildMenuItem(
                   context: context,
                   title: 'Catatan Mitra',

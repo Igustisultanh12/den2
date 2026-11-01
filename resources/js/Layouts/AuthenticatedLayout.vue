@@ -27,8 +27,6 @@ const isAdmin = computed(() => {
     return isSuperAdmin.value || r === 'admin' || Boolean(page.props.auth.user?.is_admin);
 });
 const user = computed(() => page.props.auth.user);
-// Selaras dengan MobileAccess::canViewTracking (Admin, Super Admin, Komandan).
-const canViewTracking = computed(() => isAdmin.value || (page.props.auth.user?.role || '').toLowerCase() === 'komandan');
 
 const commandPaletteRef = ref(null);
 
@@ -118,27 +116,92 @@ const markAllRead = async () => {
     } catch (e) {}
 };
 
-/**
- * OTORITAS KAS & REKENING KOMANDAN
- */
-const canAccessCommanderAccount = computed(() => {
-    return isAdmin.value || user.value.name === 'Suma Nurhasanah' || user.value.role === 'komandan' || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom';
-});
-
-const canAccessMitra = computed(() => {
-    return isAdmin.value || Boolean(user.value.can_access_mitra) || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom';
-});
-
-const canManageKoperasi = computed(() => {
-    return isAdmin.value || Boolean(user.value.can_manage_koperasi) || user.value.name === 'I Gusti Sultan H.A, A.Md.Kom';
-});
-
 const isAnggotaSintel = computed(() => {
     if (isAdmin.value) return false;
     const r = (user.value?.role || '').toLowerCase().replace(/[\s_-]+/g, '');
     const j = (user.value?.jabatan || '').toLowerCase();
     return r === 'anggotasintel' || r === 'personelsintel' || j.includes('sintel');
 });
+
+/**
+ * FITUR MENU YANG DIBERIKAN ADMIN (App\Support\FeatureAccess)
+ * Admin & Super Admin selalu menerima seluruh fitur dari server.
+ */
+const enabledFeatures = computed(() => new Set(page.props.auth.user?.features || []));
+const hasFeature = (key) => isAdmin.value || enabledFeatures.value.has(key);
+
+const homeRoute = computed(() => (isAnggotaSintel.value && hasFeature('sc_submissions')) ? 'sc-submissions.index' : 'dashboard');
+
+/**
+ * Struktur menu sidebar. `feature` = kunci fitur yang harus aktif,
+ * `show` = syarat tambahan berbasis peran (menu sistem).
+ */
+const ICONS = {
+    home: ['M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'],
+    chat: ['M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'],
+    doc: ['M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
+    edit: ['M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'],
+    shield: ['M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'],
+    archive: ['M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4'],
+    clipboard: ['M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01'],
+    list: ['M7 7h.01M7 11h.01M7 15h.01M11 7h7M11 11h7M11 15h7'],
+    pen: ['M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z'],
+    printer: ['M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z'],
+    building: ['M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0V11m0 0h4m-4 0H7m4 0v10'],
+    database: ['M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4'],
+    warning: ['M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'],
+    pin: ['M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z', 'M15 11a3 3 0 11-6 0 3 3 0 016 0z'],
+    users: ['M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z'],
+    log: ['M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
+    cpu: ['M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z'],
+    gear: ['M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z', 'M15 12a3 3 0 11-6 0 3 3 0 016 0z'],
+};
+
+const MENU = [
+    { title: 'Utama', items: [
+        { label: 'Dashboard Utama', route: 'dashboard', active: 'dashboard', icon: 'home', color: 'text-blue-600', show: () => !isAnggotaSintel.value },
+        { label: 'Komunikasi & VC', route: 'chat.index', active: 'chat.*', icon: 'chat', color: 'text-blue-600', feature: 'chat', badge: 'Vicon' },
+    ]},
+    { title: 'Surat & Naskah', sintelTitle: 'Menu Anggota Sintel', items: [
+        { label: 'Agenda Surat', route: 'letter-logs.index', active: 'letter-logs.*', icon: 'doc', color: 'text-amber-500', feature: 'letter_logs' },
+        { label: 'Buat & Arsip Surat', route: 'letters.index', active: 'letters.*', icon: 'edit', color: 'text-amber-600', feature: 'letters' },
+        { label: 'Penerbitan SKHPP', route: 'skhpp.index', active: 'skhpp.*', icon: 'shield', color: 'text-emerald-600', feature: 'skhpp' },
+        { label: 'Arsip & Nomor SKHPP', route: 'skhpp-archives.index', active: 'skhpp-archives.*', icon: 'archive', color: 'text-emerald-700', feature: 'skhpp_archive' },
+        { label: 'Tracking Pengajuan SC', sintelLabel: 'Tracking SC', route: 'sc-submissions.index', active: 'sc-submissions.*', icon: 'clipboard', color: 'text-cyan-600', feature: 'sc_submissions' },
+        { label: 'SP Jaga Siaga', sintelLabel: 'Melihat Jadwal SP Jaga', route: 'sp-jaga.index', active: 'sp-jaga.*', icon: 'shield', color: 'text-blue-600', feature: 'sp_jaga' },
+        { label: 'Kategori Surat', route: 'categories.index', active: 'categories.*', icon: 'list', color: 'text-amber-500', feature: 'categories' },
+    ]},
+    { title: 'Validasi & TTE', items: [
+        { label: 'Tanda Tangan Digital', route: 'signature.index', active: 'signature.*', icon: 'pen', color: 'text-purple-600', feature: 'signature' },
+        { label: 'Layanan Printing', route: 'printing.index', active: 'printing.*', icon: 'printer', color: 'text-blue-600', feature: 'printing' },
+    ]},
+    { title: 'Logistik & Keuangan', items: [
+        { label: 'Pencatatan Mitra', route: 'mitras.index', active: 'mitras.*', icon: 'building', color: 'text-blue-600', feature: 'mitra' },
+        { label: 'Explorer Backup', route: 'backup.index', active: 'backup.*', icon: 'database', color: 'text-emerald-500', feature: 'backup' },
+    ]},
+    { title: 'Pengamanan', items: [
+        { label: 'Catatan Pelanggaran', route: 'soldier-violations.index', active: 'soldier-violations.*', icon: 'warning', color: 'text-rose-500', feature: 'violations' },
+        { label: 'Radar Kegiatan', route: 'activities.index', active: 'activities.*', icon: 'pin', color: 'text-blue-500', feature: 'activities' },
+    ]},
+    { title: 'Sistem', items: [
+        { label: 'Pantau Personel', route: 'tracking.index', active: 'tracking.*', icon: 'pin', color: 'text-slate-500', feature: 'tracking' },
+        { label: 'Kelola Pengguna & Akses', route: 'users.index', active: 'users.*', icon: 'users', color: 'text-slate-500', show: () => isAdmin.value },
+        { label: 'Log Pengunjung & Audit', route: 'visitor-logs.index', active: 'visitor-logs.*', icon: 'log', color: 'text-slate-500', show: () => isAdmin.value },
+        { label: 'Cek Sistem & Server', route: 'system-check.index', active: 'system-check.*', icon: 'cpu', color: 'text-slate-500', show: () => isSuperAdmin.value },
+        { label: 'Pengaturan Sistem', route: 'settings.index', active: 'settings.*', icon: 'gear', color: 'text-slate-500', show: () => isSuperAdmin.value },
+    ]},
+];
+
+const menuSections = computed(() => MENU
+    .map(section => ({
+        title: (isAnggotaSintel.value && section.sintelTitle) ? section.sintelTitle : section.title,
+        items: section.items
+            .filter(item => (!item.feature || hasFeature(item.feature)) && (!item.show || item.show()))
+            .map(item => ({ ...item, text: (isAnggotaSintel.value && item.sintelLabel) ? item.sintelLabel : item.label })),
+    }))
+    .filter(section => section.items.length > 0));
+
+const isActive = (item) => route().current(item.active);
 
 const isMobileMenuOpen = ref(false);
 
@@ -179,7 +242,7 @@ onUnmounted(() => {
                 <div>
                     <!-- Mobile Drawer Header -->
                     <div class="pt-6 pb-4 px-6 flex items-center justify-between border-b border-slate-100">
-                        <Link :href="isAnggotaSintel ? route('sc-submissions.index') : route('dashboard')" @click="isMobileMenuOpen = false" class="flex items-center gap-3">
+                        <Link :href="route(homeRoute)" @click="isMobileMenuOpen = false" class="flex items-center gap-3">
                             <img v-if="appLogo" :src="appLogo" alt="Logo" class="w-8 h-8 object-contain select-none shrink-0" />
                             <div v-else class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-extrabold text-base shadow-sm shrink-0"> S
                             </div>
@@ -194,253 +257,22 @@ onUnmounted(() => {
 
                     <!-- Mobile Sidebar Navigation Links -->
                     <nav class="px-4 py-4 space-y-5">
-                        <!-- UTAMA -->
-                        <div v-if="!isAnggotaSintel" class="space-y-1">
-                            <p class="px-4 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Utama</p>
-                            <Link 
-                                :href="route('dashboard')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('dashboard') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-3 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                                <span>Dashboard Utama</span>
-                            </Link>
-
-                            <Link 
-                                :href="route('chat.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('chat.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                                <span class="flex-1">Komunikasi & VC</span>
-                                <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-lg uppercase tracking-wider">Vicon</span>
-                            </Link>
-                        </div>
-
-                        <!-- SURAT & NASKAH / LAYANAN SINTEL -->
-                        <div class="space-y-1">
-                            <p class="px-4 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">
-                                {{ isAnggotaSintel ? 'Menu Anggota Sintel' : 'Surat & Naskah' }}
-                            </p>
-                            <Link 
-                                v-if="!isAnggotaSintel"
-                                :href="route('letter-logs.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('letter-logs.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                <span>Agenda Surat</span>
-                            </Link>
-
-                            <Link 
-                                v-if="!isAnggotaSintel"
-                                :href="route('letters.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('letters.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                                <span>Buat & Draf Surat</span>
-                            </Link>
-
-                            <Link 
-                                v-if="!isAnggotaSintel"
-                                :href="route('skhpp.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('skhpp.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                                <span>Penerbitan SKHPP</span>
-                            </Link>
-
-                            <Link 
-                                :href="route('sc-submissions.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('sc-submissions.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
-                                class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-cyan-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                                </svg>
-                                <span>{{ isAnggotaSintel ? 'Tracking SC' : 'Tracking Pengajuan SC' }}</span>
-                            </Link>
-
-                            <Link 
-                                :href="route('sp-jaga.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('sp-jaga.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                                <span>{{ isAnggotaSintel ? 'Melihat Jadwal SP Jaga' : 'SP Jaga Siaga' }}</span>
-                            </Link>
-
-                            <Link 
-                                v-if="!isAnggotaSintel"
-                                :href="route('categories.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('categories.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 11h.01M7 15h.01M11 7h7M11 11h7M11 15h7"></path></svg>
-                                <span>Kategori Surat</span>
-                            </Link>
-                        </div>
-
-                        <!-- VALIDASI & TTE -->
-                        <div v-if="!isAnggotaSintel" class="space-y-1">
-                            <p class="px-4 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Validasi & TTE</p>
-                            
-                            <Link 
-                                :href="route('signature.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('signature.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                                <span>Tanda Tangan Digital</span>
-                            </Link>
-
-                            <Link 
-                                :href="route('printing.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('printing.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
-                                class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                <span>Layanan Printing</span>
-                            </Link>
-                        </div>
-
-                        <!-- LOGISTIK & FINANSIAL -->
-                        <div v-if="!isAnggotaSintel" class="space-y-1">
-                            <p class="px-4 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Logistik & Keuangan</p>
-                            <Link 
-                                :href="route('simpan-pinjam.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('simpan-pinjam.index') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
-                                class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                <span class="flex-1">Simpan Pinjam</span>
-                            </Link>
-
-                            <Link 
-                                v-if="canManageKoperasi"
-                                :href="route('simpan-pinjam.kelola')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('simpan-pinjam.kelola') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
-                                class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0V11m0 0h4m-4 0H7m4 0v10"></path></svg>
-                                <span class="flex-1">Kelola Simpan Pinjam</span>
-                                <span class="px-1.5 py-0.5 bg-violet-100 text-violet-700 text-[9px] font-extrabold rounded-md uppercase">Pengurus</span>
-                            </Link>
-
-                            
-                            <Link 
-                                v-if="canAccessCommanderAccount"
-                                :href="route('commander.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('commander.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-emerald-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                                <span>Rekening Komandan</span>
-                            </Link>
-
-                            <Link 
-                                v-if="canAccessMitra"
-                                :href="route('mitras.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('mitras.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0V11m0 0h4m-4 0H7m4 0v10"></path></svg>
-                                <span>Pencatatan Mitra</span>
-                            </Link>
-
-                            <Link 
-                                v-if="isAdmin"
-                                :href="route('backup.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('backup.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-                                <span>Explorer Backup</span>
-                            </Link>
-                        </div>
-
-                        <!-- PENGAMANAN -->
-                        <div v-if="!isAnggotaSintel" class="space-y-1">
-                            <p class="px-4 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Pengamanan</p>
-                            
-                            <Link 
-                                :href="route('soldier-violations.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('soldier-violations.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                <span>Catatan Pelanggaran</span>
-                            </Link>
-
-                            <Link 
-                                :href="route('activities.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('activities.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><circle cx="12" cy="11" r="3"></circle></svg>
-                                <span>Radar Kegiatan</span>
-                            </Link>
-                        </div>
-
-                        <!-- SISTEM -->
-                        <div v-if="!isAnggotaSintel" class="space-y-1 pb-6">
-                            <p class="px-4 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Sistem</p>
-
+                        <div v-for="section in menuSections" :key="section.title" class="space-y-1">
+                            <p class="px-4 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">{{ section.title }}</p>
                             <Link
-                                v-if="canViewTracking"
-                                :href="route('tracking.index')"
+                                v-for="item in section.items"
+                                :key="item.route"
+                                :href="route(item.route)"
                                 @click="isMobileMenuOpen = false"
-                                :class="route().current('tracking.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'" class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
+                                :class="isActive(item) ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
+                                class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
                             >
-                                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                <span>Pantau Personel</span>
-                            </Link>
-
-                            <Link
-                                v-if="isAdmin"
-                                :href="route('users.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('users.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                                <span>Kelola Pengguna</span>
-                            </Link>
-
-                            <Link 
-                                :href="route('visitor-logs.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('visitor-logs.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-                                <span>Log Pengunjung & Audit</span>
-                            </Link>
-
-                            <Link 
-                                v-if="isSuperAdmin"
-                                :href="route('system-check.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('system-check.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
-                                <span>Cek Sistem & Server</span>
-                            </Link>
-
-                            <Link 
-                                v-if="isSuperAdmin"
-                                :href="route('settings.index')" 
-                                @click="isMobileMenuOpen = false"
-                                :class="route().current('settings.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-xs' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-3.5 px-4 py-2.5 rounded-2xl text-xs transition duration-150"
-                            >
-                                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                <span>Pengaturan Sistem</span>
+                                <svg :class="['w-4 h-4', item.color]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path v-for="(d, i) in ICONS[item.icon]" :key="i" stroke-linecap="round" stroke-linejoin="round" :d="d"></path></svg>
+                                <span class="flex-1">{{ item.text }}</span>
+                                <span v-if="item.badge" class="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-lg uppercase tracking-wider">{{ item.badge }}</span>
                             </Link>
                         </div>
+                        <div class="pb-6"></div>
                     </nav>
                 </div>
 
@@ -471,7 +303,7 @@ onUnmounted(() => {
             <div>
                 <!-- Brand Header & Logo -->
                 <div class="pt-8 pb-6 px-7 flex flex-col select-none border-b border-slate-100">
-                    <Link :href="isAnggotaSintel ? route('sc-submissions.index') : route('dashboard')" class="flex items-center gap-3">
+                    <Link :href="route(homeRoute)" class="flex items-center gap-3">
                         <img v-if="appLogo" :src="appLogo" alt="Logo" class="w-8 h-8 object-contain select-none shrink-0" />
                         <div v-else class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-extrabold text-base shadow-sm shrink-0"> S
                         </div>
@@ -484,235 +316,21 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Sidebar Nav Menu -->
-                <nav class="px-4 py-3 space-y-5">
-                    
-                    <!-- UTAMA -->
-                    <div v-if="!isAnggotaSintel" class="space-y-1">
-                        <p class="px-5 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Utama</p>
-                        <Link 
-                            :href="route('dashboard')" 
-                            :class="route().current('dashboard') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                            <span>Dashboard Utama</span>
-                        </Link>
-
-                        <Link 
-                            :href="route('chat.index')" 
-                            :class="route().current('chat.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                            <span class="flex-1">Komunikasi & VC</span>
-                            <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-lg uppercase tracking-wider">Vicon</span>
-                        </Link>
-                    </div>
-
-                    <!-- ADMINISTRASI SURAT / LAYANAN SINTEL -->
-                    <div class="space-y-1">
-                        <p class="px-5 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">
-                            {{ isAnggotaSintel ? 'Menu Anggota Sintel' : 'Surat & Naskah' }}
-                        </p>
-                        
-                        <Link 
-                            v-if="!isAnggotaSintel"
-                            :href="route('letter-logs.index')" 
-                            :class="route().current('letter-logs.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            <span>Agenda Surat</span>
-                        </Link>
-
-                        <Link 
-                            v-if="!isAnggotaSintel"
-                            :href="route('letters.index')" 
-                            :class="route().current('letters.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                            <span>Buat & Draf Surat</span>
-                        </Link>
-
-                        <Link 
-                            v-if="!isAnggotaSintel"
-                            :href="route('skhpp.index')" 
-                            :class="route().current('skhpp.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                            <span>Penerbitan SKHPP</span>
-                        </Link>
-
-                        <Link 
-                            :href="route('sc-submissions.index')" 
-                            :class="route().current('sc-submissions.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
-                            class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-cyan-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 002-2M9 5a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-                            </svg>
-                            <span>{{ isAnggotaSintel ? 'Tracking SC' : 'Tracking Pengajuan SC' }}</span>
-                        </Link>
-
-                        <Link 
-                            :href="route('sp-jaga.index')" 
-                            :class="route().current('sp-jaga.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                            <span>{{ isAnggotaSintel ? 'Melihat Jadwal SP Jaga' : 'SP Jaga Siaga' }}</span>
-                        </Link>
-
-                        <Link 
-                            v-if="!isAnggotaSintel"
-                            :href="route('categories.index')" 
-                            :class="route().current('categories.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 11h.01M7 15h.01M11 7h7M11 11h7M11 15h7"></path></svg>
-                            <span>Kategori Surat</span>
-                        </Link>
-                    </div>
-
-                    <!-- VALIDASI & TTE -->
-                    <div v-if="!isAnggotaSintel" class="space-y-1">
-                        <p class="px-5 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Validasi & TTE</p>
-                        
-                        <Link 
-                            :href="route('signature.index')" 
-                            :class="route().current('signature.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-purple-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                            <span>Tanda Tangan Digital</span>
-                        </Link>
-
-                        <Link 
-                            :href="route('printing.index')" 
-                            :class="route().current('printing.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
-                            class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                            <span>Layanan Printing</span>
-                        </Link>
-                    </div>
-
-                    <!-- LOGISTIK & FINANSIAL -->
-                    <div v-if="!isAnggotaSintel" class="space-y-1">
-                        <p class="px-5 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Logistik & Keuangan</p>
-                        
-                        <Link 
-                            :href="route('simpan-pinjam.index')" 
-                            :class="route().current('simpan-pinjam.index') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
-                            class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <span class="flex-1">Simpan Pinjam</span>
-                        </Link>
-
-                        <Link 
-                            v-if="canManageKoperasi"
-                            :href="route('simpan-pinjam.kelola')" 
-                            :class="route().current('simpan-pinjam.kelola') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
-                            class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-violet-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0V11m0 0h4m-4 0H7m4 0v10"></path></svg>
-                            <span class="flex-1">Kelola Simpan Pinjam</span>
-                            <span class="px-2 py-0.5 bg-violet-100 text-violet-700 text-[10px] font-black rounded-lg uppercase tracking-wider">Pengurus</span>
-                        </Link>
-
-                        <Link 
-                            v-if="canAccessCommanderAccount"
-                            :href="route('commander.index')" 
-                            :class="route().current('commander.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-emerald-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                            <span>Rekening Komandan</span>
-                        </Link>
-
-                        <Link 
-                            v-if="canAccessMitra"
-                            :href="route('mitras.index')" 
-                            :class="route().current('mitras.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5m0 0h4m-4 0V11m0 0h4m-4 0H7m4 0v10"></path></svg>
-                            <span>Pencatatan Mitra</span>
-                        </Link>
-
-                        <Link 
-                            v-if="isAdmin"
-                            :href="route('backup.index')" 
-                            :class="route().current('backup.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-                            <span>Explorer Backup</span>
-                        </Link>
-                    </div>
-
-                    <!-- SEKTOR PENGAMANAN -->
-                    <div v-if="!isAnggotaSintel" class="space-y-1">
-                        <p class="px-5 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Pengamanan</p>
-                        
-                        <Link 
-                            :href="route('soldier-violations.index')" 
-                            :class="route().current('soldier-violations.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-rose-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                            <span>Catatan Pelanggaran</span>
-                        </Link>
-
-                        <Link 
-                            :href="route('activities.index')" 
-                            :class="route().current('activities.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><circle cx="12" cy="11" r="3"></circle></svg>
-                            <span>Radar Kegiatan</span>
-                        </Link>
-                    </div>
-
-                    <!-- PENGATURAN & AKSES -->
-                    <div v-if="!isAnggotaSintel" class="space-y-1 pb-6">
-                        <p class="px-5 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">Sistem</p>
-
+                <nav class="px-4 py-3 space-y-5 pb-6">
+                    <div v-for="section in menuSections" :key="section.title" class="space-y-1">
+                        <p class="px-5 text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-widest mb-2">{{ section.title }}</p>
                         <Link
-                            v-if="canViewTracking"
-                            :href="route('tracking.index')"
-                            :class="route().current('tracking.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'" class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
+                            v-for="item in section.items"
+                            :key="item.route"
+                            :href="route(item.route)"
+                            :class="isActive(item) ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"
+                            class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
                         >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                            <span>Pantau Personel</span>
-                        </Link>
-
-                        <Link
-                            v-if="isAdmin"
-                            :href="route('users.index')" 
-                            :class="route().current('users.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                            <span>Kelola Pengguna</span>
-                        </Link>
-
-                        <Link 
-                            :href="route('visitor-logs.index')" 
-                            :class="route().current('visitor-logs.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-                            <span>Log Pengunjung & Audit</span>
-                        </Link>
-
-                        <Link 
-                            v-if="isSuperAdmin"
-                            :href="route('system-check.index')" 
-                            :class="route().current('system-check.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
-                            <span>Cek Sistem & Server</span>
-                        </Link>
-
-                        <Link 
-                            v-if="isSuperAdmin"
-                            :href="route('settings.index')" 
-                            :class="route().current('settings.*') ? 'bg-[#2563EB]/5 text-[#2563EB] font-bold shadow-sm shadow-blue-500/[0.02]' : 'text-[#64748B] hover:text-slate-800 font-medium hover:bg-slate-50'"class="group flex items-center gap-4 px-5 py-3.5 rounded-2xl text-[14px] transition duration-150"
-                        >
-                            <svg class="w-5 h-5 opacity-80 group-hover:opacity-100 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                            <span>Pengaturan Sistem</span>
+                            <svg :class="['w-5 h-5 opacity-80 group-hover:opacity-100', item.color]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path v-for="(d, i) in ICONS[item.icon]" :key="i" stroke-linecap="round" stroke-linejoin="round" :d="d"></path></svg>
+                            <span class="flex-1">{{ item.text }}</span>
+                            <span v-if="item.badge" class="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-lg uppercase tracking-wider">{{ item.badge }}</span>
                         </Link>
                     </div>
-
                 </nav>
             </div>
 
@@ -760,7 +378,7 @@ onUnmounted(() => {
                         <svg class="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition absolute left-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        <span class="truncate">{{ isAnggotaSintel ? 'Cari berkas SC, SP Jaga...' : 'Cari menu, nomor surat, personel, SKHPP, pinjaman...' }}</span>
+                        <span class="truncate">{{ isAnggotaSintel ? 'Cari berkas SC, SP Jaga...' : 'Cari menu, nomor surat, SKHPP...' }}</span>
                         <span class="hidden md:inline-block absolute right-3 bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-[9px] font-mono text-slate-500 font-bold shadow-xs">Ctrl K</span>
                     </button>
 

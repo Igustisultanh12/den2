@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Mobile;
 
-use App\Http\Controllers\CommanderAccountController;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\LetterLogController;
 use App\Http\Controllers\SkhppController;
@@ -196,12 +195,6 @@ class MobileApiController extends Controller
         Skhpp::findOrFail($id);
         // Permission `skhpp.pdf` ditegakkan oleh middleware route (paritas dengan web).
         return $this->pdfResponse(fn () => app(SkhppController::class)->exportPdf($id));
-    }
-
-    public function commanderAccountPdf(Request $request)
-    {
-        $request->validate(['month' => ['nullable', 'regex:/^\d{4}-\d{2}$/']]);
-        return $this->pdfResponse(fn () => app(CommanderAccountController::class)->exportPdf($request));
     }
 
     /**

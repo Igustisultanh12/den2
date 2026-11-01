@@ -30,7 +30,7 @@ class User extends Authenticatable
         'role',
         'is_active',
         'can_access_mitra',
-        'can_manage_koperasi',
+        'feature_access',
         'activation_token',
         'must_change_password', // Agar sistem tahu user perlu ganti password
         'tracking_consent_at', // Waktu personel menyetujui ketentuan dinas (termasuk pelacakan) saat aktivasi
@@ -66,7 +66,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'can_access_mitra' => 'boolean',
-            'can_manage_koperasi' => 'boolean',
+            'feature_access' => 'array',
             'mfa_enabled' => 'boolean',
             'must_change_password' => 'boolean',
             'token_expires_at' => 'datetime',
@@ -134,22 +134,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Relasi Rekening Koperasi Anggota
-     */
-    public function koperasiAccount()
-    {
-        return $this->hasOne(KoperasiAccount::class, 'user_id');
-    }
-
-    /**
-     * Relasi Pinjaman Koperasi
-     */
-    public function koperasiLoans()
-    {
-        return $this->hasMany(KoperasiLoan::class, 'user_id')->latest();
-    }
-
-    /**
      * Relasi Presensi Personel
      */
     public function attendances()
@@ -158,10 +142,11 @@ class User extends Authenticatable
     }
 
     /**
-     * Cek apakah user adalah pengurus koperasi atau admin
+     * Apakah personel boleh memakai fitur menu $feature (lihat App\Support\FeatureAccess).
+     * Admin & Super Admin selalu boleh.
      */
-    public function isPengurusKoperasi(): bool
+    public function hasFeature(string $feature): bool
     {
-        return $this->isAdmin() || (bool)$this->can_manage_koperasi || $this->name === 'I Gusti Sultan H.A, A.Md.Kom';
+        return \App\Support\FeatureAccess::allows($this, $feature);
     }
 }

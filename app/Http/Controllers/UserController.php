@@ -22,17 +22,27 @@ class UserController extends Controller
     /** Menampilkan daftar personel. */
     public function index()
     {
+        $withFeatures = function (User $u) {
+            $u->setAttribute('effective_features', \App\Support\FeatureAccess::enabledFor($u));
+            $u->setAttribute('features_custom', $u->feature_access !== null);
+            return $u;
+        };
+
         return Inertia::render('Users/Index', [
             'users' => User::where('id', '!=', auth()->id())
                 ->visibleTo(auth()->user())
                 ->orderBy('created_at', 'desc')
                 ->orderBy('is_active', 'asc')
-                ->paginate(10),
+                ->paginate(10)
+                ->through($withFeatures),
 
             'allUsers' => User::where('id', '!=', auth()->id())
                 ->visibleTo(auth()->user())
                 ->orderBy('role', 'asc')
-                ->get(),
+                ->get()
+                ->map($withFeatures),
+
+            'featureCatalog' => \App\Support\FeatureAccess::catalog(),
         ]);
     }
 
@@ -645,23 +655,60 @@ class UserController extends Controller
     }
 
     /**
-     * TOGGLE HAK AKSES PENGURUS SIMPAN PINJAM (KOPERASI)
+     * ATUR FITUR MENU YANG BOLEH DIAKSES PERSONEL
+     * Body: features[] = daftar kunci fitur aktif (lihat FeatureAccess::FEATURES),
+     * atau reset=true untuk kembali ke bawaan sesuai peran.
      */
-    public function toggleKoperasiAccess(User $user)
+    public function updateFeatures(Request $request, User $user)
     {
         $this->authorizeTarget($user);
-        $user->update(['can_manage_koperasi' => !$user->can_manage_koperasi]);
+
+        if ($user->isAdmin()) {
+            return back()->with('error', 'Admin & Super Admin selalu memiliki akses ke seluruh fitur.');
+        }
+
+        $data = $request->validate([
+            'reset'      => 'sometimes|boolean',
+            'features'   => 'array',
+            'features.*' => ['string', \Illuminate\Validation\Rule::in(\App\Support\FeatureAccess::keys())],
+        ]);
+
+        $before = \App\Support\FeatureAccess::enabledFor($user);
+
+        if ($request->boolean('reset')) {
+            $user->feature_access = null;
+        } else {
+            $user->feature_access = \App\Support\FeatureAccess::normalize($data['features'] ?? []);
+        }
+        // Flag lama tetap diselaraskan untuk klien mobile versi lama.
+        $user->can_access_mitra = \App\Support\FeatureAccess::allows($user, 'mitra');
+        $user->save();
+
+        $after = \App\Support\FeatureAccess::enabledFor($user);
+        $labels = fn (array $keys) => implode(', ', array_map(fn ($k) => \App\Support\FeatureAccess::FEATURES[$k]['label'] ?? $k, $keys)) ?: '-';
+        $granted = array_values(array_diff($after, $before));
+        $revoked = array_values(array_diff($before, $after));
 
         AuditLog::create([
             'user_id'          => auth()->id(),
             'admin_name'       => auth()->user()->name,
-            'action'           => 'UPDATE HAK AKSES PENGURUS KOPERASI',
+            'action'           => 'UPDATE AKSES FITUR',
             'target_personnel' => $user->name,
-            'description'      => "Mengubah hak akses pengurus simpan pinjam untuk {$user->name} menjadi " . ($user->can_manage_koperasi ? 'Diizinkan' : 'Dilarang'),
-            'ip_address'       => request()->ip(),
+            'description'      => $request->boolean('reset')
+                ? "Mengembalikan akses fitur {$user->name} ke bawaan peran. Diberikan: {$labels($granted)}; dicabut: {$labels($revoked)}"
+                : "Mengubah akses fitur {$user->name}. Diberikan: {$labels($granted)}; dicabut: {$labels($revoked)}",
+            'ip_address'       => $request->ip(),
         ]);
 
-        return back()->with('message', 'Hak akses Pengurus Simpan Pinjam berhasil diperbarui.');
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'features' => $after,
+                'is_custom' => $user->feature_access !== null,
+            ]);
+        }
+
+        return back()->with('message', "Akses fitur {$user->name} berhasil diperbarui.");
     }
 
 

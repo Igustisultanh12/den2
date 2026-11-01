@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Skhpp;
 use App\Models\SkhppMember;
 use App\Models\SignatureRequest;
+use App\Models\SkhppArchive;
 use App\Models\User;
 use App\Models\AppNotification;
+use App\Services\SkhppNumberService;
+use App\Services\SkhppPdfService;
 use App\Services\WhatsappService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,18 +18,6 @@ use Illuminate\Support\Facades\Storage;
 
 class SkhppController extends Controller
 {
-    /**
-     * Helper Konversi Angka Bulan ke Romawi
-     */
-    private function getRomanMonth($month)
-    {
-        $map = [
-            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 5 => 'V', 6 => 'VI',
-            7 => 'VII', 8 => 'VIII', 9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
-        ];
-        return $map[(int)$month] ?? 'I';
-    }
-
     /**
      * List Halaman Utama Pengajuan SKHPP
      */
@@ -148,6 +139,13 @@ class SkhppController extends Controller
                     'jabatan' => $m['jabatan'],
                 ]);
             }
+        }
+
+        // Otomatis masuk Arsip SKHPP dengan status "Menunggu Upload PDF" (menunggu TTE/TTD Komandan)
+        try {
+            SkhppArchive::syncFromSkhpp($skhpp);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Gagal auto-sync SKHPP ke Arsip SKHPP: " . $e->getMessage());
         }
 
         // Sinkronisasi ke Antrean TTD Komandan (SignatureRequest)
@@ -292,6 +290,12 @@ class SkhppController extends Controller
             'submitted_at' => now(),
         ]);
 
+        try {
+            SkhppArchive::syncFromSkhpp($skhpp);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Gagal sync revisi SKHPP ke Arsip SKHPP: " . $e->getMessage());
+        }
+
         // Re-sync Anggota Pengikut
         SkhppMember::where('skhpp_id', $skhpp->id)->delete();
         if ($request->has_pengikut && !empty($request->members)) {
@@ -345,76 +349,60 @@ class SkhppController extends Controller
 
         $skhpp = Skhpp::findOrFail($id);
 
-        $currentYear = date('Y');
-        $currentMonth = date('n');
-        $romanMonth = $this->getRomanMonth($currentMonth);
+        $currentYear = (int) date('Y');
+        $romanMonth = SkhppNumberService::romanMonth((int) date('n'));
+        $jenis = SkhppNumberService::jenisFor($skhpp->kategori_personel);
 
-        $isPerusahaan = ($skhpp->kategori_personel === 'perusahaan');
-        $targetCode = $isPerusahaan ? 'SKHPP-P' : 'SKHPP-D';
-        $categoryName = $isPerusahaan 
-            ? 'SKHPP Mitra Kerja / Perusahaan' 
-            : 'SKHPP Dinas Militer & PNS';
+        $priority = strtoupper((string) $request->input('priority', 'R')); // R (RAHASIA), B (BIASA), K (KILAT), SR
+        if (!array_key_exists($priority, SkhppNumberService::PRIORITIES)) {
+            $priority = 'R';
+        }
 
-        // PENOMORAN TERPISAH KATEGORI (SKHPP-P & SKHPP-D INDEPENDEN) & PERTAHANKAN NOMOR SAAT PENGAJUAN ULANG
-        if ($request->filled('custom_nomor_urut') && (int)$request->custom_nomor_urut > 0) {
-            $nextSeq = (int)$request->custom_nomor_urut;
-        } elseif (!empty($skhpp->nomor_urut) && (int)$skhpp->nomor_urut > 0) {
-            // PERTAHANKAN NOMOR LAMA JIKA SUDAH ADA / DIATUR ADMIN SEBELUMNYA
-            $nextSeq = (int)$skhpp->nomor_urut;
-        } else {
-            $seqQuery = Skhpp::where('tahun', $currentYear);
-            if ($isPerusahaan) {
-                $seqQuery->where('kategori_personel', 'perusahaan');
-            } else {
-                $seqQuery->where('kategori_personel', '!=', 'perusahaan');
+        if ($request->filled('custom_nomor_urut')) {
+            $custom = (int) $request->custom_nomor_urut;
+            if ($custom < 1) {
+                return back()->with('error', 'Nomor urut SKHPP tidak valid.');
             }
-            $lastSeq = $seqQuery->max('nomor_urut') ?? 0;
-            $nextSeq = $lastSeq + 1;
+            if (SkhppNumberService::isTaken($jenis, $currentYear, $custom, null, $skhpp->id)) {
+                return back()->with('error', "Nomor urut {$custom} SKHPP-{$jenis} tahun {$currentYear} sudah dipakai. Gunakan nomor lain.");
+            }
         }
 
-        $priority = $request->input('priority', 'R'); // R (RAHASIA), B (BIASA), K (KILAT)
+        // PENOMORAN TERPISAH SKHPP-D & SKHPP-P (BERSAMBUNG DENGAN NOMOR MANUAL DI ARSIP SKHPP)
+        // & PERTAHANKAN NOMOR SAAT PENGAJUAN ULANG / SUDAH DIATUR ADMIN
+        [$nextSeq, $formattedNo] = SkhppNumberService::withLock($jenis, function () use ($request, $skhpp, $user, $jenis, $currentYear, $romanMonth, $priority) {
+            if ($request->filled('custom_nomor_urut')) {
+                $nextSeq = (int) $request->custom_nomor_urut;
+            } elseif (!empty($skhpp->nomor_urut) && (int) $skhpp->nomor_urut > 0) {
+                $nextSeq = (int) $skhpp->nomor_urut;
+            } else {
+                $nextSeq = SkhppNumberService::nextSequence($jenis, $currentYear);
+            }
 
-        $skhppCategory = \App\Models\Category::firstOrCreate(
-            ['code' => $targetCode],
-            ['name' => $categoryName, 'start_number' => 1]
-        );
+            $formattedNo = $request->filled('custom_nomor_skhpp')
+                ? trim($request->custom_nomor_skhpp)
+                : SkhppNumberService::format($priority, $nextSeq, $romanMonth, $currentYear);
 
-        $cleanCode = explode('-', $skhppCategory->code)[0]; // 'SKHPP'
-
-        if ($request->filled('custom_nomor_skhpp')) {
-            $formattedNo = trim($request->custom_nomor_skhpp);
-        } else {
-            // EXACT FORMAT: {$priority} / {$sequence} / {$cleanCode} / {$romanMonth} / {$year}
-            $formattedNo = "{$priority} / {$nextSeq} / {$cleanCode} / {$romanMonth} / {$currentYear}";
-        }
-
-        $skhpp->update([
-            'status' => 'approved',
-            'nomor_skhpp' => $formattedNo,
-            'nomor_urut' => $nextSeq,
-            'bulan_romawi' => $romanMonth,
-            'tahun' => (int)$currentYear,
-            'tanggal_skhpp' => now(),
-            'approved_by' => $user->id,
-            'approved_at' => now(),
-            'catatan_revisi' => null,
-        ]);
-
-        // SINKRONISASI OTOMATIS KE BUKU AGENDA SURAT SINDEN (LETTER_LOGS)
-        try {
-            \App\Models\LetterLog::create([
-                'full_number' => $formattedNo,
-                'sequence' => (string)$nextSeq,
-                'priority' => $priority,
-                'category_id' => $skhppCategory->id,
-                'subject' => "SKHPP - {$skhpp->nama} (" . strtoupper($skhpp->kategori_personel) . ") - " . $skhpp->peruntukan,
-                'recipient' => 'Yth. Asintel Pangkoarmada 2',
-                'date' => now()->toDateString(),
-                'is_archived' => false,
+            $skhpp->update([
+                'status' => 'approved',
+                'nomor_skhpp' => $formattedNo,
+                'nomor_urut' => $nextSeq,
+                'bulan_romawi' => $romanMonth,
+                'tahun' => $currentYear,
+                'tanggal_skhpp' => now(),
+                'approved_by' => $user->id,
+                'approved_at' => now(),
+                'catatan_revisi' => null,
             ]);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning("Gagal auto-sync SKHPP ke LetterLog: " . $e->getMessage());
-        }
+
+            $archive = SkhppArchive::syncFromSkhpp($skhpp);
+            $archive->update(['priority' => $priority]);
+
+            return [$nextSeq, $formattedNo];
+        });
+
+        // TTE TERBIT: PDF RESMI LANGSUNG TERSIMPAN DI ARSIP SKHPP
+        $pdfStored = SkhppPdfService::storeToArchive($skhpp->fresh(), $user->id);
 
         // SINKRONISASI OTOMATIS KE FITUR TRACKING PENGAJUAN SECURITY CLEARANCE (SC)
         // Tahap 1 (Pengisian RH), 2 (Pengecekan Dokumen), 3 (Cetak SKHPP), dan 4 (Menunggu TTD) otomatis terlewati!
@@ -509,7 +497,9 @@ class SkhppController extends Controller
             \Illuminate\Support\Facades\Log::warning("Gagal kirim notif SKHPP disetujui: " . $e->getMessage());
         }
 
-        return back()->with('success', "SKHPP Resmi disetujui Komandan! Nomor: {$formattedNo} (Tersinkron ke Buku Nomor Agenda)");
+        return back()->with('success', $pdfStored
+            ? "SKHPP Resmi disetujui Komandan! Nomor: {$formattedNo}. PDF otomatis tersimpan di Arsip SKHPP."
+            : "SKHPP Resmi disetujui Komandan! Nomor: {$formattedNo}. PDF belum tersimpan otomatis — simpan ulang dari menu Arsip SKHPP.");
     }
 
     /**
@@ -673,9 +663,25 @@ class SkhppController extends Controller
             'admin_name' => auth()->user()->name,
             'action' => 'DELETE_SKHPP',
             'target_personnel' => $skhpp->nama,
-            'description' => "Penghapusan / Pencabutan SKHPP Nomor: " . ($skhpp->nomor_skhpp || $skhpp->id),
+            'description' => "Penghapusan / Pencabutan SKHPP Nomor: " . ($skhpp->nomor_skhpp ?: $skhpp->id),
             'ip_address' => request()->ip(),
         ]);
+
+        // Arsip SKHPP: yang belum bernomor dihapus; yang sudah bernomor ditandai "Dicabut"
+        // agar nomor tidak dipakai ulang dan jejaknya tetap ada.
+        $archive = SkhppArchive::where('skhpp_id', $skhpp->id)->first();
+        if ($archive) {
+            if (empty($archive->nomor_urut)) {
+                $archive->deleteFile();
+                $archive->delete();
+            } else {
+                $archive->update([
+                    'skhpp_id' => null,
+                    'status' => SkhppArchive::STATUS_DICABUT,
+                    'keterangan' => trim(($archive->keterangan ? $archive->keterangan . "\n" : '') . 'Dicabut/dihapus dari menu Penerbitan SKHPP oleh ' . auth()->user()->name . ' pada ' . now()->format('d/m/Y H:i')),
+                ]);
+            }
+        }
 
         $skhpp->delete();
 
@@ -689,52 +695,7 @@ class SkhppController extends Controller
     {
         $skhpp = Skhpp::with(['members', 'submitter', 'approver'])->findOrFail($id);
 
-        $foto1_base64 = null;
-        if ($skhpp->foto_1 && Storage::disk('public')->exists($skhpp->foto_1)) {
-            $foto1Path = Storage::disk('public')->path($skhpp->foto_1);
-            $foto1Type = pathinfo($foto1Path, PATHINFO_EXTENSION);
-            $foto1Data = file_get_contents($foto1Path);
-            $foto1_base64 = 'data:image/' . $foto1Type . ';base64,' . base64_encode($foto1Data);
-        }
-
-        $foto2_base64 = null;
-        if ($skhpp->foto_2 && Storage::disk('public')->exists($skhpp->foto_2)) {
-            $foto2Path = Storage::disk('public')->path($skhpp->foto_2);
-            $foto2Type = pathinfo($foto2Path, PATHINFO_EXTENSION);
-            $foto2Data = file_get_contents($foto2Path);
-            $foto2_base64 = 'data:image/' . $foto2Type . ';base64,' . base64_encode($foto2Data);
-        }
-
-        // Generate QR Code TTD Image
-        $qr_base64 = null;
-        if ($skhpp->status === 'approved') {
-            try {
-                $verifyUrl = route('skhpp.verify', $skhpp->verification_code);
-                $qrData = file_get_contents('https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' . urlencode($verifyUrl));
-                if ($qrData) {
-                    $qr_base64 = 'data:image/png;base64,' . base64_encode($qrData);
-                }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning("Gagal fetch QR image: " . $e->getMessage());
-            }
-        }
-
-        $months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-        $tglLahir = $skhpp->tanggal_lahir ? new \DateTime($skhpp->tanggal_lahir) : null;
-        $tanggal_lahir_indo = $tglLahir ? ($tglLahir->format('d') . ' ' . $months[(int)$tglLahir->format('n') - 1] . ' ' . $tglLahir->format('Y')) : '';
-
-        $tglSkhpp = $skhpp->tanggal_skhpp ? new \DateTime($skhpp->tanggal_skhpp) : ($skhpp->approved_at ? new \DateTime($skhpp->approved_at) : new \DateTime());
-        $tanggal_skhpp_indo = $tglSkhpp ? ($tglSkhpp->format('j') . ' ' . $months[(int)$tglSkhpp->format('n') - 1] . ' ' . $tglSkhpp->format('Y')) : '';
-        $bulan_tahun_indo = $tglSkhpp ? ($months[(int)$tglSkhpp->format('n') - 1] . ' ' . $tglSkhpp->format('Y')) : '';
-
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.skhpp', compact(
-            'skhpp', 'foto1_base64', 'foto2_base64', 'qr_base64',
-            'tanggal_lahir_indo', 'tanggal_skhpp_indo', 'bulan_tahun_indo'
-        ))->setPaper([0, 0, 609.45, 935.43], 'portrait'); // EXACT F4 / FOLIO SIZE (21.5cm x 33cm)
-
-        $safeName = \Illuminate\Support\Str::slug($skhpp->nama);
-        return $pdf->stream("SKHPP_{$safeName}.pdf");
+        return SkhppPdfService::make($skhpp)->stream(SkhppPdfService::filename($skhpp));
     }
 
     /**
@@ -754,23 +715,29 @@ class SkhppController extends Controller
         $skhpp = Skhpp::findOrFail($id);
         $nextSeq = (int)$request->custom_nomor_urut;
 
-        $currentYear = date('Y');
-        $currentMonth = date('n');
-        $romanMonth = $this->getRomanMonth($currentMonth);
+        $currentYear = (int) date('Y');
+        $romanMonth = SkhppNumberService::romanMonth((int) date('n'));
 
-        $priority = $skhpp->priority ?? 'R';
-        $isPerusahaan = ($skhpp->kategori_personel === 'perusahaan');
-        $targetCode = $isPerusahaan ? 'SKHPP-P' : 'SKHPP-D';
-        $cleanCode = 'SKHPP';
+        $jenis = SkhppNumberService::jenisFor($skhpp->kategori_personel);
+        $targetCode = 'SKHPP-' . $jenis;
+        $archive = SkhppArchive::where('skhpp_id', $skhpp->id)->first();
+        $priority = $archive?->priority ?: 'R';
 
-        $formattedNo = "{$priority} / {$nextSeq} / {$cleanCode} / {$romanMonth} / {$currentYear}";
+        if (SkhppNumberService::isTaken($jenis, $currentYear, $nextSeq, null, $skhpp->id)) {
+            return back()->with('error', "Nomor urut {$nextSeq} {$targetCode} tahun {$currentYear} sudah dipakai (SINDEN / manual). Gunakan nomor lain.");
+        }
 
-        $skhpp->update([
-            'nomor_skhpp' => $formattedNo,
-            'nomor_urut' => $nextSeq,
-            'bulan_romawi' => $romanMonth,
-            'tahun' => (int)$currentYear,
-        ]);
+        $formattedNo = SkhppNumberService::format($priority, $nextSeq, $romanMonth, $currentYear);
+
+        SkhppNumberService::withLock($jenis, function () use ($skhpp, $formattedNo, $nextSeq, $romanMonth, $currentYear) {
+            $skhpp->update([
+                'nomor_skhpp' => $formattedNo,
+                'nomor_urut' => $nextSeq,
+                'bulan_romawi' => $romanMonth,
+                'tahun' => $currentYear,
+            ]);
+            SkhppArchive::syncFromSkhpp($skhpp);
+        });
 
         // Kirim Notifikasi Sistem In-App Bell & WA ke Operator & Komandan bahwa Nomor SKHPP telah dibooking
         try {
@@ -821,6 +788,13 @@ class SkhppController extends Controller
             'catatan_revisi' => null,
             'submitted_at' => now(),
         ]);
+
+        // Arsip SKHPP kembali "Menunggu Upload PDF" sampai TTE ulang terbit.
+        try {
+            SkhppArchive::syncFromSkhpp($skhpp);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Gagal sync Ajukan Ulang TTE ke Arsip SKHPP: " . $e->getMessage());
+        }
 
         // Kirim Notifikasi Sistem In-App Bell & WA ke Komandan
         try {

@@ -34,7 +34,8 @@ class SuperAdminAccessTest extends TestCase
     {
         $super = $this->user('super_admin');
         $this->assertTrue($super->isAdmin());
-        $this->assertTrue($super->isPengurusKoperasi());
+        $this->assertTrue($super->hasFeature('backup'));
+        $this->assertTrue($super->hasFeature('skhpp_archive'));
         $this->assertFalse($this->user('personel')->isAdmin());
     }
 

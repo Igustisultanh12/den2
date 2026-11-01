@@ -34,4 +34,23 @@ class Category extends Model
     {
         return $this->hasMany(SubCategory::class);
     }
+
+    /**
+     * Kategori SKHPP (SKHPP-D / SKHPP-P) memiliki buku nomor & arsip sendiri
+     * (tabel skhpp_archives) dan tidak lagi dipakai di Agenda / Arsip Surat.
+     */
+    public function isSkhpp(): bool
+    {
+        return str_starts_with(strtoupper((string) $this->code), 'SKHPP');
+    }
+
+    public function scopeSkhpp($query)
+    {
+        return $query->whereRaw('UPPER(code) LIKE ?', ['SKHPP%']);
+    }
+
+    public function scopeWithoutSkhpp($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('code')->orWhereRaw('UPPER(code) NOT LIKE ?', ['SKHPP%']));
+    }
 }

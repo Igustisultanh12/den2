@@ -24,6 +24,13 @@ class Letter extends Model
         return $this->belongsTo(Category::class);
     }
 
+    /** Arsip surat masuk/keluar tanpa SKHPP (SKHPP diarsipkan di skhpp_archives). */
+    public function scopeWithoutSkhpp($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('category_id')
+            ->orWhereNotIn('category_id', Category::skhpp()->select('id')));
+    }
+
     /**
      * PERBAIKAN: Pastikan nama Model target adalah 'SubCategory' 
      * bukan 'LetterSubCategory' (sesuaikan dengan nama file di folder Models Anda).

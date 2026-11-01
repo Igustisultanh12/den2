@@ -17,16 +17,8 @@ class MitraPaymentController extends Controller
     {
         $user = auth()->user();
 
-        // Otoritas Akses: Admin, Developer, atau can_access_mitra == true
-        $allowedNames = [
-            'I Gusti Sultan H.A, A.Md.Kom'
-        ];
-
-        $canAccess = $user->isAdmin() 
-            || in_array($user->name, $allowedNames) 
-            || (bool)$user->can_access_mitra;
-
-        if (!$canAccess) {
+        // Otoritas Akses: fitur "Pencatatan Mitra" aktif (diatur Admin di Kelola Pengguna)
+        if (!$user->hasFeature('mitra')) {
             return redirect()->route('dashboard')->with('error', 'Akses ditolak! Anda tidak memiliki otoritas melihat Modul Pembayaran Mitra.');
         }
 
@@ -219,6 +211,14 @@ class MitraPaymentController extends Controller
         $targetUser = User::findOrFail($userId);
         abort_unless($targetUser->isManageableBy(auth()->user()), 403, 'Akun Super Admin hanya dapat dikelola oleh Super Admin.');
         $targetUser->can_access_mitra = !$targetUser->can_access_mitra;
+        // Jika akses fitur personel sudah diatur khusus, selaraskan juga fitur "mitra".
+        if (is_array($targetUser->feature_access)) {
+            $features = array_diff($targetUser->feature_access, ['mitra']);
+            if ($targetUser->can_access_mitra) {
+                $features[] = 'mitra';
+            }
+            $targetUser->feature_access = \App\Support\FeatureAccess::normalize($features);
+        }
         $targetUser->save();
 
         return redirect()->back()->with('success', 'Hak akses Modul Mitra untuk ' . $targetUser->name . ' berhasil diperbarui.');

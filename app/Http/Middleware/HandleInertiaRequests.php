@@ -83,7 +83,8 @@ class HandleInertiaRequests extends Middleware
                     'is_admin'   => $request->user()->isAdmin(),
                     'is_active'  => $request->user()->is_active,
                     'can_access_mitra' => (bool)$request->user()->can_access_mitra,
-                    'can_manage_koperasi' => (bool)$request->user()->can_manage_koperasi,
+                    // Fitur menu yang aktif untuk personel ini (App\Support\FeatureAccess)
+                    'features'   => \App\Support\FeatureAccess::enabledFor($request->user()),
                     'google_id'     => $request->user()->google_id ?? null,
                     'google_email'  => $request->user()->google_email ?? null,
                     'google_avatar' => $request->user()->google_avatar ?? null,

@@ -45,7 +45,7 @@ class MobileApiSecurityTest extends TestCase
             $t->boolean('is_active')->default(true);
             $t->boolean('can_access_mitra')->default(false);
             $t->boolean('can_access_technical_cash')->default(false);
-            $t->boolean('can_manage_koperasi')->default(false);
+            $t->json('feature_access')->nullable();
             $t->boolean('can_access_ibu_beti')->default(false);
             $t->string('activation_token')->nullable();
             $t->boolean('must_change_password')->default(false);
@@ -231,11 +231,21 @@ class MobileApiSecurityTest extends TestCase
     {
         static $n = 0;
         $n++;
+        $attrs = array_merge(['role' => 'personel'], $attrs);
+        // Uji kontrak modul: personel dianggap sudah diberi Admin fitur yang dulu
+        // menjadi bawaannya (kini bawaan personel hanya Chat, SP Jaga & Backup).
+        // Test bawaan peran memakai 'feature_access' => null secara eksplisit.
+        if (!array_key_exists('feature_access', $attrs) && in_array($attrs['role'], ['personel', 'user'], true)) {
+            $attrs['feature_access'] = json_encode([
+                'chat', 'letter_logs', 'letters', 'skhpp', 'skhpp_archive',
+                'sc_submissions', 'sp_jaga', 'signature', 'printing', 'violations',
+            ]);
+        }
+
         return User::forceCreate(array_merge([
             'name' => "Personel {$n}",
             'email' => "p{$n}@example.test",
             'nrp' => "NRP{$n}",
-            'role' => 'personel',
             'password' => Hash::make('rahasia123'),
             'is_active' => true,
         ], $attrs));
@@ -334,13 +344,20 @@ class MobileApiSecurityTest extends TestCase
 
     public function test_permission_change_by_admin_applies_on_next_request(): void
     {
-        $u = $this->makeUser(['role' => 'personel']);
+        $u = $this->makeUser(['role' => 'personel', 'feature_access' => null]);
         $token = $this->tokenFor($u);
         $this->withToken($token)->getJson('/api/mobile/me')->assertOk();
         $this->assertNotContains('mitra.view', $this->withToken($token)->getJson('/api/mobile/me')->json('user.permissions'));
 
         $u->forceFill(['can_access_mitra' => true])->save();
         $this->assertContains('mitra.view', $this->withToken($token)->getJson('/api/mobile/me')->json('user.permissions'));
+
+        // Akses fitur yang diatur Admin di Kelola Pengguna juga langsung berlaku.
+        $u->forceFill(['feature_access' => json_encode(['skhpp'])])->save();
+        $perms = $this->withToken($token)->getJson('/api/mobile/me')->json('user.permissions');
+        $this->assertContains('skhpp.view', $perms);
+        $this->assertNotContains('mitra.view', $perms);
+        $this->assertNotContains('duty_roster.view', $perms);
     }
 
     public function test_anggota_sintel_gets_restricted_menu(): void
@@ -580,6 +597,13 @@ class MobileApiSecurityTest extends TestCase
         $this->assertArrayNotHasKey('cash_balance', $summary);
         $this->assertArrayHasKey('attendance', $summary);
         $this->assertArrayHasKey('letter_logs_total', $summary);
+
+        // Personel dengan akses bawaan (Chat, SP Jaga & Backup): Agenda tidak dikirim.
+        $basic = $this->makeUser(['role' => 'personel', 'feature_access' => null]);
+        $basicSummary = $this->withToken($this->tokenFor($basic))->getJson('/api/mobile/dashboard')
+            ->assertOk()->json('summary');
+        $this->assertArrayNotHasKey('letter_logs_total', $basicSummary);
+        $this->assertArrayHasKey('attendance', $basicSummary);
 
         $admin = $this->makeUser(['role' => 'admin']);
         DB::table('signature_requests')->insert(['user_id' => $personel->id, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
@@ -1010,31 +1034,45 @@ class MobileApiSecurityTest extends TestCase
         $this->assertSame([1], $page1['draw_pages'], 'QR hasil TTE di halaman pilihan pengaju');
     }
 
-    public function test_commander_account_can_be_edited_from_app_by_managers_only(): void
+    public function test_commander_account_module_was_removed(): void
     {
-        foreach (glob(database_path('migrations/*create_commander_accounts_table.php')) as $m) {
-            (require $m)->up();
-        }
-        $tx = \App\Models\CommanderAccount::forceCreate(['tanggal' => '2026-10-01', 'keterangan' => 'TRANSFER', 'jenis' => 'MASUK', 'jumlah' => 500000, 'petugas_input' => 'Admin']);
-        $komandan = $this->makeUser(['role' => 'komandan']);
-        $admin = $this->makeUser(['role' => 'admin', 'name' => 'Suma']);
-        $payload = ['tanggal' => '2026-10-02', 'keterangan' => 'transfer koreksi', 'jenis' => 'keluar', 'jumlah' => 450000];
-
-        // Komandan hanya melihat (sama dengan web).
-        $this->withToken($this->tokenFor($komandan))->getJson('/api/mobile/commander-account')->assertOk()->assertJsonPath('can_manage', false);
-        $this->withToken($this->tokenFor($komandan))->putJson("/api/mobile/commander-account/{$tx->id}", $payload)->assertStatus(403);
-
+        $admin = $this->makeUser(['role' => 'admin']);
         $tok = $this->tokenFor($admin);
-        $this->withToken($tok)->putJson("/api/mobile/commander-account/{$tx->id}", $payload)->assertOk()->assertJsonPath('status', 'success');
-        $tx->refresh();
-        $this->assertSame('2026-10-02', substr((string) $tx->tanggal, 0, 10));
-        $this->assertSame('TRANSFER KOREKSI', $tx->keterangan);
-        $this->assertSame('KELUAR', $tx->jenis);
-        $this->assertEquals(450000, (float) $tx->jumlah);
-        $this->assertSame('Suma (EDIT)', $tx->petugas_input);
 
-        $this->withToken($tok)->putJson("/api/mobile/commander-account/{$tx->id}", ['tanggal' => '2026-10-02', 'jenis' => 'MASUK'])
-            ->assertStatus(422)->assertJsonPath('status', 'error');
-        $this->withToken($tok)->putJson('/api/mobile/commander-account/99999', $payload)->assertStatus(404);
+        $this->withToken($tok)->getJson('/api/mobile/commander-account')->assertNotFound();
+        $this->withToken($tok)->getJson('/api/mobile/pdf/commander-account')->assertNotFound();
+
+        $this->assertNotContains('commander_account.view', \App\Support\MobileAccess::grantedAbilities($admin));
+    }
+
+    public function test_feature_access_set_by_admin_limits_mobile_permissions(): void
+    {
+        // Personel biasa: bawaannya hanya Chat, SP Jaga & Backup.
+        $default = $this->makeUser(['role' => 'personel', 'feature_access' => null]);
+        $this->assertFalse(\App\Support\MobileAccess::can($default, 'letter_logs.view'));
+        $this->assertFalse(\App\Support\MobileAccess::can($default, 'skhpp.view'));
+        $this->assertFalse(\App\Support\MobileAccess::can($default, 'signature.view'));
+        $this->assertTrue(\App\Support\MobileAccess::can($default, 'chat.view'));
+        $this->assertTrue(\App\Support\MobileAccess::can($default, 'duty_roster.view'));
+        $this->assertTrue(\App\Support\MobileAccess::can($default, 'backup.view'));
+        $this->assertTrue(\App\Support\MobileAccess::can($default, 'attendance.create'));
+
+        // Admin membatasi personel hanya ke SP Jaga + diberi Backup.
+        $limited = $this->makeUser(['role' => 'personel', 'feature_access' => json_encode(['sp_jaga', 'backup'])]);
+        $limited->refresh();
+        $this->assertFalse(\App\Support\MobileAccess::can($limited, 'letter_logs.view'));
+        $this->assertFalse(\App\Support\MobileAccess::can($limited, 'skhpp.view'));
+        $this->assertFalse(\App\Support\MobileAccess::can($limited, 'chat.view'));
+        $this->assertTrue(\App\Support\MobileAccess::can($limited, 'duty_roster.view'));
+        $this->assertTrue(\App\Support\MobileAccess::can($limited, 'backup.view'));
+        // Modul inti tetap tersedia.
+        $this->assertTrue(\App\Support\MobileAccess::can($limited, 'attendance.create'));
+
+        $this->withToken($this->tokenFor($limited))->getJson('/api/mobile/letter-logs')->assertStatus(403);
+
+        // Admin tidak dapat dibatasi.
+        $admin = $this->makeUser(['role' => 'admin', 'feature_access' => json_encode([])]);
+        $admin->refresh();
+        $this->assertTrue(\App\Support\MobileAccess::can($admin, 'letter_logs.view'));
     }
 }

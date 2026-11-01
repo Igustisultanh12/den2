@@ -10,6 +10,7 @@ import html2pdf from 'html2pdf.js'; // Library Sakti untuk Cetak Tanpa RAM Serve
 const props = defineProps({
     users: Object, // Data pagination (10 orang)
     allUsers: Array, // Data lengkap untuk Rekap PDF
+    featureCatalog: { type: Array, default: () => [] }, // Daftar fitur menu yang dapat diatur
 });
 
 const user = computed(() => usePage().props.auth.user);
@@ -40,6 +41,7 @@ const detailUser = ref(null);
 
 const showPersonnelDetail = (u) => {
     detailUser.value = u;
+    resetFeatureDraft(u);
     showDetailModal.value = true;
 };
 
@@ -509,84 +511,66 @@ const deleteUser = (user) => {
     });
 };
 
-const toggleMitraAccess = (user) => {
-    if (!user) return;
-    const prev = Boolean(user.can_access_mitra);
-    user.can_access_mitra = !prev;
-    if (detailUser.value && detailUser.value.id === user.id) {
-        detailUser.value.can_access_mitra = user.can_access_mitra;
-    }
-    if (props.users?.data) {
-        const found = props.users.data.find(u => u.id === user.id);
-        if (found) found.can_access_mitra = user.can_access_mitra;
-    }
+// --- MATRIKS AKSES FITUR MENU (App\Support\FeatureAccess) ---
+const isPrivilegedRole = (u) => ['admin', 'super_admin', 'superadmin'].includes(String(u?.role || '').toLowerCase().replace(/[\s-]+/g, '_'));
 
-    router.post(route('users.toggle-mitra-access', user.id), {}, {
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => {
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 2000,
-                timerProgressBar: true
-            });
-            Toast.fire({
-                icon: 'success',
-                title: `Akses Modul Mitra: ${user.can_access_mitra ? 'DIBERIKAN (AKTIF)' : 'DINONAKTIFKAN'}`
-            });
-        },
-        onError: () => {
-            user.can_access_mitra = prev;
-            if (detailUser.value && detailUser.value.id === user.id) detailUser.value.can_access_mitra = prev;
-            if (props.users?.data) {
-                const found = props.users.data.find(u => u.id === user.id);
-                if (found) found.can_access_mitra = prev;
-            }
-            Swal.fire('GAGAL', 'Gagal memperbarui hak akses Modul Mitra.', 'error');
-        }
+const featureGroups = computed(() => {
+    const groups = [];
+    (props.featureCatalog || []).forEach(f => {
+        let g = groups.find(x => x.name === f.group);
+        if (!g) { g = { name: f.group, items: [] }; groups.push(g); }
+        g.items.push(f);
     });
+    return groups;
+});
+
+const featureDraft = ref([]);
+const featureSaving = ref(false);
+
+const resetFeatureDraft = (u) => {
+    featureDraft.value = [...(u?.effective_features || [])];
 };
 
-const toggleKoperasiAccess = (user) => {
-    if (!user) return;
-    const prev = Boolean(user.can_manage_koperasi);
-    user.can_manage_koperasi = !prev;
-    if (detailUser.value && detailUser.value.id === user.id) {
-        detailUser.value.can_manage_koperasi = user.can_manage_koperasi;
-    }
-    if (props.users?.data) {
-        const found = props.users.data.find(u => u.id === user.id);
-        if (found) found.can_manage_koperasi = user.can_manage_koperasi;
-    }
+const featureDirty = computed(() => {
+    if (!detailUser.value) return false;
+    const a = [...(detailUser.value.effective_features || [])].sort().join(',');
+    const b = [...featureDraft.value].sort().join(',');
+    return a !== b;
+});
 
-    router.post(route('users.toggle-koperasi-access', user.id), {}, {
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => {
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 2000,
-                timerProgressBar: true
-            });
-            Toast.fire({
-                icon: 'success',
-                title: `Pengurus Koperasi: ${user.can_manage_koperasi ? 'AKTIF (PENGURUS)' : 'NONAKTIF'}`
-            });
-        },
-        onError: () => {
-            user.can_manage_koperasi = prev;
-            if (detailUser.value && detailUser.value.id === user.id) detailUser.value.can_manage_koperasi = prev;
-            if (props.users?.data) {
-                const found = props.users.data.find(u => u.id === user.id);
-                if (found) found.can_manage_koperasi = prev;
-            }
-            Swal.fire('GAGAL', 'Gagal memperbarui hak akses Pengurus Simpan Pinjam.', 'error');
-        }
-    });
+const toggleFeatureDraft = (key) => {
+    const i = featureDraft.value.indexOf(key);
+    if (i >= 0) featureDraft.value.splice(i, 1);
+    else featureDraft.value.push(key);
+};
+
+const setAllFeatures = (on) => {
+    featureDraft.value = on ? (props.featureCatalog || []).map(f => f.key) : [];
+};
+
+const syncUserFeatures = (id, features, isCustom) => {
+    const apply = (u) => { if (u && u.id === id) { u.effective_features = [...features]; u.features_custom = isCustom; u.can_access_mitra = features.includes('mitra'); } };
+    apply(detailUser.value);
+    (props.users?.data || []).forEach(apply);
+    (props.allUsers || []).forEach(apply);
+};
+
+const saveFeatures = async (reset = false) => {
+    if (!detailUser.value) return;
+    featureSaving.value = true;
+    try {
+        const { data } = await axios.post(route('users.update-features', detailUser.value.id),
+            reset ? { reset: true } : { features: featureDraft.value },
+            { headers: { Accept: 'application/json' } });
+        syncUserFeatures(detailUser.value.id, data.features || [], Boolean(data.is_custom));
+        resetFeatureDraft(detailUser.value);
+        Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2200, timerProgressBar: true })
+            .fire({ icon: 'success', title: reset ? 'Akses fitur dikembalikan ke bawaan peran' : 'Akses fitur personel tersimpan' });
+    } catch (e) {
+        Swal.fire('GAGAL', e?.response?.data?.message || 'Gagal menyimpan akses fitur personel.', 'error');
+    } finally {
+        featureSaving.value = false;
+    }
 };
 
 const toggleMfaAccess = (user) => {
@@ -716,11 +700,11 @@ onUnmounted(() => {
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </button>
-                                    <button @click="toggleMitraAccess(user)" 
-                                        :class="user.can_access_mitra ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-700 hover:text-white'"class="px-2.5 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all shadow-xs"title="Toggle Hak Akses Modul Mitra"> Mitra: {{ user.can_access_mitra ? 'AKTIF' : 'OFF' }}
-                                    </button>
-                                    <button @click="toggleKoperasiAccess(user)" 
-                                        :class="user.can_manage_koperasi ? 'bg-violet-100 text-violet-800 hover:bg-violet-600 hover:text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-700 hover:text-white'" class="px-2.5 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all shadow-xs" title="Toggle Hak Akses Pengurus Simpan Pinjam (Koperasi)"> Koperasi: {{ user.can_manage_koperasi ? 'PENGURUS' : 'OFF' }}
+                                    <button @click="showPersonnelDetail(user)"
+                                        :class="isPrivilegedRole(user) ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : (user.features_custom ? 'bg-emerald-100 text-emerald-800 border border-emerald-200 hover:bg-emerald-600 hover:text-white' : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-700 hover:text-white')"
+                                        class="px-2.5 py-1.5 text-[8px] font-black uppercase rounded-lg transition-all shadow-xs cursor-pointer"
+                                        title="Atur fitur menu yang dapat diakses personel">
+                                        Fitur: {{ isPrivilegedRole(user) ? 'SEMUA' : `${(user.effective_features || []).length}/${featureCatalog.length}` }}
                                     </button>
                                     <button @click="toggleMfaAccess(user)" 
                                         :class="user.mfa_enabled ? 'bg-amber-100 text-amber-800 hover:bg-amber-600 hover:text-white border border-amber-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-700 hover:text-white border border-slate-200'" 
@@ -1054,90 +1038,84 @@ onUnmounted(() => {
                         </div>
                     </div>
 
+                    <!-- AKSES FITUR MENU PERSONEL (DIATUR ADMIN / SUPER ADMIN) -->
+                    <div class="mb-6">
+                        <div class="flex items-start sm:items-center justify-between gap-2 mb-3 flex-col sm:flex-row">
+                            <div>
+                                <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
+                                    <span>Akses Fitur Menu</span>
+                                    <span v-if="!isPrivilegedRole(detailUser)" :class="detailUser.features_custom ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'" class="ml-1 px-2 py-0.5 rounded-md text-[9px] font-black">
+                                        {{ detailUser.features_custom ? 'DIATUR KHUSUS' : 'BAWAAN PERAN' }}
+                                    </span>
+                                </h4>
+                                <p class="text-[10.5px] text-slate-500 mt-1">Menu yang tampil untuk personel hanya fitur yang diaktifkan di bawah ini. Akses langsung lewat URL juga ditolak.</p>
+                            </div>
+                            <div v-if="!isPrivilegedRole(detailUser)" class="flex items-center gap-1.5 shrink-0">
+                                <button type="button" @click="setAllFeatures(true)" class="px-2.5 py-1.5 text-[9px] font-black uppercase rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer">Aktifkan Semua</button>
+                                <button type="button" @click="setAllFeatures(false)" class="px-2.5 py-1.5 text-[9px] font-black uppercase rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer">Matikan Semua</button>
+                            </div>
+                        </div>
+
+                        <div v-if="isPrivilegedRole(detailUser)" class="p-4 rounded-2xl border border-indigo-200 bg-indigo-50/60 text-[11px] text-indigo-800 font-semibold">
+                            Akun Admin / Super Admin selalu memiliki akses ke seluruh fitur. Ubah peran akun menjadi personel jika ingin membatasi menunya.
+                        </div>
+
+                        <template v-else>
+                            <div class="space-y-4">
+                                <div v-for="group in featureGroups" :key="group.name">
+                                    <p class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-2">{{ group.name }}</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        <div
+                                            v-for="f in group.items"
+                                            :key="f.key"
+                                            @click="toggleFeatureDraft(f.key)"
+                                            role="switch"
+                                            :aria-checked="featureDraft.includes(f.key)"
+                                            :class="featureDraft.includes(f.key) ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'"
+                                            class="p-3 border rounded-xl cursor-pointer transition-all duration-150 flex items-start justify-between gap-3 select-none"
+                                        >
+                                            <div class="min-w-0">
+                                                <span class="font-black text-slate-900 uppercase block text-[10.5px] tracking-tight">{{ f.label }}</span>
+                                                <span class="text-[10px] text-slate-500 leading-snug block mt-0.5">{{ f.description }}</span>
+                                            </div>
+                                            <div :class="featureDraft.includes(f.key) ? 'bg-emerald-600' : 'bg-slate-300'" class="w-10 h-5.5 min-w-10 rounded-full p-0.5 transition-colors duration-200 relative shrink-0 mt-0.5" style="height: 22px;">
+                                                <div :class="featureDraft.includes(f.key) ? 'translate-x-[18px]' : 'translate-x-0'" class="w-[18px] h-[18px] bg-white rounded-full shadow-md transform transition-transform duration-200"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 flex items-center justify-between gap-2 flex-wrap">
+                                <button type="button" :disabled="featureSaving || !detailUser.features_custom" @click="saveFeatures(true)"
+                                    class="px-3 py-2 text-[10px] font-black uppercase rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                    title="Kembalikan ke fitur bawaan sesuai peran personel">
+                                    Kembalikan ke Bawaan Peran
+                                </button>
+                                <div class="flex items-center gap-2">
+                                    <button v-if="featureDirty" type="button" :disabled="featureSaving" @click="resetFeatureDraft(detailUser)" class="px-3 py-2 text-[10px] font-black uppercase rounded-xl text-slate-500 hover:bg-slate-100 cursor-pointer">Batal</button>
+                                    <button type="button" :disabled="featureSaving || !featureDirty" @click="saveFeatures(false)"
+                                        class="px-4 py-2 text-[10px] font-black uppercase rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
+                                        {{ featureSaving ? 'Menyimpan...' : `Simpan Akses (${featureDraft.length} fitur)` }}
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
                     <!-- MATRIKS HAK AKSES FITUR SINDEN -->
                     <div>
                         <div class="flex items-center justify-between mb-3">
                             <h4 class="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                                 <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                                <span>Matriks Hak Akses Fitur Sistem:</span>
+                                <span>Keamanan Login &amp; Peran TTE:</span>
                             </h4>
-                            <span class="text-[10px] text-indigo-600 font-black uppercase bg-indigo-50 px-2 py-0.5 rounded-md">Klik Kartu atau Sakelar untuk Mengubah Status</span>
+                            <span class="text-[10px] text-indigo-600 font-black uppercase bg-indigo-50 px-2 py-0.5 rounded-md">Klik Kartu M2F untuk Mengubah Status</span>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
                             
-                            <!-- 1. PENGURUS SIMPAN PINJAM (KOPERASI) - INTERACTIVE TOGGLE CARD -->
-                            <div 
-                                @click="toggleKoperasiAccess(detailUser)"
-                                :class="detailUser.can_manage_koperasi ? 'border-violet-500 bg-violet-50/50 shadow-sm ring-2 ring-violet-500/20' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'"
-                                class="p-4 border rounded-2xl cursor-pointer transition-all duration-200 flex flex-col justify-between group select-none relative"
-                                role="button"
-                                title="Klik untuk mengaktifkan / menonaktifkan Pengurus Simpan Pinjam"
-                            >
-                                <div>
-                                    <div class="flex items-start justify-between gap-2 mb-2">
-                                        <div class="flex items-center gap-2.5">
-                                            <div :class="detailUser.can_manage_koperasi ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30' : 'bg-slate-100 text-slate-500'" class="w-8 h-8 rounded-xl flex items-center justify-center font-bold shrink-0 transition-colors">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                            </div>
-                                            <div>
-                                                <span class="font-black text-slate-900 uppercase block text-[11px] tracking-tight">Pengurus Simpan Pinjam</span>
-                                                <span class="text-[9px] text-slate-400 font-bold uppercase">Unit Koperasi SINDEN</span>
-                                            </div>
-                                        </div>
-                                        <!-- TOGGLE SWITCH VISUAL -->
-                                        <div class="flex items-center gap-1.5 shrink-0 pt-0.5">
-                                            <div :class="detailUser.can_manage_koperasi ? 'bg-violet-600' : 'bg-slate-300'" class="w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative">
-                                                <div :class="detailUser.can_manage_koperasi ? 'translate-x-5' : 'translate-x-0'" class="w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p class="text-[10.5px] text-slate-500 leading-snug">Otoritas verifikasi pinjaman prajurit, pencatatan angsuran, pembukuan kas & cetak kuitansi.</p>
-                                </div>
-                                <div class="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between">
-                                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Status Otoritas:</span>
-                                    <span :class="detailUser.can_manage_koperasi ? 'bg-violet-600 text-white font-black shadow-xs shadow-violet-600/30' : 'bg-slate-100 text-slate-500 font-bold'" class="px-2.5 py-1 text-[9px] rounded-lg uppercase tracking-wider transition">
-                                        {{ detailUser.can_manage_koperasi ? 'AKTIF (PENGURUS)' : 'NONAKTIF (OFF)' }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- 2. MODUL KEUANGAN MITRA - INTERACTIVE TOGGLE CARD -->
-                            <div 
-                                @click="toggleMitraAccess(detailUser)"
-                                :class="detailUser.can_access_mitra ? 'border-emerald-500 bg-emerald-50/50 shadow-sm ring-2 ring-emerald-500/20' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'"
-                                class="p-4 border rounded-2xl cursor-pointer transition-all duration-200 flex flex-col justify-between group select-none relative"
-                                role="button"
-                                title="Klik untuk mengaktifkan / menonaktifkan Modul Mitra"
-                            >
-                                <div>
-                                    <div class="flex items-start justify-between gap-2 mb-2">
-                                        <div class="flex items-center gap-2.5">
-                                            <div :class="detailUser.can_access_mitra ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30' : 'bg-slate-100 text-slate-500'" class="w-8 h-8 rounded-xl flex items-center justify-center font-bold shrink-0 transition-colors">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                                            </div>
-                                            <div>
-                                                <span class="font-black text-slate-900 uppercase block text-[11px] tracking-tight">Modul Keuangan Mitra</span>
-                                                <span class="text-[9px] text-slate-400 font-bold uppercase">Kerjasama Eksternal</span>
-                                            </div>
-                                        </div>
-                                        <!-- TOGGLE SWITCH VISUAL -->
-                                        <div class="flex items-center gap-1.5 shrink-0 pt-0.5">
-                                            <div :class="detailUser.can_access_mitra ? 'bg-emerald-600' : 'bg-slate-300'" class="w-11 h-6 rounded-full p-0.5 transition-colors duration-200 ease-in-out relative">
-                                                <div :class="detailUser.can_access_mitra ? 'translate-x-5' : 'translate-x-0'" class="w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p class="text-[10.5px] text-slate-500 leading-snug">Izin verifikasi & pencatatan arus pembayaran kontribusi mitra kerja satuan.</p>
-                                </div>
-                                <div class="mt-3.5 pt-2.5 border-t border-slate-100/80 flex items-center justify-between">
-                                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Status Otoritas:</span>
-                                    <span :class="detailUser.can_access_mitra ? 'bg-emerald-600 text-white font-black shadow-xs shadow-emerald-600/30' : 'bg-slate-100 text-slate-500 font-bold'" class="px-2.5 py-1 text-[9px] rounded-lg uppercase tracking-wider transition">
-                                        {{ detailUser.can_access_mitra ? 'DIBERIKAN (AKTIF)' : 'NONAKTIF (OFF)' }}
-                                    </span>
-                                </div>
-                            </div>
-
                             <!-- 3. M2F OTP WHATSAPP (LOGIN 2 LANGKAH) - INTERACTIVE TOGGLE CARD -->
                             <div 
                                 @click="toggleMfaAccess(detailUser)"
@@ -1198,49 +1176,7 @@ onUnmounted(() => {
                                 </div>
                             </div>
 
-                            <!-- 7. AGENDA SURAT & SKHPP -->
-                            <div class="p-4 bg-slate-50/60 border border-slate-200 rounded-2xl flex flex-col justify-between">
-                                <div>
-                                    <div class="flex items-start justify-between gap-2 mb-2">
-                                        <div class="flex items-center gap-2.5">
-                                            <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold shrink-0">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                            </div>
-                                            <div>
-                                                <span class="font-black text-slate-900 uppercase block text-[11px] tracking-tight">Agenda Surat & SKHPP</span>
-                                                <span class="text-[9px] text-slate-400 font-bold uppercase">Persuratan Kedinasan</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p class="text-[10.5px] text-slate-500 leading-snug">Akses registrasi nomor surat dinas, buku agenda dan penerbitan SKHPP.</p>
-                                </div>
-                                <div class="mt-3.5 pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
-                                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Fitur Standar:</span>
-                                    <span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded-lg uppercase">DIBERIKAN</span>
-                                </div>
-                            </div>
-
-                            <!-- 8. PENYIMPANAN CLOUD & BACKUP PC -->
-                            <div class="p-4 bg-slate-50/60 border border-slate-200 rounded-2xl flex flex-col justify-between">
-                                <div>
-                                    <div class="flex items-start justify-between gap-2 mb-2">
-                                        <div class="flex items-center gap-2.5">
-                                            <div class="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold shrink-0">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
-                                            </div>
-                                            <div>
-                                                <span class="font-black text-slate-900 uppercase block text-[11px] tracking-tight">Cloud & Backup PC</span>
-                                                <span class="text-[9px] text-slate-400 font-bold uppercase">Pangkalan Cadangan</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p class="text-[10.5px] text-slate-500 leading-snug">Akses penyimpanan arsip digital publik dan pangkalan backup komputer PC.</p>
-                                </div>
-                                <div class="mt-3.5 pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
-                                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Alokasi:</span>
-                                    <span class="px-2.5 py-1 bg-blue-100 text-blue-800 text-[9px] font-black rounded-lg uppercase">50 GB AKTIF</span>
-                                </div>
-                            </div>
+                            
 
                         </div>
                     </div>

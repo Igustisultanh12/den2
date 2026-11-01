@@ -212,10 +212,17 @@ const formatDate = (dateStr) => {
                     </div>
                 </div>
 
+                <div class="flex flex-wrap gap-2">
+                <Link v-if="$page.props.auth.user?.is_admin || ($page.props.auth.user?.features || []).includes('skhpp_archive')" :href="route('skhpp-archives.index')"
+                    class="inline-flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider rounded-2xl hover:bg-slate-50 transition-all">
+                    <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                    <span>Arsip &amp; Nomor SKHPP</span>
+                </Link>
                 <Link :href="route('skhpp.create')"class="inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-emerald-600/20 transition-all active:scale-95">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                     <span>Terbitkan SKHPP Baru</span>
                 </Link>
+                </div>
             </div>
 
             <!-- Filter & Search Bar -->

@@ -47,6 +47,6 @@ class PersonnelTrackingController extends Controller
 
     private function authorizeViewer(Request $request): void
     {
-        abort_unless(MobileAccess::canViewTracking($request->user()), 403, 'Hanya Admin, Super Admin, dan Komandan yang dapat memantau posisi personel.');
+        abort_unless(MobileAccess::canViewTracking($request->user()), 403, 'Fitur Pantau Personel tidak diaktifkan untuk akun Anda.');
     }
 }

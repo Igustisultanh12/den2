@@ -18,13 +18,14 @@ class LetterController extends Controller
      */
     public function index(Request $request)
     {
-        $categories = Category::all();
+        // Arsip SKHPP dipisah ke menu Arsip & Nomor SKHPP.
+        $categories = Category::withoutSkhpp()->get();
 
         // Tambahkan fitur Pencarian agar Bapak mudah mencari arsip
-        $letters = Letter::with(['category', 'subCategory'])
+        $letters = Letter::withoutSkhpp()->with(['category', 'subCategory'])
             ->when($request->search, function ($query, $search) {
-                $query->where('subject', 'like', "%{$search}%")
-                      ->orWhere('letter_number', 'like', "%{$search}%");
+                $query->where(fn ($q) => $q->where('subject', 'like', "%{$search}%")
+                      ->orWhere('letter_number', 'like', "%{$search}%"));
             })
             ->latest()
             ->paginate(50)
@@ -49,9 +50,9 @@ class LetterController extends Controller
 
         return Inertia::render('Letters/Create', [
             'selectedLog' => $selectedLog,
-            'categories' => Category::with('subCategories')->get(),
-            'letterCategories' => Category::where('is_telegram', false)->with('subCategories')->get(),
-            'telegramCategories' => Category::where('is_telegram', true)->get()
+            'categories' => Category::withoutSkhpp()->with('subCategories')->get(),
+            'letterCategories' => Category::withoutSkhpp()->where('is_telegram', false)->with('subCategories')->get(),
+            'telegramCategories' => Category::withoutSkhpp()->where('is_telegram', true)->get()
         ]);
     }
 
@@ -69,6 +70,10 @@ class LetterController extends Controller
             'file'            => 'required|mimes:pdf|max:10240', 
             'letter_log_id'   => 'nullable|exists:letter_logs,id',
         ]);
+
+        if (Category::find($request->category_id)?->isSkhpp()) {
+            return back()->with('error', 'PDF SKHPP diarsipkan melalui menu Arsip & Nomor SKHPP, bukan Arsip Surat.');
+        }
 
         try {
             DB::beginTransaction();
@@ -123,7 +128,11 @@ class LetterController extends Controller
         try {
             DB::beginTransaction();
 
-            $log = LetterLog::findOrFail($request->letter_log_id);
+            $log = LetterLog::with('category')->findOrFail($request->letter_log_id);
+            if ($log->category?->isSkhpp()) {
+                DB::rollBack();
+                return back()->with('error', 'PDF SKHPP diarsipkan melalui menu Arsip & Nomor SKHPP, bukan Arsip Surat.');
+            }
             $filePath = $request->file('file')->store('archives', 'public');
 
             Letter::create([

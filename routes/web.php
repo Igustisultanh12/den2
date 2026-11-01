@@ -20,11 +20,9 @@ use App\Http\Controllers\CommunityActivityController;
 use App\Http\Controllers\StampController;
 use App\Http\Controllers\BackupController; 
 use App\Http\Controllers\BackupShareController;
-use App\Http\Controllers\KoperasiController;
 use App\Http\Controllers\PersonnelController;
 use App\Http\Controllers\PESSAdminController; // SULTAN CONFIG: Pangkalan Pemisah Logika Otoritas Kerja Admin PESS
 use App\Http\Controllers\API\PESSReceiverController; // SULTAN CONFIG: Controller Penerima File Lintas VPS
-use App\Http\Controllers\CommanderAccountController;
 use App\Http\Controllers\MitraPaymentController;
 use App\Http\Controllers\SkhppController;
 use App\Http\Controllers\DocVerificationController;
@@ -79,7 +77,8 @@ Route::get('/dashboard', function () {
     if ($user && !$user->isAdmin()) {
         $r = strtolower(preg_replace('/[\s_-]+/', '', $user->role ?? ''));
         $j = strtolower($user->jabatan ?? '');
-        if ($r === 'anggotasintel' || $r === 'personelsintel' || str_contains($j, 'anggota sintel') || str_contains($j, 'sintel')) {
+        if (($r === 'anggotasintel' || $r === 'personelsintel' || str_contains($j, 'anggota sintel') || str_contains($j, 'sintel'))
+            && $user->hasFeature('sc_submissions')) {
             return redirect()->route('sc-submissions.index');
         }
     }
@@ -124,7 +123,7 @@ Route::get('/dashboard', function () {
 // =========================================================================
 // MODUL BACKUP & RADAR IP (OPERASI KHUSUS KANTOR)
 // =========================================================================
-Route::middleware(['auth', 'office.only'])->group(function () {
+Route::middleware(['auth', 'feature:backup', 'office.only'])->group(function () {
     // Jalur Utama Backup
     Route::get('/pc-backup', [BackupController::class, 'index'])->name('backup.index');
     
@@ -211,6 +210,7 @@ Route::get('/shared-folder/{token}/download-arw-jpg/{fileId}', [BackupShareContr
 // --- AKSES TERPROTEKSI (AUTH) ---
 Route::middleware('auth')->group(function () {
     // --- MODUL KOMUNIKASI DINAS & PANGGILAN VIDEO (LIVE CHAT & WEBRTC VC) ---
+    Route::middleware('feature:chat')->group(function () {
     Route::get('/live-chat', [LiveChatController::class, 'index'])->name('chat.index');
     Route::get('/live-chat/sync', [LiveChatController::class, 'sync'])->name('chat.sync');
     Route::get('/live-chat/search-users', [LiveChatController::class, 'searchUsers'])->name('chat.search-users');
@@ -229,6 +229,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/live-chat/{uuid}/call/signal', [LiveChatController::class, 'sendCallSignal'])->name('chat.call.send-signal');
     Route::post('/live-chat/{uuid}/call/end', [LiveChatController::class, 'endCall'])->name('chat.call.end');
     Route::get('/live-chat/{uuid}/call/agora-token', [LiveChatController::class, 'getAgoraToken'])->name('chat.call.agora-token');
+    });
 
     // PRATINJAU DOKUMEN & MEDIA TEROTENTIKASI (STREAMING DEKRIPSI ON-THE-FLY)
     Route::get('/pc-backup/preview-file/{id}', [BackupController::class, 'previewFile'])->name('backup.preview-file');
@@ -241,17 +242,21 @@ Route::middleware('auth')->group(function () {
     Route::post('/attendances', [AttendanceController::class, 'store'])->name('attendances.store');
 
     // Pantau Personel: posisi realtime dari aplikasi Android (Admin, Super Admin, Komandan)
-    Route::get('/pantau-personel', [PersonnelTrackingController::class, 'index'])->name('tracking.index');
-    Route::get('/pantau-personel/data', [PersonnelTrackingController::class, 'data'])->name('tracking.data');
-    Route::get('/pantau-personel/{userId}/jejak', [PersonnelTrackingController::class, 'history'])->whereNumber('userId')->name('tracking.history');
+    Route::middleware('feature:tracking')->group(function () {
+        Route::get('/pantau-personel', [PersonnelTrackingController::class, 'index'])->name('tracking.index');
+        Route::get('/pantau-personel/data', [PersonnelTrackingController::class, 'data'])->name('tracking.data');
+        Route::get('/pantau-personel/{userId}/jejak', [PersonnelTrackingController::class, 'history'])->whereNumber('userId')->name('tracking.history');
+    });
 
     // --- FITUR MANAJEMEN PENGAJUAN SECURITY CLEARANCE (SC) ---
-    Route::get('sc-submissions/export-pdf', [ScSubmissionController::class, 'exportPdf'])->name('sc-submissions.pdf');
-    Route::post('sc-submissions/sync-skhpp', [ScSubmissionController::class, 'syncFromApprovedSkhpp'])->name('sc-submissions.sync-skhpp');
-    Route::post('sc-submissions/notify-sintel', [ScSubmissionController::class, 'sendSintelNotification'])->name('sc-submissions.notify-sintel');
-    Route::post('sc-submissions/{id}/toggle-taken', [ScSubmissionController::class, 'toggleTaken'])->name('sc-submissions.toggle-taken');
-    Route::post('sc-submissions/{id}/update-stage', [ScSubmissionController::class, 'updateStage'])->name('sc-submissions.update-stage');
-    Route::resource('sc-submissions', ScSubmissionController::class)->except(['create', 'edit', 'show']);
+    Route::middleware('feature:sc_submissions')->group(function () {
+        Route::get('sc-submissions/export-pdf', [ScSubmissionController::class, 'exportPdf'])->name('sc-submissions.pdf');
+        Route::post('sc-submissions/sync-skhpp', [ScSubmissionController::class, 'syncFromApprovedSkhpp'])->name('sc-submissions.sync-skhpp');
+        Route::post('sc-submissions/notify-sintel', [ScSubmissionController::class, 'sendSintelNotification'])->name('sc-submissions.notify-sintel');
+        Route::post('sc-submissions/{id}/toggle-taken', [ScSubmissionController::class, 'toggleTaken'])->name('sc-submissions.toggle-taken');
+        Route::post('sc-submissions/{id}/update-stage', [ScSubmissionController::class, 'updateStage'])->name('sc-submissions.update-stage');
+        Route::resource('sc-submissions', ScSubmissionController::class)->except(['create', 'edit', 'show']);
+    });
 
     // Fitur Profil Personel
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -259,14 +264,35 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::post('/profile/google/unlink', [GoogleAuthController::class, 'unlinkGoogle'])->name('profile.google.unlink');
 
-    // Manajemen Surat-Menyurat
-    Route::resource('letters', LetterController::class);
-    Route::post('/letters/store-direct', [LetterController::class, 'storeDirect'])->name('letters.store-direct');
-    Route::get('/letter-logs', [LetterLogController::class, 'index'])->name('letter-logs.index');
-    Route::post('/letter-logs', [LetterLogController::class, 'store'])->name('letter-logs.store');
-    Route::get('/letter-logs/next-number', [LetterLogController::class, 'getNextNumber'])->name('letter-logs.next-number');
-    
+    // Manajemen Surat-Menyurat (Arsip Surat Masuk/Keluar — tanpa SKHPP)
+    Route::middleware('feature:letters')->group(function () {
+        Route::resource('letters', LetterController::class);
+        Route::post('/letters/store-direct', [LetterController::class, 'storeDirect'])->name('letters.store-direct');
+    });
+    Route::middleware('feature:letter_logs')->group(function () {
+        Route::get('/letter-logs', [LetterLogController::class, 'index'])->name('letter-logs.index');
+        Route::post('/letter-logs', [LetterLogController::class, 'store'])->name('letter-logs.store');
+        Route::get('/letter-logs/next-number', [LetterLogController::class, 'getNextNumber'])->name('letter-logs.next-number');
+        // Unduh Rekap Buku Log Surat Berupa Dokumen PDF
+        Route::get('/letter-logs/download-pdf', [LetterLogController::class, 'downloadPdf'])->name('letter-logs.pdf');
+    });
+
+    // =========================================================================
+    // ARSIP & PENOMORAN SKHPP (TERPISAH DARI AGENDA / ARSIP SURAT)
+    // =========================================================================
+    Route::middleware('feature:skhpp_archive')->group(function () {
+        Route::get('/arsip-skhpp', [\App\Http\Controllers\SkhppArchiveController::class, 'index'])->name('skhpp-archives.index');
+        Route::get('/arsip-skhpp/next-number', [\App\Http\Controllers\SkhppArchiveController::class, 'nextNumber'])->name('skhpp-archives.next-number');
+        Route::post('/arsip-skhpp', [\App\Http\Controllers\SkhppArchiveController::class, 'store'])->name('skhpp-archives.store');
+        Route::post('/arsip-skhpp/{archive}/upload', [\App\Http\Controllers\SkhppArchiveController::class, 'upload'])->name('skhpp-archives.upload');
+        Route::post('/arsip-skhpp/{archive}/generate-pdf', [\App\Http\Controllers\SkhppArchiveController::class, 'generatePdf'])->name('skhpp-archives.generate-pdf');
+        Route::get('/arsip-skhpp/{archive}/pdf', [\App\Http\Controllers\SkhppArchiveController::class, 'file'])->name('skhpp-archives.file');
+        Route::put('/arsip-skhpp/{archive}', [\App\Http\Controllers\SkhppArchiveController::class, 'update'])->name('skhpp-archives.update');
+        Route::delete('/arsip-skhpp/{archive}', [\App\Http\Controllers\SkhppArchiveController::class, 'destroy'])->name('skhpp-archives.destroy');
+    });
+
     // --- MODUL SURAT PERINTAH (SP) JAGA SIAGA SINTEL ---
+    Route::middleware('feature:sp_jaga')->group(function () {
     Route::get('/sp-jaga', [SpJagaController::class, 'index'])->name('sp-jaga.index');
     Route::get('/sp-jaga/create', [SpJagaController::class, 'create'])->name('sp-jaga.create');
     Route::post('/sp-jaga', [SpJagaController::class, 'store'])->name('sp-jaga.store');
@@ -276,22 +302,26 @@ Route::middleware('auth')->group(function () {
     Route::post('/sp-jaga/{id}/approve-tte', [SpJagaController::class, 'approveTte'])->name('sp-jaga.approve-tte');
     Route::post('/sp-jaga/{id}/upload-manual-signed', [SpJagaController::class, 'uploadManualSigned'])->name('sp-jaga.upload-manual-signed');
     Route::get('/sp-jaga/{id}/download-pdf', [SpJagaController::class, 'downloadPdf'])->name('sp-jaga.download-pdf');
-    
-    // Modul TTD Komandan (Otoritas Permohonan Surat)
+    });
+
+    // Modul TTD Komandan (Otoritas Permohonan Surat) & Stempel Digital
+    Route::middleware('feature:signature')->group(function () {
     Route::get('/signature-requests', [SignatureRequestController::class, 'index'])->name('signature.index');
     Route::post('/signature-requests', [SignatureRequestController::class, 'store'])->name('signature.store');
     Route::patch('/signature-requests/{signatureRequest}', [SignatureRequestController::class, 'update'])->name('signature.update');
     Route::delete('/signature-requests/{signatureRequest}', [SignatureRequestController::class, 'destroy'])->name('signature.destroy');
-    
+
     // Modul Stempel Digital Detasemen Intelijen
     Route::get('/otoritas-stempel', [StampController::class, 'index'])->name('stamp.index');
     Route::patch('/otoritas-stempel/eksekusi', [StampController::class, 'apply'])->name('signature.apply-stamp');
     Route::post('/otoritas-stempel/upload-manual', [StampController::class, 'uploadManual'])->name('stamp.upload-manual');
     Route::get('/settings/stamp-config', [StampController::class, 'setting'])->name('stamp.setting');
+    });
 
     // =========================================================================
     // MODUL LAYANAN PRINTING JARINGAN (PRINTER BROTHER IP)
     // =========================================================================
+    Route::middleware('feature:printing')->group(function () {
     Route::get('/layanan-printing', [PrintServiceController::class, 'index'])->name('printing.index');
     Route::post('/layanan-printing/upload', [PrintServiceController::class, 'uploadAndPreview'])->name('printing.upload');
     Route::post('/layanan-printing/{id}/confirm', [PrintServiceController::class, 'confirmPrint'])->name('printing.confirm');
@@ -300,10 +330,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/layanan-printing/preview/{id}', [PrintServiceController::class, 'streamPreviewPdf'])->name('printing.preview');
     Route::post('/layanan-printing/admin/test-connection', [PrintServiceController::class, 'testPrinterConnection'])->name('printing.test-connection');
     Route::post('/layanan-printing/admin/settings', [PrintServiceController::class, 'updatePrinterSettings'])->name('printing.update-settings');
+    });
 
     // =========================================================================
     // MODUL PELANGGARAN DISIPLIN PRAJURIT (URUTAN STRATEGIS PASUKAN)
     // =========================================================================
+    Route::middleware('feature:violations')->group(function () {
     Route::get('/soldier-violations', [SoldierViolationController::class, 'index'])->name('soldier-violations.index');
     Route::post('/soldier-violations', [SoldierViolationController::class, 'store'])->name('soldier-violations.store');
     
@@ -315,28 +347,8 @@ Route::middleware('auth')->group(function () {
     
     Route::delete('/soldier-violations/{id}/delete-update', [SoldierViolationController::class, 'deleteUpdate'])->name('soldier-violations.delete-update');
     Route::delete('/soldier-violations/{id}', [SoldierViolationController::class, 'destroy'])->name('soldier-violations.destroy');
-    
-    
-    // =========================================================================
-    // MODUL SIMPAN PINJAM (KOPERASI SINDEN)
-    // =========================================================================
-    Route::get('/simpan-pinjam', [KoperasiController::class, 'index'])->name('simpan-pinjam.index');
-    Route::get('/simpan-pinjam/kelola', [KoperasiController::class, 'kelola'])->name('simpan-pinjam.kelola');
-    Route::post('/simpan-pinjam/apply-loan', [KoperasiController::class, 'applyLoan'])->name('simpan-pinjam.apply-loan');
-    Route::post('/simpan-pinjam/approve-loan/{id}', [KoperasiController::class, 'approveLoan'])->name('simpan-pinjam.approve-loan');
-    Route::post('/simpan-pinjam/reject-loan/{id}', [KoperasiController::class, 'rejectLoan'])->name('simpan-pinjam.reject-loan');
-    Route::post('/simpan-pinjam/record-installment/{loanId}', [KoperasiController::class, 'recordInstallment'])->name('simpan-pinjam.record-installment');
-    Route::post('/simpan-pinjam/deposit-saving', [KoperasiController::class, 'depositSaving'])->name('simpan-pinjam.deposit-saving');
-    Route::post('/simpan-pinjam/withdraw-saving', [KoperasiController::class, 'withdrawSaving'])->name('simpan-pinjam.withdraw-saving');
-    Route::get('/simpan-pinjam/receipt/{installmentId}', [KoperasiController::class, 'printReceipt'])->name('simpan-pinjam.receipt');
-    Route::get('/simpan-pinjam/export-ledger', [KoperasiController::class, 'exportLedgerPdf'])->name('simpan-pinjam.export-ledger');
-    Route::post('/simpan-pinjam/record-cash-mutation', [KoperasiController::class, 'recordCashMutation'])->name('simpan-pinjam.record-cash-mutation');
-    Route::post('/simpan-pinjam/early-payoff/{loanId}', [KoperasiController::class, 'earlyPayoff'])->name('simpan-pinjam.early-payoff');
-    Route::post('/simpan-pinjam/broadcast-reminders', [KoperasiController::class, 'broadcastReminders'])->name('simpan-pinjam.broadcast-reminders');
-    
-    // Unduh Rekap Buku Log Surat Berupa Dokumen PDF
-    Route::get('/letter-logs/download-pdf', [LetterLogController::class, 'downloadPdf'])->name('letter-logs.pdf');
-    
+    });
+
     // Modul Ucapan Hari Ulang Tahun Otomatis Lewat Radar Personel
     Route::get('/admin/birthday-radar', [PersonnelController::class, 'index'])->name('birthday.index');
     Route::post('/admin/personnel', [PersonnelController::class, 'storePersonnel'])->name('personnel.store');
@@ -346,24 +358,33 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/birthday-radar/test', [PersonnelController::class, 'testGreeting'])->name('admin.birthday.test');
     
     // =========================================================================
-    // MODUL STRATEGIS REKENING KOMANDAN
-    // =========================================================================
-    Route::get('/commander-account', [CommanderAccountController::class, 'index'])->name('commander.index');
-    Route::post('/commander-account', [CommanderAccountController::class, 'store'])->name('commander.store');
-    Route::put('/commander-account/{id}', [CommanderAccountController::class, 'update'])->name('commander.update');
-    Route::delete('/commander-account/{id}', [CommanderAccountController::class, 'destroy'])->name('commander.destroy');
-    Route::get('/commander-account/pdf', [CommanderAccountController::class, 'exportPdf'])->name('commander.pdf');
-
-    // =========================================================================
     // MODUL MANAJEMEN PENCATATAN PEMBAYARAN MITRA (MATRIX BULANAN & CETAK PDF)
     // =========================================================================
-    Route::get('/mitras', [MitraPaymentController::class, 'index'])->name('mitras.index');
-    Route::post('/mitras', [MitraPaymentController::class, 'store'])->name('mitras.store');
-    Route::put('/mitras/{id}', [MitraPaymentController::class, 'update'])->name('mitras.update');
-    Route::delete('/mitras/{id}', [MitraPaymentController::class, 'destroy'])->name('mitras.destroy');
-    Route::post('/mitras/toggle-payment', [MitraPaymentController::class, 'togglePayment'])->name('mitras.toggle-payment');
-    Route::post('/mitras/reorder', [MitraPaymentController::class, 'reorder'])->name('mitras.reorder');
-    Route::post('/mitras/{id}/move', [MitraPaymentController::class, 'movePosition'])->name('mitras.move');
+    Route::middleware('feature:mitra')->group(function () {
+        Route::get('/mitras', [MitraPaymentController::class, 'index'])->name('mitras.index');
+        Route::post('/mitras', [MitraPaymentController::class, 'store'])->name('mitras.store');
+        Route::put('/mitras/{id}', [MitraPaymentController::class, 'update'])->name('mitras.update');
+        Route::delete('/mitras/{id}', [MitraPaymentController::class, 'destroy'])->name('mitras.destroy');
+        Route::post('/mitras/toggle-payment', [MitraPaymentController::class, 'togglePayment'])->name('mitras.toggle-payment');
+        Route::post('/mitras/reorder', [MitraPaymentController::class, 'reorder'])->name('mitras.reorder');
+        Route::post('/mitras/{id}/move', [MitraPaymentController::class, 'movePosition'])->name('mitras.move');
+    });
+
+    // =========================================================================
+    // KATEGORI SURAT & RADAR KEGIATAN (FITUR YANG DAPAT DIBERIKAN ADMIN)
+    // =========================================================================
+    Route::middleware('feature:categories')->group(function () {
+        Route::resource('categories', CategoryController::class);
+        Route::post('/categories/{category}/sub', [CategoryController::class, 'storeSub'])->name('categories.storeSub');
+        Route::delete('/sub-categories/{subCategory}', [CategoryController::class, 'destroySub'])->name('sub-categories.destroy');
+    });
+    Route::middleware('feature:activities')->group(function () {
+        Route::get('/community-activities', [CommunityActivityController::class, 'index'])->name('activities.index');
+        Route::post('/community-activities', [CommunityActivityController::class, 'store'])->name('activities.store');
+        Route::get('/community-activities/{id}', [CommunityActivityController::class, 'show'])->name('activities.show');
+        Route::delete('/community-activities/{id}', [CommunityActivityController::class, 'destroy'])->name('activities.destroy');
+        Route::put('/community-activities/{id}', [CommunityActivityController::class, 'update'])->name('activities.update');
+    });
 
     // =========================================================================
     // FITUR KHUSUS ADMIN (OTORITAS TINGGI MONEV & MANAJEMEN PENGGUNA)
@@ -383,26 +404,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/users/{user}/change-password', [UserController::class, 'changePassword'])->name('users.change-password');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
         Route::post('/users/{id}/toggle-mitra-access', [MitraPaymentController::class, 'toggleUserAccess'])->name('users.toggle-mitra-access');
-        Route::post('/users/{user}/toggle-koperasi-access', [UserController::class, 'toggleKoperasiAccess'])->name('users.toggle-koperasi-access');
         Route::post('/users/{user}/toggle-mfa', [UserController::class, 'toggleMfa'])->name('users.toggle-mfa');
-
-        // Kategori Arsip Surat Mako Koarmada 2
-        Route::resource('categories', CategoryController::class);
-        Route::post('/categories/{category}/sub', [CategoryController::class, 'storeSub'])->name('categories.storeSub');
-        Route::delete('/sub-categories/{subCategory}', [CategoryController::class, 'destroySub'])->name('sub-categories.destroy');
+        Route::post('/users/{user}/features', [UserController::class, 'updateFeatures'])->name('users.update-features');
 
         // Monitoring Log Pengunjung & Audit Aktivitas
         Route::get('/visitor-logs', [VisitorLogController::class, 'index'])->name('visitor-logs.index');
         Route::match(['delete', 'post'], '/visitor-logs/clear', [VisitorLogController::class, 'clearAll'])->name('visitor-logs.clear');
         Route::delete('/visitor-logs/{id}', [VisitorLogController::class, 'destroy'])->name('visitor-logs.destroy');
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
-
-        // Rencana Kegiatan Pengamanan Aktivitas Masyarakat
-        Route::get('/community-activities', [CommunityActivityController::class, 'index'])->name('activities.index');
-        Route::post('/community-activities', [CommunityActivityController::class, 'store'])->name('activities.store');
-        Route::get('/community-activities/{id}', [CommunityActivityController::class, 'show'])->name('activities.show');
-        Route::delete('/community-activities/{id}', [CommunityActivityController::class, 'destroy'])->name('activities.destroy');
-        Route::put('/community-activities/{id}', [CommunityActivityController::class, 'update'])->name('activities.update');
 
         // Fitur khusus Admin: Atur/Loncati nomor urut SKHPP & Ajukan TTE Ulang
         Route::post('/skhpp/{id}/update-number', [SkhppController::class, 'updateNumber'])->name('skhpp.update-number');
@@ -496,16 +505,23 @@ Route::middleware('auth')->group(function () {
     // =====================================================================
     // MODUL UTAMA PENERBITAN & OTORITAS SKHPP (MILITER, SIPIL, NIKAH)
     // =====================================================================
-    Route::get('/skhpp', [SkhppController::class, 'index'])->name('skhpp.index');
-    Route::get('/skhpp/create', [SkhppController::class, 'create'])->name('skhpp.create');
-    Route::post('/skhpp', [SkhppController::class, 'store'])->name('skhpp.store');
-    Route::get('/skhpp/{id}', [SkhppController::class, 'show'])->name('skhpp.show');
-    Route::get('/skhpp/{id}/export-pdf', [SkhppController::class, 'exportPdf'])->name('skhpp.export-pdf');
-    Route::get('/skhpp/{id}/edit', [SkhppController::class, 'edit'])->name('skhpp.edit');
-    Route::post('/skhpp/{id}/update', [SkhppController::class, 'update'])->name('skhpp.update');
-    Route::post('/skhpp/{id}/approve', [SkhppController::class, 'approve'])->name('skhpp.approve');
-    Route::post('/skhpp/{id}/reject', [SkhppController::class, 'reject'])->name('skhpp.reject');
-    Route::delete('/skhpp/{id}', [SkhppController::class, 'destroy'])->name('skhpp.destroy');
+    Route::middleware('feature:skhpp')->group(function () {
+        Route::get('/skhpp', [SkhppController::class, 'index'])->name('skhpp.index');
+        Route::get('/skhpp/create', [SkhppController::class, 'create'])->name('skhpp.create');
+        Route::post('/skhpp', [SkhppController::class, 'store'])->name('skhpp.store');
+        Route::get('/skhpp/{id}', [SkhppController::class, 'show'])->name('skhpp.show');
+        Route::get('/skhpp/{id}/edit', [SkhppController::class, 'edit'])->name('skhpp.edit');
+        Route::post('/skhpp/{id}/update', [SkhppController::class, 'update'])->name('skhpp.update');
+        Route::delete('/skhpp/{id}', [SkhppController::class, 'destroy'])->name('skhpp.destroy');
+    });
+    // PDF & persetujuan juga dipakai dari halaman Tanda Tangan Digital (Komandan)
+    Route::middleware('feature:skhpp,signature,skhpp_archive')->group(function () {
+        Route::get('/skhpp/{id}/export-pdf', [SkhppController::class, 'exportPdf'])->name('skhpp.export-pdf');
+    });
+    Route::middleware('feature:skhpp,signature')->group(function () {
+        Route::post('/skhpp/{id}/approve', [SkhppController::class, 'approve'])->name('skhpp.approve');
+        Route::post('/skhpp/{id}/reject', [SkhppController::class, 'reject'])->name('skhpp.reject');
+    });
 
     // System In-App Bell Notifications Routes
     Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');

@@ -357,7 +357,6 @@ Route::get('/api/mobile/duty-roster', [MobileApiController::class, 'dutyRoster']
 Route::get('/api/mobile/pdf/sp-jaga/{id}', [MobileApiController::class, 'dutyRosterPdf'])->whereNumber('id')->middleware('mobile.auth:duty_roster.pdf');
 Route::get('/api/mobile/pdf/letter-logs', [MobileApiController::class, 'letterLogsPdf'])->middleware('mobile.auth:letter_logs.pdf');
 Route::get('/api/mobile/pdf/skhpp/{id}', [MobileApiController::class, 'skhppPdf'])->whereNumber('id')->middleware('mobile.auth:skhpp.pdf');
-Route::get('/api/mobile/pdf/commander-account', [MobileApiController::class, 'commanderAccountPdf'])->middleware('mobile.auth:commander_account.pdf');
 
 Route::get('/api/mobile/notifications', [MobileApiController::class, 'notifications'])->middleware('mobile.auth:notifications.view');
 Route::post('/api/mobile/notifications/read-all', [MobileApiController::class, 'markAllNotificationsRead'])->middleware('mobile.auth:notifications.view');
@@ -368,7 +367,8 @@ Route::post('/api/mobile/notifications/{id}/read', [MobileApiController::class, 
 // =====================================================================
 Route::get('/api/mobile/letter-logs', function (Request $request) {
     try {
-        $query = \App\Models\LetterLog::with(['category', 'subCategory'])->latest('id');
+        // SKHPP punya buku nomor & arsip tersendiri (Arsip SKHPP), tidak tampil di Agenda Surat.
+        $query = \App\Models\LetterLog::withoutSkhpp()->with(['category', 'subCategory'])->latest('id');
 
         if ($request->filled('search')) {
             $s = $request->search;
@@ -421,6 +421,12 @@ Route::post('/api/mobile/letter-logs', function (Request $request) {
 
         $catId = (int) $data['category_id'];
         $category = \App\Models\Category::find($catId);
+        if ($category && $category->isSkhpp()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Nomor SKHPP diminta melalui menu Arsip & Nomor SKHPP, bukan Agenda Surat.',
+            ], 422);
+        }
         $lastLog = \App\Models\LetterLog::where('category_id', $catId)->orderBy('id', 'desc')->first();
         $nextSeq = $lastLog ? ((int) $lastLog->sequence + 1) : ($category->start_number ?? 1);
 
@@ -550,83 +556,6 @@ Route::delete('/api/mobile/skhpp/{id}', function ($id) {
         'SKHPP berhasil dihapus.'
     );
 })->whereNumber('id')->middleware('mobile.auth:skhpp.delete');
-
-// =====================================================================
-// 4. REKENING KOMANDAN (App\Models\CommanderAccount)
-// =====================================================================
-Route::get('/api/mobile/commander-account', function (Request $request) {
-    try {
-        $query = \App\Models\CommanderAccount::query();
-        if ($request->filled('month') && preg_match('/^(\d{4})-(\d{2})$/', $request->month, $m)) {
-            $query->whereYear('tanggal', (int) $m[1])->whereMonth('tanggal', (int) $m[2]);
-        }
-        $logs = $query->latest('tanggal')->latest('id')->get();
-        $totalMasuk = (float) \App\Models\CommanderAccount::where('jenis', 'MASUK')->sum('jumlah');
-        $totalKeluar = (float) \App\Models\CommanderAccount::where('jenis', 'KELUAR')->sum('jumlah');
-
-        return response()->json([
-            'status' => 'success',
-            'total_masuk' => $totalMasuk,
-            'total_keluar' => $totalKeluar,
-            'saldo_akhir' => $totalMasuk - $totalKeluar,
-            'can_manage' => MobileAccess::can($request->user(), 'commander_account.manage'),
-            'data' => $logs,
-            'logs' => $logs,
-        ]);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal memuat rekening komandan.');
-    }
-})->middleware('mobile.auth:commander_account.view');
-
-Route::post('/api/mobile/commander-account', function (Request $request) {
-    try {
-        $data = mobile_payload($request);
-        $v = Validator::make($data, [
-            'tanggal' => 'required|date',
-            'jenis' => 'required|in:MASUK,KELUAR,masuk,keluar',
-            'jumlah' => 'required|numeric|min:1',
-            'keterangan' => 'required|string|max:500',
-        ]);
-        if ($v->fails()) return mobile_validation_error($v);
-
-        $tx = \App\Models\CommanderAccount::create([
-            'tanggal' => substr((string) $data['tanggal'], 0, 10),
-            'jenis' => strtoupper($data['jenis']),
-            'jumlah' => (float) $data['jumlah'],
-            'keterangan' => $data['keterangan'],
-            'petugas_input' => $request->user()->name,
-        ]);
-        return response()->json(['status' => 'success', 'message' => 'Transaksi tersimpan.', 'data' => $tx]);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal menyimpan transaksi rekening komandan.');
-    }
-})->middleware('mobile.auth:commander_account.manage');
-
-// Ubah mutasi: memakai CommanderAccountController@update milik web (format & penanda "(EDIT)" sama).
-Route::put('/api/mobile/commander-account/{id}', function (Request $request, $id) {
-    \App\Models\CommanderAccount::findOrFail($id);
-    $data = mobile_payload($request);
-    if (isset($data['jenis'])) {
-        $data['jenis'] = strtoupper((string) $data['jenis']);
-    }
-    if (isset($data['tanggal'])) {
-        $data['tanggal'] = substr((string) $data['tanggal'], 0, 10);
-    }
-    $request->merge($data);
-    return mobile_delegate(
-        fn () => app(\App\Http\Controllers\CommanderAccountController::class)->update($request, $id),
-        'Transaksi Rekening Komandan berhasil diperbarui.'
-    );
-})->whereNumber('id')->middleware('mobile.auth:commander_account.manage');
-
-Route::delete('/api/mobile/commander-account/{id}', function ($id) {
-    try {
-        \App\Models\CommanderAccount::findOrFail($id)->delete();
-        return response()->json(['status' => 'success', 'message' => 'Transaksi Rekening Komandan berhasil dihapus']);
-    } catch (\Throwable $e) {
-        return mobile_error($e, 'Gagal menghapus transaksi.');
-    }
-})->middleware('mobile.auth:commander_account.manage');
 
 // =====================================================================
 // 5. MITRA (App\Models\Mitra & App\Models\MitraPayment)
@@ -1028,7 +957,7 @@ Route::post('/api/mobile/signature-requests/{id}/reject', fn (Request $request, 
 // =====================================================================
 Route::get('/api/mobile/letters', function () {
     try {
-        $letters = \App\Models\Letter::with(['category', 'subCategory'])->latest()->take(100)->get();
+        $letters = \App\Models\Letter::withoutSkhpp()->with(['category', 'subCategory'])->latest()->take(100)->get();
         return response()->json(['status' => 'success', 'data' => $letters, 'letters' => $letters]);
     } catch (\Throwable $e) {
         return mobile_error($e, 'Gagal memuat naskah dinas.');
@@ -1046,6 +975,9 @@ Route::post('/api/mobile/letters', function (Request $request) {
             'letter_number' => 'nullable|string|max:255',
         ]);
         if ($v->fails()) return mobile_validation_error($v);
+        if (\App\Models\Category::find($data['category_id'])?->isSkhpp()) {
+            return response()->json(['status' => 'error', 'message' => 'SKHPP diarsipkan melalui menu Arsip & Nomor SKHPP.'], 422);
+        }
         $letter = \App\Models\Letter::create([
             'letter_number' => $data['letter_number'] ?? ('DRAF/' . date('YmdHis')),
             'subject' => $data['subject'],

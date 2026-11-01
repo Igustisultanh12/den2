@@ -65,7 +65,7 @@ class UserRoleChangeTest extends TestCase
         $this->actingAs($admin)->post(route('users.generate-token', $super))->assertForbidden();
         $this->actingAs($admin)->post(route('users.change-password', $super), ['password' => 'baru1234'])->assertForbidden();
         $this->actingAs($admin)->post(route('users.toggle-mfa', $super))->assertForbidden();
-        $this->actingAs($admin)->post(route('users.toggle-koperasi-access', $super))->assertForbidden();
+        $this->actingAs($admin)->postJson(route('users.update-features', $super), ['features' => []])->assertForbidden();
         $this->actingAs($admin)->post(route('users.toggle-mitra-access', $super->id))->assertForbidden();
         $this->actingAs($admin)->delete(route('users.destroy', $super))->assertForbidden();
 

@@ -70,10 +70,13 @@ class MobileAccess
         return self::normalizedRole($user) === 'komandan';
     }
 
-    /** Admin, Super Admin, dan Komandan boleh memantau posisi realtime personel. */
+    /**
+     * Admin & Super Admin selalu boleh memantau posisi realtime personel;
+     * personel lain bila fitur "Pantau Personel" aktif (bawaan: Komandan).
+     */
     public static function canViewTracking(User $user): bool
     {
-        return self::isAdmin($user) || self::isKomandan($user);
+        return FeatureAccess::allows($user, 'tracking');
     }
 
     public static function isPasops(User $user): bool
@@ -94,21 +97,19 @@ class MobileAccess
         $superAdmin = self::isSuperAdmin($user);
         $admin = self::isAdmin($user);
         $dev = self::isDeveloper($user);
-        $sintel = self::isAnggotaSintel($user);
         $komandan = self::isKomandan($user);
-        $regular = !$sintel; // menu umum web disembunyikan untuk Anggota Sintel
+        // Fitur menu yang diaktifkan Admin (FeatureAccess) menjadi batas atas
+        // seluruh permission modul di bawah: fitur nonaktif => permission false.
+        $f = fn (string $feature) => FeatureAccess::allows($user, $feature);
 
-        // CommanderAccountController@checkAccess
-        $commanderView = $dev || $komandan || in_array($user->role, ['super_admin', 'admin', 'user'], true);
-        $commanderManage = in_array($user->role, ['super_admin', 'admin', 'user'], true);
         // MitraPaymentController@index
-        $mitra = $admin || $dev || (bool) $user->can_access_mitra;
+        $mitra = $f('mitra');
         // SkhppController@approve / SignatureRequestController
         $commanderApproval = $admin || $komandan || $dev;
         // SpJagaController@index
         $spJagaAdmin = $admin || in_array($user->name, self::SP_JAGA_ADMIN_NAMES, true);
 
-        return [
+        $perms = [
             'dashboard.view' => true,
             'profile.view' => true,
             'notifications.view' => true,
@@ -131,38 +132,34 @@ class MobileAccess
             // SpJagaController@index ($isPasops): penandatangan TTE SP Jaga.
             'duty_roster.sign' => self::isPasops($user),
 
-            'letter_logs.view' => $regular,
-            'letter_logs.create' => $regular,
-            'letter_logs.update' => $regular,
-            'letter_logs.delete' => $regular,
-            'letter_logs.pdf' => $regular,
+            'letter_logs.view' => $f('letter_logs'),
+            'letter_logs.create' => $f('letter_logs'),
+            'letter_logs.update' => $f('letter_logs'),
+            'letter_logs.delete' => $f('letter_logs'),
+            'letter_logs.pdf' => $f('letter_logs'),
 
-            'letters.view' => $regular,
-            'letters.create' => $regular,
+            'letters.view' => $f('letters'),
+            'letters.create' => $f('letters'),
 
-            'skhpp.view' => $regular,
-            'skhpp.create' => $regular,
-            'skhpp.approve' => $commanderApproval,
+            'skhpp.view' => $f('skhpp'),
+            'skhpp.create' => $f('skhpp'),
+            'skhpp.approve' => $commanderApproval && ($f('skhpp') || $f('signature')),
             'skhpp.delete' => $admin,
-            'skhpp.pdf' => $regular,
+            'skhpp.pdf' => $f('skhpp') || $f('signature'),
 
-            'signature.view' => $regular,
-            'signature.approve' => $commanderApproval,
-
-            'commander_account.view' => $commanderView,
-            'commander_account.manage' => $commanderManage,
-            'commander_account.pdf' => $commanderView,
+            'signature.view' => $f('signature'),
+            'signature.approve' => $commanderApproval && $f('signature'),
 
             'mitra.view' => $mitra,
             'mitra.manage' => $mitra,
 
-            'violations.view' => $regular,
-            'violations.manage' => $regular,
+            'violations.view' => $f('violations'),
+            'violations.manage' => $f('violations'),
 
-            'activities.view' => $regular,
-            'activities.manage' => $regular,
+            'activities.view' => $f('activities'),
+            'activities.manage' => $f('activities'),
 
-            'categories.view' => $regular,
+            'categories.view' => $f('categories'),
 
             'users.view' => $admin,
             'users.manage' => $admin,
@@ -171,8 +168,17 @@ class MobileAccess
             'settings.manage' => $superAdmin,
 
             'audit_logs.view' => $admin,
-            'backup.view' => $admin,
+            'backup.view' => $f('backup'),
         ];
+
+        // Modul yang menunya juga dapat dinonaktifkan Admin.
+        $perms['chat.view'] = $perms['chat.view'] && $f('chat');
+        $perms['chat.manage'] = $perms['chat.manage'] && $f('chat');
+        foreach (['duty_roster.view', 'duty_roster.view_unpublished', 'duty_roster.pdf', 'duty_roster.sign'] as $k) {
+            $perms[$k] = $perms[$k] && $f('sp_jaga');
+        }
+
+        return $perms;
     }
 
     public static function can(User $user, string $ability): bool
@@ -225,7 +231,6 @@ class MobileAccess
             'can_access_skhpp' => $p['skhpp.view'],
             'can_access_categories' => $p['categories.view'],
             'can_access_signature' => $p['signature.view'],
-            'can_access_commander' => $p['commander_account.view'],
             'can_access_mitra' => $p['mitra.view'],
             'can_access_violations' => $p['violations.view'],
             'can_access_activities' => $p['activities.view'],

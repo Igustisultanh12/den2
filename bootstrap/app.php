@@ -42,6 +42,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role'        => RoleMiddleware::class,
             'office.only' => OfficeOnly::class, // Pagar Radar IP Kantor
+            // Fitur menu yang diaktifkan Admin per personel (App\Support\FeatureAccess)
+            'feature'     => \App\Http\Middleware\EnsureFeatureAccess::class,
             // Autentikasi token Sanctum + permission untuk seluruh /api/mobile/*
             'mobile.auth' => \App\Http\Middleware\MobileApiAuth::class,
         ]);
