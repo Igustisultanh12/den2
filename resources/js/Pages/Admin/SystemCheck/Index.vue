@@ -26,6 +26,33 @@ const isSpeedtestRunning = ref(false);
 const speedtestResult = ref(null);
 const speedtestStage = ref(''); // 'pinging', 'downloading', 'uploading', 'finalizing'
 
+// --- DISK FISIK & KESEHATAN SMART ---
+const smartSetupCommand = [
+    'sudo apt install -y smartmontools',
+    'sudo install -m 755 -o root -g root /www/wwwroot/den2/scripts/den2-disk-health.sh /usr/local/sbin/den2-disk-health',
+    'sudo /usr/local/sbin/den2-disk-health',
+    "echo '*/30 * * * * root /usr/local/sbin/den2-disk-health' | sudo tee /etc/cron.d/den2-disk-health",
+].join('\n');
+
+const healthTone = (status) => ({
+    healthy: { text: 'text-emerald-600', bar: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-800 border-emerald-300', label: 'Sehat' },
+    warning: { text: 'text-amber-600', bar: 'bg-amber-500', badge: 'bg-amber-100 text-amber-800 border-amber-300', label: 'Waspada' },
+    critical: { text: 'text-rose-600', bar: 'bg-rose-500', badge: 'bg-rose-100 text-rose-800 border-rose-300', label: 'Kritis' },
+}[status] || { text: 'text-slate-400', bar: 'bg-slate-300', badge: 'bg-slate-100 text-slate-600 border-slate-300', label: 'Belum Ada Data' });
+
+const formatPowerOn = (hours) => {
+    if (hours == null) return '-';
+    const days = Math.floor(hours / 24);
+    if (days >= 365) return `${(days / 365).toFixed(1)} tahun (${hours.toLocaleString('id-ID')} jam)`;
+    return `${days.toLocaleString('id-ID')} hari (${hours.toLocaleString('id-ID')} jam)`;
+};
+
+const formatReportTime = (iso) => {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+};
+
 // Helper format waktu terakhir update
 const formattedLastUpdated = computed(() => {
     return lastUpdated.value.toLocaleTimeString('id-ID', {
@@ -462,6 +489,129 @@ onUnmounted(() => {
                             Salin
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- 4a. DISK FISIK: PEMAKAIAN & KESEHATAN SMART (sda, sdb, ...) -->
+            <div v-if="metrics.disk?.physical_disks?.length" class="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight">
+                            Disk Fisik & Kesehatan SMART
+                        </h2>
+                        <p class="text-xs text-slate-500">
+                            Pemakaian ruang dan perkiraan kesehatan tiap harddisk/SSD yang terpasang di server.
+                        </p>
+                    </div>
+                    <span v-if="metrics.disk?.smart_report?.available"
+                        class="text-[10px] font-bold px-3 py-1 rounded-xl self-start sm:self-auto"
+                        :class="metrics.disk.smart_report.stale ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'">
+                        Data SMART: {{ formatReportTime(metrics.disk.smart_report.generated_at) }}{{ metrics.disk.smart_report.stale ? ' (usang — cek cron)' : '' }}
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div v-for="disk in metrics.disk.physical_disks" :key="disk.name"
+                        class="rounded-2xl border border-slate-200 p-4 space-y-4">
+                        <!-- Header disk -->
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-mono font-black text-slate-900">{{ disk.device }}</span>
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-slate-100 text-slate-700">{{ disk.kind }}</span>
+                                    <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase"
+                                        :class="disk.is_system ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700'">
+                                        {{ disk.is_system ? 'Disk Sistem' : 'Disk Data' }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-500 truncate mt-0.5" :title="disk.model">{{ disk.model }} · {{ disk.size_human }}</p>
+                                <p v-if="disk.mounts?.length" class="text-[10px] text-slate-400 font-mono truncate mt-0.5" :title="disk.mounts.join(', ')">
+                                    {{ disk.mounts.join(' · ') }}
+                                </p>
+                            </div>
+
+                            <!-- Persen kesehatan -->
+                            <div class="text-right shrink-0">
+                                <p class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Kesehatan</p>
+                                <p class="text-2xl font-black leading-tight" :class="healthTone(disk.smart?.status).text">
+                                    {{ disk.smart?.health_percent != null ? `${disk.smart.health_percent}%` : '—' }}
+                                </p>
+                                <span class="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase border"
+                                    :class="healthTone(disk.smart?.status).badge">
+                                    {{ healthTone(disk.smart?.status).label }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Pemakaian ruang -->
+                        <div>
+                            <div class="flex items-center justify-between text-xs mb-1.5">
+                                <span class="font-bold text-slate-700">Terpakai {{ disk.usage_percent }}%</span>
+                                <span class="font-mono text-slate-500">{{ disk.used_human }} / {{ disk.total_human }}</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                                <div class="h-full rounded-full transition-all duration-500"
+                                    :class="healthTone(disk.space_status).bar"
+                                    :style="{ width: `${Math.min(100, disk.usage_percent)}%` }"></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
+                                <div class="bg-slate-50 rounded-xl p-2.5">
+                                    <p class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Terpakai</p>
+                                    <p class="font-black text-slate-800 font-mono">{{ disk.used_human }}</p>
+                                </div>
+                                <div class="bg-emerald-50 rounded-xl p-2.5">
+                                    <p class="text-[9px] font-bold uppercase tracking-wider text-emerald-700/70">Free</p>
+                                    <p class="font-black text-emerald-700 font-mono">{{ disk.free_human }}</p>
+                                </div>
+                            </div>
+                            <p v-if="!disk.mounts?.length" class="text-[10px] text-amber-700 mt-2">Disk ini belum di-mount, jadi pemakaian ruang belum bisa dihitung.</p>
+                            <p v-else-if="disk.unmounted_human" class="text-[10px] text-slate-400 mt-2">Ruang tidak ter-mount: {{ disk.unmounted_human }}</p>
+                        </div>
+
+                        <!-- Detail SMART -->
+                        <div v-if="disk.smart?.available" class="border-t border-slate-100 pt-3 space-y-2">
+                            <div class="grid grid-cols-3 gap-2 text-[11px]">
+                                <div>
+                                    <p class="text-[9px] font-bold uppercase text-slate-400">Status SMART</p>
+                                    <p class="font-bold" :class="disk.smart.smart_passed === false ? 'text-rose-600' : 'text-emerald-600'">
+                                        {{ disk.smart.smart_passed === false ? 'FAILED' : (disk.smart.smart_passed ? 'PASSED' : '-') }}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] font-bold uppercase text-slate-400">Suhu</p>
+                                    <p class="font-bold text-slate-800">{{ disk.smart.temperature != null ? `${disk.smart.temperature}°C` : '-' }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] font-bold uppercase text-slate-400">Umur Nyala</p>
+                                    <p class="font-bold text-slate-800">{{ formatPowerOn(disk.smart.power_on_hours) }}</p>
+                                </div>
+                            </div>
+                            <ul v-if="disk.smart.issues?.length" class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-2.5 space-y-0.5 list-disc list-inside">
+                                <li v-for="(issue, i) in disk.smart.issues" :key="i">{{ issue }}</li>
+                            </ul>
+                            <p v-else class="text-[11px] text-emerald-700">Tidak ada sektor rusak atau error yang tercatat.</p>
+                        </div>
+                        <p v-else-if="disk.smart" class="border-t border-slate-100 pt-3 text-[11px] text-slate-500">
+                            SMART tidak terbaca: {{ disk.smart.message }}
+                        </p>
+                    </div>
+                </div>
+
+                <p class="text-[10px] text-slate-400">
+                    Persen kesehatan adalah estimasi dari atribut SMART (sektor realokasi/tertunda/error, sisa umur SSD). 100% = tidak ada tanda kerusakan.
+                </p>
+
+                <!-- Petunjuk pasang pemantau SMART -->
+                <div v-if="!metrics.disk?.smart_report?.available" class="p-3.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-2">
+                    <div class="flex items-start gap-2">
+                        <svg class="w-4 h-4 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span>Persen kesehatan butuh data SMART yang hanya bisa dibaca root. Jalankan sekali di Terminal server, lalu muat ulang halaman ini:</span>
+                    </div>
+                    <pre class="px-3 py-2 bg-white rounded border border-amber-300 font-mono text-[11px] text-slate-800 whitespace-pre-wrap break-all select-all">{{ smartSetupCommand }}</pre>
+                    <button @click="copyCommand(smartSetupCommand)"
+                        class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-[10px] uppercase transition cursor-pointer">
+                        Salin Perintah
+                    </button>
                 </div>
             </div>
 

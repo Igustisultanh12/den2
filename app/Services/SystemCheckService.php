@@ -45,6 +45,8 @@ class SystemCheckService
                 'status' => 'healthy',
             ]),
             'disk' => self::safeGet('disk', fn() => self::getDiskMetrics(), [
+                'physical_disks' => [],
+                'smart_report' => ['available' => false, 'generated_at' => null, 'stale' => false],
                 'partitions' => [],
                 'total_bytes' => 0,
                 'total_human' => '--',
@@ -379,6 +381,12 @@ class SystemCheckService
             }
         }
 
+        // Peta mount point -> pemakaian (dipakai untuk menghitung pemakaian per disk fisik).
+        $dfByMount = [];
+        // Satu device bisa muncul di beberapa mount point (mis. bind mount storage/app ke sdb);
+        // cukup dihitung sekali agar total kapasitas tidak dobel.
+        $seenDevices = [];
+
         if (!empty($output)) {
             array_shift($output);
             foreach ($output as $line) {
@@ -390,6 +398,17 @@ class SystemCheckService
                     $avail = (float)($cols[3] ?? 0);
                     $percent = (int)str_replace('%', '', $cols[4] ?? '0');
                     $mount = $cols[5];
+
+                    if (str_starts_with($filesystem, '/dev/')) {
+                        $dfByMount[$mount] = ['size' => $size, 'used' => $used, 'avail' => $avail];
+                    }
+
+                    if (str_starts_with($filesystem, '/dev/')) {
+                        if (isset($seenDevices[$filesystem])) {
+                            continue;
+                        }
+                        $seenDevices[$filesystem] = true;
+                    }
 
                     if ($size > 1048576 && (str_starts_with($filesystem, '/dev/') || $mount === '/' || str_starts_with($mount, '/www') || str_starts_with($mount, '/home') || str_starts_with($mount, '/data'))) {
                         $inodeInfo = $inodeMap[$mount] ?? [
@@ -470,7 +489,17 @@ class SystemCheckService
             }
         } catch (\Throwable $e) {}
 
+        $physicalDisks = [];
+        $smartReportInfo = ['available' => false, 'generated_at' => null, 'stale' => false];
+        try {
+            [$physicalDisks, $smartReportInfo] = self::getPhysicalDisks($dfByMount);
+        } catch (\Throwable $e) {
+            Log::warning('SystemCheckService [physical_disks] error: ' . $e->getMessage());
+        }
+
         return [
+            'physical_disks' => $physicalDisks,
+            'smart_report' => $smartReportInfo,
             'partitions' => $partitions,
             'total_bytes' => $totalDiskBytes,
             'total_human' => self::formatBytes($totalDiskBytes),
@@ -481,6 +510,267 @@ class SystemCheckService
             'usage_percent' => $overallPercent,
             'app_storage_usage' => $storageUsageHuman,
             'overall_health' => $overallPercent > 90 ? 'critical' : ($overallPercent > 80 ? 'warning' : 'healthy'),
+        ];
+    }
+
+    /**
+     * Lokasi laporan SMART yang ditulis oleh skrip root `scripts/den2-disk-health.sh` (via cron).
+     * PHP tidak menjalankan smartctl sendiri karena butuh akses root.
+     */
+    public const SMART_REPORT_PATH = '/var/lib/den2-health/smart.json';
+
+    /** Laporan SMART dianggap usang bila lebih tua dari ini (detik). */
+    protected const SMART_STALE_AFTER = 3 * 3600;
+
+    /**
+     * Daftar disk fisik (sda, sdb, nvme0n1, ...) lengkap dengan pemakaian ruang dan kesehatan SMART.
+     *
+     * @return array{0: array, 1: array} [daftar disk, info laporan SMART]
+     */
+    public static function getPhysicalDisks(array $dfByMount): array
+    {
+        $smart = self::readSmartReport();
+        $reportInfo = [
+            'available' => $smart !== null,
+            'generated_at' => $smart['generated_at'] ?? null,
+            'stale' => $smart !== null && $smart['age_seconds'] !== null && $smart['age_seconds'] > self::SMART_STALE_AFTER,
+        ];
+
+        $disks = [];
+        foreach (self::readLsblkTree() as $dev) {
+            $name = (string)($dev['name'] ?? '');
+            if (($dev['type'] ?? '') !== 'disk' || $name === '' || preg_match('/^(loop|ram|zram|sr|fd)/', $name)) {
+                continue;
+            }
+
+            $fsTotal = 0.0;
+            $fsUsed = 0.0;
+            $fsFree = 0.0;
+            $mounts = [];
+            self::collectMountedUsage($dev, $dfByMount, $fsTotal, $fsUsed, $fsFree, $mounts);
+
+            $size = (float)($dev['size'] ?? 0);
+            $tran = strtolower((string)($dev['tran'] ?? ''));
+            $rota = in_array($dev['rota'] ?? null, [true, 1, '1', 'true'], true);
+            $kind = str_starts_with($name, 'nvme') || $tran === 'nvme' ? 'NVMe SSD' : ($rota ? 'HDD' : 'SSD');
+            $usagePercent = ($fsUsed + $fsFree) > 0 ? round($fsUsed / ($fsUsed + $fsFree) * 100, 1) : 0;
+            $unmounted = max(0, $size - $fsTotal);
+
+            $smartData = isset($smart['disks'][$name]) && is_array($smart['disks'][$name])
+                ? self::parseSmart($smart['disks'][$name])
+                : null;
+
+            $disks[] = [
+                'name' => $name,
+                'device' => '/dev/' . $name,
+                'model' => trim((string)($dev['model'] ?? '')) ?: ($smartData['model'] ?? 'Disk'),
+                'kind' => $kind,
+                'transport' => $tran ?: null,
+                'is_system' => in_array('/', $mounts, true),
+                'size' => $size,
+                'size_human' => self::formatBytes($size),
+                'mounts' => array_values(array_unique($mounts)),
+                'total' => $fsTotal,
+                'total_human' => self::formatBytes($fsTotal),
+                'used' => $fsUsed,
+                'used_human' => self::formatBytes($fsUsed),
+                'free' => $fsFree,
+                'free_human' => self::formatBytes($fsFree),
+                'usage_percent' => $usagePercent,
+                // Ruang yang tidak ter-mount (partisi kosong / belum diformat), abaikan selisih kecil.
+                'unmounted_human' => $unmounted > 1073741824 ? self::formatBytes($unmounted) : null,
+                'space_status' => $usagePercent > 90 ? 'critical' : ($usagePercent > 75 ? 'warning' : 'healthy'),
+                'smart' => $smartData,
+            ];
+        }
+
+        // Disk sistem tampil lebih dulu, sisanya urut nama.
+        usort($disks, fn($a, $b) => [$b['is_system'], $a['name']] <=> [$a['is_system'], $b['name']]);
+
+        return [$disks, $reportInfo];
+    }
+
+    /**
+     * Pohon block device dari `lsblk -J` (tidak butuh root).
+     */
+    protected static function readLsblkTree(): array
+    {
+        foreach (['MOUNTPOINTS', 'MOUNTPOINT'] as $mountCol) {
+            $out = [];
+            $code = 1;
+            @exec("lsblk -J -b -o NAME,TYPE,SIZE,MODEL,ROTA,TRAN,{$mountCol} 2>/dev/null", $out, $code);
+            if ($code === 0 && !empty($out)) {
+                $json = json_decode(implode("\n", $out), true);
+                if (is_array($json['blockdevices'] ?? null)) {
+                    return $json['blockdevices'];
+                }
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Jumlahkan pemakaian semua filesystem yang ter-mount di bawah sebuah disk (partisi, LVM, dst.).
+     */
+    protected static function collectMountedUsage(array $node, array $dfByMount, float &$total, float &$used, float &$free, array &$mounts): void
+    {
+        $nodeMounts = $node['mountpoints'] ?? (isset($node['mountpoint']) ? [$node['mountpoint']] : []);
+        $nodeMounts = array_values(array_filter((array)$nodeMounts, fn($m) => is_string($m) && $m !== '' && $m !== '[SWAP]'));
+
+        // Satu filesystem bisa punya beberapa mount point (bind mount): hitung sekali saja.
+        foreach ($nodeMounts as $m) {
+            if (isset($dfByMount[$m])) {
+                $total += $dfByMount[$m]['size'];
+                $used += $dfByMount[$m]['used'];
+                $free += $dfByMount[$m]['avail'];
+                break;
+            }
+        }
+        array_push($mounts, ...$nodeMounts);
+
+        foreach ($node['children'] ?? [] as $child) {
+            if (is_array($child)) {
+                self::collectMountedUsage($child, $dfByMount, $total, $used, $free, $mounts);
+            }
+        }
+    }
+
+    /**
+     * Baca laporan SMART hasil skrip cron root. Null bila belum dipasang / tidak terbaca.
+     */
+    protected static function readSmartReport(): ?array
+    {
+        $content = self::readSystemFile(self::SMART_REPORT_PATH);
+        if ($content === null) {
+            return null;
+        }
+
+        $json = json_decode($content, true);
+        if (!is_array($json) || !is_array($json['disks'] ?? null)) {
+            return null;
+        }
+
+        $generatedAt = $json['generated_at'] ?? null;
+        $age = null;
+        if (is_string($generatedAt) && ($ts = strtotime($generatedAt)) !== false) {
+            $age = time() - $ts;
+        }
+
+        return ['generated_at' => $generatedAt, 'age_seconds' => $age, 'disks' => $json['disks']];
+    }
+
+    /**
+     * Ubah output `smartctl -j -a` menjadi ringkasan kesehatan berbentuk persen.
+     *
+     * SMART tidak punya angka "kesehatan %" baku, jadi nilainya diestimasi (mirip CrystalDiskInfo /
+     * Hard Disk Sentinel): mulai 100%, dikurangi untuk sektor rusak/tertunda/error, dibatasi oleh
+     * sisa umur SSD, dan langsung jatuh bila SMART menyatakan FAILED.
+     */
+    public static function parseSmart(array $j): array
+    {
+        $attrs = [];
+        foreach ($j['ata_smart_attributes']['table'] ?? [] as $a) {
+            if (isset($a['id'])) {
+                $attrs[(int)$a['id']] = $a;
+            }
+        }
+        $nvme = $j['nvme_smart_health_information_log'] ?? null;
+        $passed = $j['smart_status']['passed'] ?? null;
+
+        $base = [
+            'model' => $j['model_name'] ?? ($j['model_family'] ?? null),
+            'serial' => $j['serial_number'] ?? null,
+            'temperature' => isset($j['temperature']['current']) ? (int)$j['temperature']['current'] : null,
+            'power_on_hours' => isset($j['power_on_time']['hours']) ? (int)$j['power_on_time']['hours'] : null,
+            'smart_passed' => is_bool($passed) ? $passed : null,
+        ];
+
+        if (empty($attrs) && !is_array($nvme) && $passed === null) {
+            $message = $j['smartctl']['messages'][0]['string'] ?? 'Disk tidak mendukung SMART atau tidak terbaca.';
+            return $base + [
+                'available' => false,
+                'health_percent' => null,
+                'status' => 'unknown',
+                'issues' => [],
+                'message' => (string)$message,
+            ];
+        }
+
+        $health = 100.0;
+        $issues = [];
+
+        if (is_array($nvme)) {
+            $wear = (int)($nvme['percentage_used'] ?? 0);
+            $health = 100 - min(100, $wear);
+            if ($wear > 0) {
+                $issues[] = "Umur SSD terpakai {$wear}%";
+            }
+            $mediaErrors = (int)($nvme['media_errors'] ?? 0);
+            if ($mediaErrors > 0) {
+                $health -= min(30, $mediaErrors);
+                $issues[] = "{$mediaErrors} media error";
+            }
+            if ((int)($nvme['critical_warning'] ?? 0) > 0) {
+                $health = min($health, 10);
+                $issues[] = 'NVMe melaporkan peringatan kritis';
+            }
+        } else {
+            $raw = fn(int $id) => isset($attrs[$id]) ? max(0, (int)($attrs[$id]['raw']['value'] ?? 0)) : 0;
+
+            // [id, pengurang per kejadian, batas pengurang, label]
+            $rules = [
+                [5, 0.5, 50, 'sektor dialokasi ulang (Reallocated)'],
+                [197, 1.0, 40, 'sektor tertunda (Pending)'],
+                [198, 1.0, 40, 'sektor tidak bisa dikoreksi (Uncorrectable)'],
+                [187, 0.5, 30, 'error tak terkoreksi dilaporkan'],
+                [10, 2.0, 20, 'percobaan ulang putaran (Spin Retry)'],
+            ];
+            foreach ($rules as [$id, $per, $cap, $label]) {
+                $count = $raw($id);
+                if ($count > 0) {
+                    $health -= min($cap, $count * $per);
+                    $issues[] = "{$count} {$label}";
+                }
+            }
+
+            // SSD SATA: batasi dengan indikator sisa umur dari vendor.
+            if (($j['rotation_rate'] ?? null) === 0) {
+                foreach ([231, 233, 202, 177, 169] as $id) {
+                    if (isset($attrs[$id]['value'])) {
+                        $life = max(0, min(100, (int)$attrs[$id]['value']));
+                        $health = min($health, $life);
+                        break;
+                    }
+                }
+            }
+
+            foreach ($attrs as $a) {
+                $failed = (string)($a['when_failed'] ?? '');
+                $attrName = (string)($a['name'] ?? ('ID ' . ($a['id'] ?? '?')));
+                if ($failed === 'now') {
+                    $health = min($health, 10);
+                    $issues[] = "Atribut {$attrName} di bawah ambang batas";
+                } elseif ($failed === 'past') {
+                    $health = min($health, 50);
+                    $issues[] = "Atribut {$attrName} pernah di bawah ambang batas";
+                }
+            }
+        }
+
+        if ($passed === false) {
+            $health = min($health, 5);
+            array_unshift($issues, 'SMART overall-health: FAILED — segera backup & ganti disk');
+        }
+
+        $health = (int)round(max(0, min(100, $health)));
+
+        return $base + [
+            'available' => true,
+            'health_percent' => $health,
+            'status' => $health >= 90 ? 'healthy' : ($health >= 60 ? 'warning' : 'critical'),
+            'issues' => $issues,
+            'message' => null,
         ];
     }
 
