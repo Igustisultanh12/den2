@@ -44,10 +44,27 @@ data class ConversationDto(
     @SerializedName("is_typing") val isTyping: Boolean = false,
     @SerializedName("last_message_at") val lastMessageAt: String? = null,
     @SerializedName("latest_message") val latestMessage: ConversationLatestDto? = null,
+    /** False bila Anda belum boleh mengirim (mis. permintaan Layanan Aplikasi menunggu konfirmasi). */
+    @SerializedName("can_send") val canSend: Boolean = true,
+    /** Panggilan tidak tersedia untuk Layanan Aplikasi. */
+    @SerializedName("can_call") val canCall: Boolean = true,
+    /** Super Admin dapat menerima/menolak permintaan Layanan Aplikasi ini. */
+    @SerializedName("can_respond") val canRespond: Boolean = false,
+    /** Permintaan Anda ke Layanan Aplikasi sudah terkirim & menunggu konfirmasi. */
+    @SerializedName("awaiting_confirmation") val awaitingConfirmation: Boolean = false,
 ) {
     val isOpen: Boolean get() = !status.equals("CLOSED", ignoreCase = true)
+    val isPending: Boolean get() = status.equals("PENDING", ignoreCase = true)
     val isSupport: Boolean get() = kind == "support"
-    val displayTitle: String get() = title?.takeIf { it.isNotBlank() } ?: if (isSupport) "Operator Dinas" else "Personel"
+    /** Utas "Layanan Aplikasi" (dibalas Super Admin, identitas dirahasiakan, perlu konfirmasi). */
+    val isAppSupport: Boolean get() = kind == "app"
+    /** Utas layanan (Operator Dinas atau Layanan Aplikasi), bukan chat pribadi. */
+    val isService: Boolean get() = isSupport || isAppSupport
+    val displayTitle: String get() = title?.takeIf { it.isNotBlank() } ?: when {
+        isAppSupport -> "Layanan Aplikasi"
+        isSupport -> "Operator Dinas"
+        else -> "Personel"
+    }
 }
 
 data class ChatAttachmentDto(
@@ -95,6 +112,8 @@ data class ChatMessageDto(
 /** Respons GET /api/mobile/chat. */
 data class ChatHomeResponse(
     @SerializedName("is_operator") val isOperator: Boolean = false,
+    /** Super Admin membalas Layanan Aplikasi, jadi tidak diberi tombol untuk mengajukannya. */
+    @SerializedName("is_super_admin") val isSuperAdmin: Boolean = false,
     @SerializedName("conversations") val conversations: List<ConversationDto>? = null,
     @SerializedName("total_unread") val totalUnread: Int = 0,
     @SerializedName("incoming_call") val incomingCall: CallDataDto? = null,
@@ -131,10 +150,19 @@ data class ChatUsersResponse(
     @SerializedName("users") val users: List<ChatUserDto>? = null,
 )
 
-/** [userId] → chat pribadi dengan personel; [support] true → utas Operator Dinas. */
+/**
+ * [userId] → chat pribadi dengan personel; [support] true → utas Operator Dinas;
+ * [appSupport] true → utas Layanan Aplikasi.
+ */
 data class ChatStartRequest(
     @SerializedName("user_id") val userId: Int? = null,
     @SerializedName("support") val support: Boolean? = null,
+    @SerializedName("app_support") val appSupport: Boolean? = null,
+)
+
+/** Super Admin: action = "accept" | "reject". */
+data class ChatAppRequestBody(
+    @SerializedName("action") val action: String,
 )
 
 data class ChatStartResponse(

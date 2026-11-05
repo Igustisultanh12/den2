@@ -187,6 +187,8 @@ class MobileApiSecurityTest extends TestCase
             $t->dateTime('last_message_at')->nullable();
             $t->unsignedInteger('unread_admin')->default(0);
             $t->unsignedInteger('unread_user')->default(0);
+            $t->string('channel', 20)->default('operator');
+            $t->dateTime('requested_at')->nullable();
             $t->timestamps();
         });
         Schema::create('live_chat_messages', function (Blueprint $t) {

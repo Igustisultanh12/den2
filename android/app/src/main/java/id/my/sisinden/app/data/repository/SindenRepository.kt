@@ -303,7 +303,12 @@ class SindenRepository(
     suspend fun chatSearchUsers(query: String) = call { chatSearchUsers(query.trim()) }
     suspend fun chatStart(userId: Int) = call { chatStart(ChatStartRequest(userId = userId)) }
     suspend fun chatStartSupport() = call { chatStart(ChatStartRequest(support = true)) }
+    suspend fun chatStartAppSupport() = call { chatStart(ChatStartRequest(appSupport = true)) }
+    suspend fun systemCheck() = call { systemCheck() }
+    suspend fun systemSpeedtest() = call { systemSpeedtest() }
     suspend fun chatToggleStatus(uuid: String) = call { chatToggleStatus(uuid) }
+    suspend fun chatRespondAppRequest(uuid: String, accept: Boolean) =
+        call { chatAppRequest(uuid, ChatAppRequestBody(if (accept) "accept" else "reject")) }
     suspend fun chatDelete(uuid: String) = call { chatDelete(uuid) }
 
     /** Kirim pesan teks dan/atau lampiran (maks. 20 MB total, divalidasi server). */

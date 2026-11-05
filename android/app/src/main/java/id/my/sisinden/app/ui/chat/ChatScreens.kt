@@ -43,12 +43,15 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.HeadsetMic
+import androidx.compose.material.icons.outlined.HourglassTop
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -178,6 +181,16 @@ fun ChatHomeScreen(
         Column(Modifier.padding(padding).fillMaxSize()) {
             SearchField(search, vm::setSearch, "Cari percakapan", Modifier.padding(horizontal = Spacing.screen))
             Spacer(Modifier.height(Spacing.sm))
+            // Layanan Aplikasi: bantuan dari pengelola aplikasi (identitas dirahasiakan), perlu konfirmasi.
+            if (data != null && !data.isSuperAdmin) {
+                ListRowCard(
+                    title = "Chat dengan Layanan Aplikasi",
+                    subtitle = "Bantuan & laporan kendala aplikasi",
+                    leading = { ServiceAvatar(Icons.Outlined.HeadsetMic, 44, AppSupportColor) },
+                    onClick = { vm.openAppSupport(onOpenThread) },
+                    modifier = Modifier.padding(horizontal = Spacing.screen).padding(bottom = Spacing.sm),
+                )
+            }
             LoadStateContent(state, onRetry = { vm.load() }) { home ->
                 val list = home.conversations.orEmpty()
                 if (list.isEmpty()) {
@@ -225,16 +238,23 @@ fun ChatHomeScreen(
     }
 }
 
+private val AppSupportColor = Color(0xFF7C3AED)
+
 @Composable
-private fun AvatarWithPresence(name: String, online: Boolean, size: Int, support: Boolean = false) {
+private fun ServiceAvatar(icon: androidx.compose.ui.graphics.vector.ImageVector, size: Int, color: Color) {
+    Box(
+        Modifier.size(size.dp).clip(CircleShape).background(color),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, contentDescription = null, tint = Color.White) }
+}
+
+@Composable
+private fun AvatarWithPresence(name: String, online: Boolean, size: Int, support: Boolean = false, appSupport: Boolean = false) {
     Box {
-        if (support) {
-            Box(
-                Modifier.size(size.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.SupportAgent, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) }
-        } else {
-            InitialsAvatar(name.initials(), size = size.dp)
+        when {
+            appSupport -> ServiceAvatar(Icons.Outlined.HeadsetMic, size, AppSupportColor)
+            support -> ServiceAvatar(Icons.Outlined.SupportAgent, size, MaterialTheme.colorScheme.primary)
+            else -> InitialsAvatar(name.initials(), size = size.dp)
         }
         if (online) {
             Box(
@@ -258,9 +278,18 @@ private fun ConversationRow(c: ConversationDto, myUserId: Int?, onClick: () -> U
         title = c.displayTitle,
         subtitle = preview,
         supporting = listOfNotNull(time.takeIf { latest != null && it.isNotBlank() }, if (c.isOnline) "Online" else null).joinToString(" · ").ifBlank { null },
-        leading = { AvatarWithPresence(c.displayTitle, c.isOnline, 44, support = c.isSupport && c.role == "user") },
+        leading = {
+            AvatarWithPresence(
+                c.displayTitle, c.isOnline, 44,
+                support = c.isSupport && c.role == "user",
+                appSupport = c.isAppSupport && c.role == "user",
+            )
+        },
         trailing = {
-            if (!c.isOpen) StatusChip("Ditutup", Tone.NEUTRAL)
+            when {
+                c.canRespond || c.awaitingConfirmation -> StatusChip("Menunggu", Tone.WARNING)
+                !c.isOpen -> StatusChip("Ditutup", Tone.NEUTRAL)
+            }
             CountBadge(c.unread)
         },
         onClick = onClick,
@@ -344,6 +373,7 @@ fun ChatThreadScreen(
         title = partner?.displayTitle ?: title,
         subtitle = when {
             ui.remoteTyping -> "sedang mengetik…"
+            ui.isAppSupport -> partner?.subtitle ?: "Layanan Aplikasi"
             !ui.open -> "Sesi ditutup"
             partner?.isOnline == true -> "online"
             else -> partner?.subtitle ?: "Chat Dinas"
@@ -351,13 +381,16 @@ fun ChatThreadScreen(
         onBack = onBack,
         snackbarHostState = snackbar,
         actions = {
-            IconButton(onClick = { onCall(false) }, enabled = ui.open) { Icon(Icons.Outlined.Call, contentDescription = "Panggilan suara") }
-            IconButton(onClick = { onCall(true) }, enabled = ui.open) { Icon(Icons.Outlined.Videocam, contentDescription = "Panggilan video") }
+            // Panggilan tidak tersedia di Layanan Aplikasi (identitas Super Admin dirahasiakan).
+            if (partner?.canCall != false) {
+                IconButton(onClick = { onCall(false) }, enabled = ui.canCall) { Icon(Icons.Outlined.Call, contentDescription = "Panggilan suara") }
+                IconButton(onClick = { onCall(true) }, enabled = ui.canCall) { Icon(Icons.Outlined.Videocam, contentDescription = "Panggilan video") }
+            }
             if (ui.isOperator || ui.canDelete) {
                 Box {
                     IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = "Opsi percakapan") }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        if (ui.isOperator && ui.thread?.isSupport == true) {
+                        if (ui.isOperator && ui.thread?.isService == true && ui.thread?.isPending != true) {
                             DropdownMenuItem(
                                 text = { Text(if (ui.open) "Tutup sesi" else "Buka kembali sesi") },
                                 leadingIcon = { Icon(if (ui.open) Icons.Outlined.Lock else Icons.Outlined.LockOpen, contentDescription = null) },
@@ -383,7 +416,11 @@ fun ChatThreadScreen(
                     ui.error != null && ui.messages.isEmpty() -> ErrorState(ui.error!!, onRetry = null, modifier = Modifier.align(Alignment.Center))
                     ui.messages.isEmpty() -> EmptyState(
                         "Belum ada pesan",
-                        if (partner?.isSupport == true && partner.role == "user") "Sampaikan pertanyaan atau laporan Anda kepada operator dinas." else "Sapa lebih dulu, kirim pesan suara, atau lakukan panggilan video.",
+                        when {
+                            partner?.isAppSupport == true && partner.role == "user" -> "Tulis pesan untuk mengajukan chat. Chat dimulai setelah dikonfirmasi Layanan Aplikasi."
+                            partner?.isSupport == true && partner.role == "user" -> "Sampaikan pertanyaan atau laporan Anda kepada operator dinas."
+                            else -> "Sapa lebih dulu, kirim pesan suara, atau lakukan panggilan video."
+                        },
                         icon = Icons.Outlined.Forum,
                     )
                     else -> LazyColumn(
@@ -395,7 +432,7 @@ fun ChatThreadScreen(
                             MessageBubble(
                                 m,
                                 mine = !m.isSystem && m.senderId == myUserId,
-                                showSender = partner?.isSupport == true,
+                                showSender = partner?.isService == true,
                                 context = context,
                                 onOpenImage = { viewer = it },
                             )
@@ -424,14 +461,42 @@ fun ChatThreadScreen(
                     }
                 }
             }
+            // Layanan Aplikasi: alur konfirmasi permintaan chat.
+            if (ui.isAppSupport) {
+                val t = ui.thread
+                when {
+                    t?.canRespond == true -> Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.xs),
+                    ) {
+                        Column(Modifier.padding(Spacing.md)) {
+                            Text(
+                                "Permintaan chat menunggu konfirmasi Anda. Identitas Anda tampil sebagai \"Layanan Aplikasi\".",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Row(Modifier.align(Alignment.End)) {
+                                TextButton(onClick = { vm.respondAppRequest(false) }) { Text("Tolak") }
+                                Spacer(Modifier.width(Spacing.xs))
+                                Button(onClick = { vm.respondAppRequest(true) }) { Text("Terima") }
+                            }
+                        }
+                    }
+                    t?.role == "user" && t.awaitingConfirmation -> AppSupportNotice(
+                        "Permintaan chat terkirim. Menunggu konfirmasi Layanan Aplikasi — Anda dapat membalas setelah diterima.",
+                    )
+                    t?.role == "user" && !t.isOpen -> AppSupportNotice("Sesi telah selesai. Kirim pesan untuk mengajukan chat baru.")
+                }
+            }
             when {
-                !ui.open -> Text(
+                !ui.canSend && !ui.isAppSupport -> Text(
                     "Sesi percakapan ini telah ditutup operator.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(Spacing.md),
                 )
+                !ui.canSend -> Spacer(Modifier.height(Spacing.sm))
                 recording -> RecordingBar(
                     elapsedMs = recordMs,
                     onCancel = { recording = false; recorder.cancel() },
@@ -495,6 +560,23 @@ fun ChatThreadScreen(
             onDismiss = { confirmDelete = false },
             onConfirm = { confirmDelete = false; vm.delete(onBack) },
         )
+    }
+}
+
+@Composable
+private fun AppSupportNotice(text: String) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.md, vertical = Spacing.xs)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.secondaryContainer)
+            .padding(Spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.HourglassTop, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(Spacing.sm))
+        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
     }
 }
 

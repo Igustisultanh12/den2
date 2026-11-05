@@ -78,6 +78,7 @@ import id.my.sisinden.app.ui.settings.SettingsScreen
 import id.my.sisinden.app.ui.signature.SignatureScreen
 import id.my.sisinden.app.ui.skhpp.SkhppFormScreen
 import id.my.sisinden.app.ui.skhpp.SkhppScreen
+import id.my.sisinden.app.ui.system.SystemCheckScreen
 import id.my.sisinden.app.ui.users.UsersScreen
 import id.my.sisinden.app.ui.violations.ViolationFormScreen
 import id.my.sisinden.app.ui.violations.ViolationsScreen
@@ -334,6 +335,9 @@ fun MainNavigation(
             }
             composable(Routes.USERS, deepLinks = appDeepLink("users")) {
                 Guard(currentPerms(), Perm.USERS_VIEW, back) { UsersScreen(repository, currentPerms(), onBack = back) }
+            }
+            composable(Routes.SYSTEM_CHECK, deepLinks = appDeepLink("system-check")) {
+                Guard(currentPerms(), Perm.SYSTEM_VIEW, back) { SystemCheckScreen(repository, onBack = back) }
             }
             composable(Routes.SETTINGS, deepLinks = appDeepLink("settings")) {
                 SettingsScreen(repository, onBack = back)

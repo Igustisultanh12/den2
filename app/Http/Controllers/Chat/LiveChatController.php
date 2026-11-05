@@ -42,6 +42,7 @@ class LiveChatController extends Controller
             'initialActive' => $active,
             'initialCall' => Cache::get("live_chat:user_call:{$user->id}"),
             'isOperator' => Chat::isOperator($user),
+            'isSuperAdmin' => Chat::isSuperAdmin($user),
             'currentUser' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -123,12 +124,15 @@ class LiveChatController extends Controller
 
     /**
      * Buka/buat percakapan: user_id → chat pribadi dengan personel tersebut;
-     * support=1 → utas layanan Operator Dinas milik pengguna.
+     * support=1 → utas layanan Operator Dinas milik pengguna;
+     * app_support=1 → utas Layanan Aplikasi (dibalas Super Admin, perlu konfirmasi).
      */
     public function startChat(Request $request)
     {
         $user = Auth::user();
-        if ($request->boolean('support')) {
+        if ($request->boolean('app_support')) {
+            $thread = Chat::appThreadFor($user);
+        } elseif ($request->boolean('support')) {
             $thread = Chat::supportThreadFor($user);
         } else {
             $request->validate(['user_id' => 'required|integer|exists:users,id']);
@@ -150,12 +154,33 @@ class LiveChatController extends Controller
         abort_unless(!$thread->isDirect() && Chat::isOperator($user), 403, 'Hanya operator yang dapat menutup utas layanan.');
 
         $newStatus = $thread->status === 'OPEN' ? 'CLOSED' : 'OPEN';
-        $thread->update(['status' => $newStatus]);
+        if ($thread->isAppSupport()) {
+            Chat::setAppSessionOpen($thread, $newStatus === 'OPEN');
+        } else {
+            $thread->update(['status' => $newStatus]);
+        }
 
         return response()->json([
             'success' => true,
             'status' => $newStatus,
             'message' => $newStatus === 'CLOSED' ? 'Sesi obrolan dinas telah ditutup.' : 'Sesi obrolan dinas telah dibuka kembali.',
+        ]);
+    }
+
+    /** Super Admin menerima (action=accept) atau menolak (action=reject) permintaan Layanan Aplikasi. */
+    public function respondAppRequest(Request $request, $uuid)
+    {
+        $user = Auth::user();
+        $thread = Chat::find((string) $uuid, $user);
+        $request->validate(['action' => 'required|in:accept,reject']);
+        $accept = $request->input('action') === 'accept';
+
+        Chat::respondAppRequest($thread, $user, $accept);
+
+        return response()->json([
+            'success' => true,
+            'status' => $thread->fresh()->status,
+            'message' => $accept ? 'Permintaan chat diterima.' : 'Permintaan chat ditolak.',
         ]);
     }
 
@@ -209,6 +234,10 @@ class LiveChatController extends Controller
         $user = Auth::user();
         $thread = Chat::find((string) $uuid, $user);
         $role = Chat::roleIn($thread, $user);
+
+        if (!Chat::canCall($thread, $user)) {
+            return response()->json(['success' => false, 'message' => 'Panggilan tidak tersedia untuk percakapan ini.'], 422);
+        }
 
         $calleeUserId = Chat::calleeId($thread, $user);
         if (!$calleeUserId) {

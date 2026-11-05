@@ -172,6 +172,9 @@ class MobileAccess
             'settings.view' => $superAdmin,
             'settings.manage' => $superAdmin,
 
+            // SystemCheckController (web: role:super_admin) — Cek Sistem & Server.
+            'system.view' => $superAdmin,
+
             'audit_logs.view' => $admin,
             'backup.view' => $f('backup'),
         ];

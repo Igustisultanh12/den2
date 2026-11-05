@@ -19,9 +19,18 @@ use Illuminate\Support\Str;
  *
  * sender_type tetap 'USER' untuk pesan dari user_id dan 'ADMIN' untuk pihak lain agar
  * klien lama tetap terbaca; klien baru menentukan "pesan saya" dari sender_id.
+ *
+ * Identitas Super Admin tidak pernah ditampilkan ke pengguna lain:
+ *  - Personel/Komandan/Admin tidak dapat mencari atau chat pribadi dengan Super Admin.
+ *  - Pesan Super Admin tampil sebagai "Layanan Aplikasi" (nama & sender_id disamarkan).
+ *  - Utas "Layanan Aplikasi" (channel 'app') hanya dibalas Super Admin dan berjalan dengan
+ *    konfirmasi: PENDING (menunggu konfirmasi) → OPEN (diterima) → CLOSED (selesai/ditolak).
  */
 class ChatConversations
 {
+    public const APP_SUPPORT_NAME = 'Layanan Aplikasi';
+    public const STATUS_PENDING = 'PENDING';
+
     public const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
     public const AUDIO_EXTENSIONS = ['m4a', 'mp4a', 'mp4', 'aac', 'webm', 'weba', 'ogg', 'oga', 'opus', 'mp3', 'mpga', 'wav'];
     public const FILE_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'zip'];
@@ -32,14 +41,46 @@ class ChatConversations
         return MobileAccess::isAdmin($user) || MobileAccess::isDeveloper($user);
     }
 
+    public static function isSuperAdmin(User $user): bool
+    {
+        return MobileAccess::isSuperAdmin($user);
+    }
+
+    /** ID seluruh akun Super Admin (di-cache per request). */
+    public static function superAdminIds(): array
+    {
+        return once(fn () => User::superAdmins()->pluck('id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    public static function isSuperAdminId(?int $userId): bool
+    {
+        return $userId !== null && in_array((int) $userId, self::superAdminIds(), true);
+    }
+
+    /** Chat pribadi antara non-Super Admin dan Super Admin disembunyikan dari pihak non-Super Admin. */
+    protected static function hidesSuperAdminPeer(LiveChatThread $thread, User $viewer): bool
+    {
+        if (self::isSuperAdmin($viewer)) {
+            return false;
+        }
+        $otherId = (int) $thread->user_id === (int) $viewer->id ? $thread->peer_id : $thread->user_id;
+        return self::isSuperAdminId($otherId !== null ? (int) $otherId : null);
+    }
+
     /** 'user' | 'peer' | 'operator' | null (tidak berhak). */
     public static function roleIn(LiveChatThread $thread, User $user): ?string
     {
         if ((int) $thread->user_id === (int) $user->id) {
-            return 'user';
+            return $thread->isDirect() && self::hidesSuperAdminPeer($thread, $user) ? null : 'user';
         }
         if ($thread->isDirect()) {
-            return (int) $thread->peer_id === (int) $user->id ? 'peer' : null;
+            if ((int) $thread->peer_id !== (int) $user->id) {
+                return null;
+            }
+            return self::hidesSuperAdminPeer($thread, $user) ? null : 'peer';
+        }
+        if ($thread->isAppSupport()) {
+            return self::isSuperAdmin($user) ? 'operator' : null;
         }
         return self::isOperator($user) ? 'operator' : null;
     }
@@ -77,13 +118,21 @@ class ChatConversations
     public static function listFor(User $user, string $search = '', int $limit = 60): array
     {
         $operator = self::isOperator($user);
+        $superAdmin = self::isSuperAdmin($user);
         $search = trim($search);
 
         $threads = LiveChatThread::with(['user', 'peer', 'latestMessage'])
-            ->where(function ($q) use ($user, $operator) {
+            ->where(function ($q) use ($user, $operator, $superAdmin) {
                 $q->where('user_id', $user->id)->orWhere('peer_id', $user->id);
                 if ($operator) {
-                    $q->orWhereNull('peer_id');
+                    // Utas Operator Dinas (bukan Layanan Aplikasi).
+                    $q->orWhere(fn ($s) => $s->whereNull('peer_id')->where(
+                        fn ($c) => $c->whereNull('channel')->orWhere('channel', '!=', LiveChatThread::CHANNEL_APP)
+                    ));
+                }
+                if ($superAdmin) {
+                    // Utas Layanan Aplikasi hanya terlihat oleh Super Admin.
+                    $q->orWhere(fn ($s) => $s->whereNull('peer_id')->where('channel', LiveChatThread::CHANNEL_APP));
                 }
             })
             ->when($search !== '', function ($q) use ($search) {
@@ -99,7 +148,12 @@ class ChatConversations
             ->limit($limit)
             ->get();
 
-        $items = $threads->map(fn ($t) => self::summary($t, $user))->filter()->values()->all();
+        $items = $threads->map(fn ($t) => self::summary($t, $user))->filter()->values();
+        if ($superAdmin) {
+            // Permintaan Layanan Aplikasi yang menunggu konfirmasi selalu di atas.
+            $items = $items->sortBy(fn ($i) => $i['can_respond'] ? 0 : 1)->values();
+        }
+        $items = $items->all();
 
         // Personel selalu melihat entri "Operator Dinas" walau belum pernah mengirim pesan.
         if (!$operator && !collect($items)->contains(fn ($i) => $i['kind'] === 'support' && $i['role'] === 'user')) {
@@ -118,6 +172,10 @@ class ChatConversations
                 'last_message_at' => null,
                 'last_message_human' => null,
                 'latest_message' => null,
+                'can_send' => true,
+                'can_call' => true,
+                'can_respond' => false,
+                'awaiting_confirmation' => false,
             ];
         }
 
@@ -130,18 +188,28 @@ class ChatConversations
         if ($role === null) {
             return null;
         }
+        $app = $t->isAppSupport();
         $other = self::otherParty($t, $viewer);
         $latest = $t->latestMessage;
-        $title = $other
-            ? trim(($other->pangkat ? $other->pangkat . ' ' : '') . $other->name)
-            : 'Operator Dinas';
+        $awaiting = $app && $t->status === self::STATUS_PENDING && self::hasPendingRequest($t);
+
+        if ($other) {
+            $title = trim(($other->pangkat ? $other->pangkat . ' ' : '') . $other->name);
+            $subtitle = $other->jabatan ?: ($other->nrp ? 'NRP ' . $other->nrp : null);
+            if ($app) {
+                $subtitle = self::APP_SUPPORT_NAME . ' · ' . self::appStatusLabel($t, $awaiting, true);
+            }
+        } else {
+            $title = $app ? self::APP_SUPPORT_NAME : 'Operator Dinas';
+            $subtitle = $app ? self::appStatusLabel($t, $awaiting, false) : 'Layanan & laporan ke Admin';
+        }
 
         return [
             'uuid' => $t->uuid,
-            'kind' => $t->isDirect() ? 'direct' : 'support',
+            'kind' => $t->isDirect() ? 'direct' : ($app ? 'app' : 'support'),
             'role' => $role,
             'title' => $title,
-            'subtitle' => $other ? ($other->jabatan ?: ($other->nrp ? 'NRP ' . $other->nrp : null)) : 'Layanan & laporan ke Admin',
+            'subtitle' => $subtitle,
             'avatar' => $other?->avatar,
             'partner' => $other ? self::userCard($other) : null,
             'status' => $t->status,
@@ -150,15 +218,90 @@ class ChatConversations
             'is_typing' => self::isTyping($t, $viewer),
             'last_message_at' => $t->last_message_at?->toIso8601String(),
             'last_message_human' => $t->last_message_at?->diffForHumans(),
-            'latest_message' => $latest ? [
+            'latest_message' => $latest ? self::maskSender([
                 'sender_id' => $latest->sender_id,
                 'sender_type' => $latest->sender_type,
                 'sender_name' => $latest->sender_name,
                 'message' => $latest->message,
                 'preview' => self::preview($latest),
                 'created_at' => $latest->created_at?->toIso8601String(),
-            ] : null,
+            ], $viewer) : null,
+            'can_send' => self::sendBlockReason($t, $role) === null,
+            'can_call' => self::canCall($t, $viewer),
+            // Super Admin dapat menerima/menolak permintaan Layanan Aplikasi.
+            'can_respond' => $app && $role === 'operator' && $t->status === self::STATUS_PENDING,
+            'awaiting_confirmation' => $awaiting,
         ];
+    }
+
+    /** Status utas Layanan Aplikasi untuk subjudul daftar percakapan. */
+    protected static function appStatusLabel(LiveChatThread $t, bool $awaiting, bool $forSuperAdmin): string
+    {
+        return match (true) {
+            $t->status === 'OPEN' => $forSuperAdmin ? 'Sesi aktif' : 'Terhubung dengan Layanan Aplikasi',
+            $awaiting => 'Menunggu konfirmasi',
+            $t->status === self::STATUS_PENDING => $forSuperAdmin ? 'Belum ada permintaan' : 'Tulis pesan untuk mengajukan chat',
+            default => $forSuperAdmin ? 'Sesi selesai' : 'Sesi selesai — kirim pesan untuk mengajukan lagi',
+        };
+    }
+
+    /** Personel sudah mengirim permintaan (pesan) sejak sesi Layanan Aplikasi terakhir diajukan. */
+    public static function hasPendingRequest(LiveChatThread $t): bool
+    {
+        return $t->messages()
+            ->where('sender_id', $t->user_id)
+            ->when($t->requested_at, fn ($q) => $q->where('created_at', '>=', $t->requested_at))
+            ->exists();
+    }
+
+    /** Samarkan pengirim Super Admin menjadi "Layanan Aplikasi" bagi penonton non-Super Admin. */
+    public static function maskSender(array $message, User $viewer): array
+    {
+        if (!self::isSuperAdmin($viewer) && self::isSuperAdminId(isset($message['sender_id']) ? (int) $message['sender_id'] : null)) {
+            $message['sender_id'] = null;
+            $message['sender_name'] = self::APP_SUPPORT_NAME;
+        }
+        return $message;
+    }
+
+    /** Pesan siap kirim ke klien (identitas Super Admin disamarkan). */
+    public static function presentMessage(LiveChatMessage $m, User $viewer): array
+    {
+        return self::maskSender($m->toArray(), $viewer);
+    }
+
+    /** Alasan pesan tidak dapat dikirim oleh peran ini, atau null bila boleh. */
+    public static function sendBlockReason(LiveChatThread $thread, ?string $role): ?string
+    {
+        if ($role === null) {
+            return 'Akses ditolak.';
+        }
+        if ($thread->isAppSupport()) {
+            // Personel hanya dapat mengirim satu pesan permintaan sampai Super Admin mengonfirmasi.
+            if ($role === 'user' && $thread->status === self::STATUS_PENDING && self::hasPendingRequest($thread)) {
+                return 'Permintaan chat Anda sedang menunggu konfirmasi Layanan Aplikasi.';
+            }
+            return null;
+        }
+        if ($thread->status === 'CLOSED') {
+            return 'Sesi obrolan ini telah ditutup.';
+        }
+        return null;
+    }
+
+    /**
+     * Panggilan suara/video tidak tersedia bila dapat membuka identitas Super Admin:
+     * utas Layanan Aplikasi, atau Super Admin menelepon personel dari utas Operator Dinas.
+     */
+    public static function canCall(LiveChatThread $thread, User $caller): bool
+    {
+        if ($thread->isAppSupport()) {
+            return false;
+        }
+        if (!$thread->isDirect() && self::isSuperAdmin($caller)) {
+            return false;
+        }
+        return true;
     }
 
     public static function userCard(User $u): array
@@ -194,24 +337,90 @@ class ChatConversations
     /** Utas layanan Operator Dinas milik personel (dibuat bila belum ada). */
     public static function supportThreadFor(User $user): LiveChatThread
     {
-        $thread = LiveChatThread::where('user_id', $user->id)->whereNull('peer_id')->where('status', 'OPEN')->latest('last_message_at')->first()
-            ?? LiveChatThread::where('user_id', $user->id)->whereNull('peer_id')->latest('last_message_at')->first();
+        $base = fn () => LiveChatThread::where('user_id', $user->id)->whereNull('peer_id')
+            ->where(fn ($c) => $c->whereNull('channel')->orWhere('channel', '!=', LiveChatThread::CHANNEL_APP));
+        $thread = $base()->where('status', 'OPEN')->latest('last_message_at')->first()
+            ?? $base()->latest('last_message_at')->first();
 
         return $thread ?? LiveChatThread::create([
             'uuid' => (string) Str::uuid(),
             'user_id' => $user->id,
             'subject' => 'Pusat Komunikasi Dinas',
             'status' => 'OPEN',
+            'channel' => LiveChatThread::CHANNEL_OPERATOR,
             'last_message_at' => now(),
             'unread_admin' => 0,
             'unread_user' => 0,
         ]);
     }
 
+    /** Utas Layanan Aplikasi milik pengguna (satu utas per pengguna; dibuat bila belum ada). */
+    public static function appThreadFor(User $user): LiveChatThread
+    {
+        abort_if(self::isSuperAdmin($user), 422, 'Super Admin membalas Layanan Aplikasi, bukan mengajukannya.');
+
+        $thread = LiveChatThread::where('user_id', $user->id)->whereNull('peer_id')
+            ->where('channel', LiveChatThread::CHANNEL_APP)->latest('id')->first();
+
+        return $thread ?? LiveChatThread::create([
+            'uuid' => (string) Str::uuid(),
+            'user_id' => $user->id,
+            'subject' => self::APP_SUPPORT_NAME,
+            'status' => self::STATUS_PENDING,
+            'channel' => LiveChatThread::CHANNEL_APP,
+            'requested_at' => now(),
+            'last_message_at' => now(),
+            'unread_admin' => 0,
+            'unread_user' => 0,
+        ]);
+    }
+
+    /**
+     * Super Admin menerima atau menolak permintaan chat Layanan Aplikasi.
+     */
+    public static function respondAppRequest(LiveChatThread $thread, User $superAdmin, bool $accept): void
+    {
+        abort_unless($thread->isAppSupport() && self::isSuperAdmin($superAdmin), 403, 'Hanya Layanan Aplikasi yang dapat mengonfirmasi permintaan ini.');
+        abort_unless($thread->status === self::STATUS_PENDING, 422, 'Permintaan ini sudah dikonfirmasi.');
+
+        $thread->update(['status' => $accept ? 'OPEN' : 'CLOSED', 'operator_id' => $superAdmin->id]);
+        self::systemMessage($thread, $accept
+            ? 'Permintaan chat diterima. Layanan Aplikasi siap membantu Anda.'
+            : 'Permintaan chat ditolak oleh Layanan Aplikasi. Anda dapat mengajukan lagi nanti.');
+    }
+
+    /** Super Admin mengakhiri / membuka kembali sesi Layanan Aplikasi. */
+    public static function setAppSessionOpen(LiveChatThread $thread, bool $open): void
+    {
+        $thread->update(['status' => $open ? 'OPEN' : 'CLOSED']);
+        self::systemMessage($thread, $open
+            ? 'Sesi chat dibuka kembali oleh Layanan Aplikasi.'
+            : 'Sesi chat diakhiri oleh Layanan Aplikasi. Kirim pesan baru untuk mengajukan chat lagi.');
+    }
+
+    public static function systemMessage(LiveChatThread $thread, string $text): LiveChatMessage
+    {
+        $message = LiveChatMessage::create([
+            'thread_id' => $thread->id,
+            'sender_type' => 'SYSTEM',
+            'sender_name' => self::APP_SUPPORT_NAME,
+            'message' => $text,
+            'is_read' => false,
+        ]);
+        $thread->update(['last_message_at' => now(), 'unread_user' => (int) $thread->unread_user + 1]);
+        return $message;
+    }
+
     /** Percakapan langsung dua personel (satu utas untuk setiap pasangan). */
     public static function directThread(User $me, User $other): LiveChatThread
     {
         abort_if((int) $me->id === (int) $other->id, 422, 'Tidak dapat mengirim pesan ke diri sendiri.');
+        // Super Admin tidak dapat dihubungi lewat chat pribadi (identitasnya dirahasiakan),
+        // dan menghubungi personel lewat Layanan Aplikasi.
+        if (self::isSuperAdmin($other) && !self::isSuperAdmin($me)) {
+            abort(404, 'Personel tidak ditemukan.');
+        }
+        abort_if(self::isSuperAdmin($me) && !self::isSuperAdmin($other), 422, 'Super Admin menghubungi personel melalui Layanan Aplikasi.');
 
         $thread = LiveChatThread::where(function ($q) use ($me, $other) {
             $q->where(fn ($a) => $a->where('user_id', $me->id)->where('peer_id', $other->id))
@@ -237,13 +446,17 @@ class ChatConversations
         ]);
     }
 
-    /** Kontak yang dapat dihubungi: seluruh personel aktif selain diri sendiri. */
+    /**
+     * Kontak yang dapat dihubungi: seluruh personel aktif selain diri sendiri.
+     * Super Admin tidak pernah muncul bagi non-Super Admin; Super Admin hanya melihat sesama Super Admin.
+     */
     public static function contacts(User $me, string $q = '', int $limit = 30): array
     {
         $q = trim($q);
         return User::query()
             ->where('id', '!=', $me->id)
             ->where('is_active', true)
+            ->when(self::isSuperAdmin($me), fn ($s) => $s->superAdmins(), fn ($s) => $s->visibleTo($me))
             ->when($q !== '', function ($s) use ($q) {
                 $s->where(fn ($w) => $w->where('name', 'like', "%{$q}%")
                     ->orWhere('nrp', 'like', "%{$q}%")
@@ -281,11 +494,8 @@ class ChatConversations
     public static function send(LiveChatThread $thread, User $sender, ?string $text, array $files = [], ?int $voiceDurationMs = null): LiveChatMessage|string
     {
         $role = self::roleIn($thread, $sender);
-        if ($role === null) {
-            return 'Akses ditolak.';
-        }
-        if ($thread->status === 'CLOSED') {
-            return 'Sesi obrolan ini telah ditutup.';
+        if ($blocked = self::sendBlockReason($thread, $role)) {
+            return $blocked;
         }
 
         $total = array_sum(array_map(fn ($f) => (int) $f->getSize(), $files));
@@ -324,11 +534,30 @@ class ChatConversations
             return 'Pesan teks atau berkas lampiran wajib diisi.';
         }
 
+        if ($thread->isAppSupport()) {
+            if ($role === 'user' && $thread->status !== 'OPEN' && $thread->status !== self::STATUS_PENDING) {
+                // Sesi selesai/ditolak → pesan ini menjadi permintaan chat baru.
+                $thread->update(['status' => self::STATUS_PENDING, 'requested_at' => now()]);
+            } elseif ($role === 'operator' && $thread->status !== 'OPEN') {
+                // Super Admin langsung membalas = menerima permintaan.
+                $wasPending = $thread->status === self::STATUS_PENDING;
+                $thread->update(['status' => 'OPEN', 'operator_id' => $sender->id]);
+                if ($wasPending) {
+                    self::systemMessage($thread, 'Permintaan chat diterima. Layanan Aplikasi siap membantu Anda.');
+                }
+            }
+        }
+
+        // Nama Super Admin tidak pernah disimpan di utas layanan, agar tidak bocor ke notifikasi/klien lama.
+        $senderName = !$thread->isDirect() && self::isSuperAdmin($sender)
+            ? self::APP_SUPPORT_NAME
+            : trim(($sender->pangkat ? $sender->pangkat . ' ' : '') . $sender->name);
+
         $message = LiveChatMessage::create([
             'thread_id' => $thread->id,
             'sender_type' => $role === 'user' ? 'USER' : 'ADMIN',
             'sender_id' => $sender->id,
-            'sender_name' => trim(($sender->pangkat ? $sender->pangkat . ' ' : '') . $sender->name),
+            'sender_name' => $senderName,
             'message' => $text !== '' ? mb_substr($text, 0, 5000) : null,
             'attachments' => $uploaded ?: null,
             'is_read' => false,
@@ -351,6 +580,8 @@ class ChatConversations
     {
         if ($thread->isDirect()) {
             $ids = [(int) $thread->user_id, (int) $thread->peer_id];
+        } elseif ($thread->isAppSupport() && (int) $senderId === (int) $thread->user_id) {
+            $ids = self::superAdminIds();
         } elseif ((int) $senderId === (int) $thread->user_id) {
             $ids = User::query()->get()->filter(fn ($u) => self::isOperator($u))->pluck('id')->map(fn ($i) => (int) $i)->all();
         } else {
@@ -362,17 +593,22 @@ class ChatConversations
     /** Penerima panggilan: lawan bicara langsung, atau operator yang menangani utas layanan. */
     public static function calleeId(LiveChatThread $thread, User $caller): ?int
     {
+        if (!self::canCall($thread, $caller)) {
+            return null;
+        }
         if ($thread->isDirect()) {
             return (int) ((int) $thread->user_id === (int) $caller->id ? $thread->peer_id : $thread->user_id);
         }
         if ((int) $thread->user_id !== (int) $caller->id) {
             return (int) $thread->user_id;
         }
-        if ($thread->operator_id) {
+        // Super Admin tidak pernah ditelepon personel (identitasnya akan terlihat di layar panggilan).
+        if ($thread->operator_id && !self::isSuperAdminId((int) $thread->operator_id)) {
             return (int) $thread->operator_id;
         }
         // Operator yang sedang daring lebih dulu, lalu operator mana pun.
-        $operators = User::query()->where('is_active', true)->get()->filter(fn ($u) => self::isOperator($u));
+        $operators = User::query()->where('is_active', true)->get()
+            ->filter(fn ($u) => self::isOperator($u) && !self::isSuperAdmin($u));
         $online = $operators->first(fn ($u) => self::isOnline($u->id));
         return ($online ?? $operators->first())?->id;
     }
@@ -426,7 +662,7 @@ class ChatConversations
 
         return [
             'thread' => self::summary($thread->fresh(['user', 'peer', 'latestMessage']), $viewer),
-            'messages' => $messages,
+            'messages' => $messages->map(fn ($m) => self::presentMessage($m, $viewer))->values(),
             'is_typing' => self::isTyping($thread, $viewer),
             'call' => Cache::get("live_chat:call:{$thread->uuid}"),
         ];

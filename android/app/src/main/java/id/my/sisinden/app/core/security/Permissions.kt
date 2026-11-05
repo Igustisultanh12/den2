@@ -61,6 +61,9 @@ object Perm {
 
     const val USERS_VIEW = "users.view"
     const val USERS_MANAGE = "users.manage"
+
+    /** Cek Sistem & Server (khusus Super Admin). */
+    const val SYSTEM_VIEW = "system.view"
 }
 
 /** Kumpulan permission milik sesi aktif. */

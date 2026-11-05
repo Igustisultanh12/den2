@@ -1,3 +1,17 @@
+# Sinden 2 Android v1.9.0 (versionCode 28)
+
+## Chat Dinas: Layanan Aplikasi
+
+- **Baru: tombol "Chat dengan Layanan Aplikasi"** di Chat Dinas untuk bantuan & laporan kendala aplikasi. Chat ini dibalas pengelola aplikasi dan **berjalan dengan konfirmasi**: pesan pertama menjadi permintaan chat, lalu status "Menunggu konfirmasi" sampai permintaan diterima. Setelah sesi selesai atau ditolak, kirim pesan baru untuk mengajukan lagi.
+- Super Admin tidak lagi tampil di daftar kontak dan tidak dapat di-chat pribadi oleh personel, komandan, maupun admin. Balasan Super Admin selalu tampil sebagai **"Layanan Aplikasi"** tanpa nama atau identitas.
+- Panggilan suara/video tidak tersedia di Layanan Aplikasi.
+- Super Admin: permintaan yang menunggu tampil paling atas dengan tombol **Terima / Tolak**, dan sesi dapat diakhiri dari menu percakapan.
+
+## Cek Sistem & Server (Super Admin)
+
+- **Baru: menu Cek Sistem** (grup "Sistem & Server"): pemakaian CPU, RAM, total penyimpanan, **disk fisik (sda/sdb) dengan terpakai, free, dan persen kesehatan SMART** (suhu, umur nyala, sektor rusak), partisi, info server & database, serta speedtest internet server.
+
+---
 # Sinden 2 Android v1.8.1 (versionCode 27)
 
 ## Keamanan lokasi

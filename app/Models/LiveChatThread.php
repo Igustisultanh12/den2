@@ -23,10 +23,16 @@ class LiveChatThread extends Model
         'last_message_at',
         'unread_admin',
         'unread_user',
+        'channel',
+        'requested_at',
     ];
+
+    public const CHANNEL_OPERATOR = 'operator';
+    public const CHANNEL_APP = 'app';
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'requested_at' => 'datetime',
         'unread_admin' => 'integer',
         'unread_user' => 'integer',
     ];
@@ -50,6 +56,12 @@ class LiveChatThread extends Model
     public function isDirect(): bool
     {
         return $this->peer_id !== null;
+    }
+
+    /** Utas "Layanan Aplikasi" (hanya Super Admin yang membalas, identitasnya disamarkan). */
+    public function isAppSupport(): bool
+    {
+        return !$this->isDirect() && $this->channel === self::CHANNEL_APP;
     }
 
     public function messages(): HasMany

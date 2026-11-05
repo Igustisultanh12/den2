@@ -49,6 +49,7 @@ class MobileCommsController extends Controller
         return response()->json([
             'status' => 'success',
             'is_operator' => Chat::isOperator($user),
+            'is_super_admin' => Chat::isSuperAdmin($user),
             'me' => ['id' => $user->id],
             'conversations' => $conversations,
             'total_unread' => (int) collect($conversations)->sum('unread'),
@@ -119,6 +120,16 @@ class MobileCommsController extends Controller
     public function toggleStatus(Request $request, string $uuid)
     {
         return $this->chat()->toggleStatus($request, $uuid);
+    }
+
+    /** Super Admin menerima/menolak permintaan Layanan Aplikasi (action=accept|reject). */
+    public function respondAppRequest(Request $request, string $uuid)
+    {
+        try {
+            return $this->chat()->respondAppRequest($request, $uuid);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['status' => 'error', 'message' => collect($e->errors())->flatten()->first()], 422);
+        }
     }
 
     public function destroy(Request $request, string $uuid)

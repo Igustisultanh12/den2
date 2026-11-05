@@ -221,6 +221,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/live-chat/{uuid}/send', [LiveChatController::class, 'sendMessage'])->name('chat.send');
     Route::post('/live-chat/{uuid}/typing', [LiveChatController::class, 'typing'])->name('chat.typing');
     Route::post('/live-chat/{uuid}/status', [LiveChatController::class, 'toggleStatus'])->name('chat.status');
+    Route::post('/live-chat/{uuid}/app-request', [LiveChatController::class, 'respondAppRequest'])->name('chat.app-request');
     Route::delete('/live-chat/{uuid}', [LiveChatController::class, 'destroy'])->name('chat.destroy');
 
     // Sinyal Panggilan Video & Suara (WebRTC P2P Signaling & Agora)

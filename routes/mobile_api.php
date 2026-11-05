@@ -19,6 +19,7 @@
 
 use App\Http\Controllers\Mobile\MobileApiController;
 use App\Http\Controllers\Mobile\MobileCommsController;
+use App\Http\Controllers\Mobile\MobileSystemController;
 use App\Models\User;
 use App\Support\MobileAccess;
 use App\Support\Turnstile;
@@ -1321,12 +1322,20 @@ Route::middleware('mobile.auth:chat.view')->group(function () {
     // Chat antar-personel: siapa pun dapat mencari kontak & memulai chat pribadi.
     Route::get('/api/mobile/chat/users', [MobileCommsController::class, 'searchUsers']);
     Route::post('/api/mobile/chat/start', [MobileCommsController::class, 'start'])->middleware('throttle:30,1');
+    // Layanan Aplikasi: Super Admin menerima/menolak permintaan (dicek di ChatConversations).
+    Route::post('/api/mobile/chat/{uuid}/app-request', [MobileCommsController::class, 'respondAppRequest'])->middleware('throttle:30,1');
     // Hapus: peserta chat pribadi, atau operator untuk utas layanan (dicek di controller).
     Route::delete('/api/mobile/chat/{uuid}', [MobileCommsController::class, 'destroy']);
 });
 
 Route::middleware('mobile.auth:chat.manage')->group(function () {
     Route::post('/api/mobile/chat/{uuid}/status', [MobileCommsController::class, 'toggleStatus']);
+});
+
+// Cek Sistem & Server (khusus Super Admin, sama dengan /admin/system-check di web).
+Route::middleware('mobile.auth:system.view')->group(function () {
+    Route::get('/api/mobile/system-check', [MobileSystemController::class, 'metrics']);
+    Route::post('/api/mobile/system-check/speedtest', [MobileSystemController::class, 'speedtest'])->middleware('throttle:5,1');
 });
 
 // Halaman media vicon untuk WebView (tanpa data; token Agora diberikan oleh aplikasi).

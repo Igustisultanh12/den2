@@ -110,6 +110,19 @@ class ChatHomeViewModel(private val repository: SindenRepository) : ViewModel() 
         }
     }
 
+    /** Buka utas Layanan Aplikasi (dibalas Super Admin; chat berjalan setelah dikonfirmasi). */
+    fun openAppSupport(onOpened: (uuid: String, title: String) -> Unit) {
+        if (_busy.value) return
+        _busy.value = true
+        viewModelScope.launch {
+            when (val res = repository.chatStartAppSupport()) {
+                is ApiResult.Success -> res.data.uuid?.let { onOpened(it, "Layanan Aplikasi") } ?: messages.post("Layanan Aplikasi tidak dapat dibuka.")
+                is ApiResult.Failure -> messages.post(res.error.message)
+            }
+            _busy.value = false
+        }
+    }
+
     /** Mulai (atau lanjutkan) chat pribadi dengan personel. */
     fun startChat(user: ChatUserDto, onOpened: (uuid: String, title: String) -> Unit) {
         val id = user.id ?: return
@@ -139,7 +152,11 @@ data class ChatThreadUi(
 ) {
     val isOperator: Boolean get() = thread?.role == "operator"
     /** Chat pribadi dapat dihapus pesertanya; utas layanan hanya oleh operator. */
-    val canDelete: Boolean get() = thread?.isSupport == false || isOperator
+    val canDelete: Boolean get() = thread?.isService == false || isOperator
+    val isAppSupport: Boolean get() = thread?.isAppSupport == true
+    /** Kolom ketik aktif: sesi terbuka, atau Layanan Aplikasi yang masih boleh mengajukan pesan. */
+    val canSend: Boolean get() = (thread?.canSend ?: true) && (open || isAppSupport)
+    val canCall: Boolean get() = (thread?.canCall ?: true) && open
 }
 
 /**
@@ -278,6 +295,20 @@ class ChatThreadViewModel(
                 is ApiResult.Success -> {
                     _ui.update { it.copy(open = !res.data.status.equals("CLOSED", ignoreCase = true)) }
                     res.data.message?.let(messages::post)
+                    poll()
+                }
+                is ApiResult.Failure -> messages.post(res.error.message)
+            }
+        }
+    }
+
+    /** Super Admin menerima/menolak permintaan Layanan Aplikasi. */
+    fun respondAppRequest(accept: Boolean) {
+        viewModelScope.launch {
+            when (val res = repository.chatRespondAppRequest(uuid, accept)) {
+                is ApiResult.Success -> {
+                    res.data.message?.let(messages::post)
+                    poll()
                 }
                 is ApiResult.Failure -> messages.post(res.error.message)
             }

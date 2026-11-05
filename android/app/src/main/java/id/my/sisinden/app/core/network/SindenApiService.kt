@@ -252,6 +252,16 @@ interface SindenApiService {
     @POST("api/mobile/chat/{uuid}/status")
     suspend fun chatToggleStatus(@Path("uuid") uuid: String): Response<ChatStatusResponse>
 
+    // ------------------------------------------------ Cek Sistem & Server (Super Admin)
+    @GET("api/mobile/system-check")
+    suspend fun systemCheck(): Response<SystemMetricsDto>
+
+    @POST("api/mobile/system-check/speedtest")
+    suspend fun systemSpeedtest(): Response<SpeedtestResultDto>
+
+    @POST("api/mobile/chat/{uuid}/app-request")
+    suspend fun chatAppRequest(@Path("uuid") uuid: String, @Body body: ChatAppRequestBody): Response<ChatStatusResponse>
+
     @DELETE("api/mobile/chat/{uuid}")
     suspend fun chatDelete(@Path("uuid") uuid: String): Response<SimpleResponse>
 

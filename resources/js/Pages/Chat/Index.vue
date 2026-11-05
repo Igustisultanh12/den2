@@ -10,6 +10,7 @@ const props = defineProps({
     initialActive: { type: Object, default: null },
     initialCall: { type: Object, default: null },
     isOperator: { type: Boolean, default: false },
+    isSuperAdmin: { type: Boolean, default: false },
     currentUser: { type: Object, required: true },
 });
 
@@ -138,6 +139,27 @@ const openConversation = async (conv) => {
         errorText.value = e.response?.data?.message || 'Percakapan tidak dapat dibuka.';
     } finally {
         loadingThread.value = false;
+    }
+};
+
+// Layanan Aplikasi: dibalas Super Admin (identitas dirahasiakan), chat berjalan setelah dikonfirmasi.
+const openAppSupport = async () => {
+    errorText.value = '';
+    try {
+        const { data } = await axios.post('/live-chat/start', { app_support: true });
+        await openConversation({ uuid: data.uuid });
+    } catch (e) {
+        errorText.value = e.response?.data?.message || 'Layanan Aplikasi tidak dapat dibuka.';
+    }
+};
+const isServiceThread = (c) => c?.kind === 'support' || c?.kind === 'app';
+const inputLocked = computed(() => active.value?.can_send === false);
+const respondRequest = async (action) => {
+    try {
+        await axios.post(`/live-chat/${active.value.uuid}/app-request`, { action });
+        await poll();
+    } catch (e) {
+        errorText.value = e.response?.data?.message || 'Gagal mengonfirmasi permintaan.';
     }
 };
 
@@ -304,6 +326,7 @@ const finishRecording = async () => {
 const toggleStatus = async () => {
     const { data } = await axios.post(`/live-chat/${active.value.uuid}/status`);
     active.value = { ...active.value, status: data.status };
+    poll();
 };
 const removeConversation = async () => {
     if (!window.confirm('Hapus percakapan ini beserta seluruh pesan dan lampirannya?')) return;
@@ -371,6 +394,16 @@ onUnmounted(() => {
                         </div>
                         <button type="button" @click="openPicker" class="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700">+ Chat baru</button>
                     </div>
+                    <button v-if="!isSuperAdmin" type="button" @click="openAppSupport"
+                            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-violet-50 border border-violet-200 text-left hover:bg-violet-100 transition">
+                        <span class="w-9 h-9 rounded-full bg-violet-600 text-white flex items-center justify-center shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        </span>
+                        <span class="min-w-0">
+                            <span class="block text-xs font-extrabold text-violet-800">Chat dengan Layanan Aplikasi</span>
+                            <span class="block text-[10px] text-violet-600">Bantuan &amp; laporan kendala aplikasi</span>
+                        </span>
+                    </button>
                     <input v-model="search" type="search" placeholder="Cari percakapan"
                            class="w-full rounded-2xl border-slate-200 bg-slate-50 text-xs px-4 py-2.5 focus:ring-blue-500 focus:border-blue-600" />
                 </div>
@@ -382,12 +415,13 @@ onUnmounted(() => {
                         <span class="relative shrink-0">
                             <img v-if="avatarUrl(c.avatar)" :src="avatarUrl(c.avatar)" class="w-11 h-11 rounded-full object-cover" alt="" />
                             <span v-else class="w-11 h-11 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                                  :class="c.kind === 'support' ? 'bg-indigo-600' : 'bg-slate-500'">{{ c.kind === 'support' && c.role === 'user' ? 'OD' : initials(c.title) }}</span>
+                                  :class="c.kind === 'app' ? 'bg-violet-600' : (c.kind === 'support' ? 'bg-indigo-600' : 'bg-slate-500')">{{ c.role === 'user' && c.kind === 'app' ? 'LA' : (c.kind === 'support' && c.role === 'user' ? 'OD' : initials(c.title)) }}</span>
                             <span v-if="c.is_online" class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white"></span>
                         </span>
                         <span class="min-w-0 flex-1">
                             <span class="flex items-center justify-between gap-2">
                                 <span class="text-sm font-bold text-slate-800 truncate">{{ c.title }}</span>
+                                <span v-if="c.can_respond || c.awaiting_confirmation" class="shrink-0 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[9px] font-bold uppercase">Menunggu</span>
                                 <span class="text-[10px] shrink-0" :class="c.unread ? 'text-emerald-600 font-bold' : 'text-slate-400'">{{ timeLabel(c.last_message_at) }}</span>
                             </span>
                             <span class="flex items-center justify-between gap-2 mt-0.5">
@@ -412,19 +446,21 @@ onUnmounted(() => {
                     <header class="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200">
                         <button type="button" class="lg:hidden text-slate-500 font-bold px-1" @click="closeConversation">←</button>
                         <span class="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                              :class="active.kind === 'support' ? 'bg-indigo-600' : 'bg-slate-500'">{{ active.kind === 'support' && active.role === 'user' ? 'OD' : initials(active.title) }}</span>
+                              :class="active.kind === 'app' ? 'bg-violet-600' : (active.kind === 'support' ? 'bg-indigo-600' : 'bg-slate-500')">{{ active.role === 'user' && active.kind === 'app' ? 'LA' : (active.kind === 'support' && active.role === 'user' ? 'OD' : initials(active.title)) }}</span>
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-bold text-slate-800 truncate">{{ active.title }}</p>
                             <p class="text-[11px]" :class="partnerTyping ? 'text-emerald-600 italic' : 'text-slate-500'">
                                 {{ partnerTyping ? 'sedang mengetik…' : (active.is_online ? 'online' : (active.subtitle || '')) }}
                             </p>
                         </div>
-                        <button type="button" @click="startCall" title="Panggilan video"
+                        <button v-if="active.can_call !== false" type="button" @click="startCall" title="Panggilan video"
                                 class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-700">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                         </button>
                         <button v-if="isOperator && active.kind === 'support'" type="button" @click="toggleStatus"
                                 class="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-bold hover:bg-slate-200">{{ active.status === 'OPEN' ? 'Tutup utas' : 'Buka utas' }}</button>
+                        <button v-if="active.kind === 'app' && active.role === 'operator' && active.status !== 'PENDING'" type="button" @click="toggleStatus"
+                                class="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-[11px] font-bold hover:bg-slate-200">{{ active.status === 'OPEN' ? 'Akhiri sesi' : 'Buka sesi' }}</button>
                         <button v-if="active.kind === 'direct' || isOperator" type="button" @click="removeConversation" title="Hapus percakapan"
                                 class="px-3 py-2 rounded-xl bg-rose-50 text-rose-600 text-[11px] font-bold hover:bg-rose-100">Hapus</button>
                     </header>
@@ -439,7 +475,7 @@ onUnmounted(() => {
                             <div v-else class="flex" :class="isMine(m) ? 'justify-end' : 'justify-start'">
                                 <div class="max-w-[80%] rounded-2xl px-3 py-2 shadow-sm"
                                      :class="isMine(m) ? 'bg-emerald-100 text-slate-800 rounded-br-md' : 'bg-white text-slate-800 rounded-bl-md'">
-                                    <p v-if="!isMine(m) && active.kind === 'support'" class="text-[10px] font-bold text-indigo-600 mb-0.5">{{ m.sender_name }}</p>
+                                    <p v-if="!isMine(m) && isServiceThread(active)" class="text-[10px] font-bold text-indigo-600 mb-0.5">{{ m.sender_name }}</p>
                                     <div v-for="(att, i) in (m.attachments || [])" :key="i" class="mb-1">
                                         <!-- Foto tampil langsung -->
                                         <img v-if="att.is_image" :src="fileUrl(att)" alt="Foto" loading="lazy" @click="lightbox = fileUrl(att)"
@@ -467,7 +503,25 @@ onUnmounted(() => {
 
                     <footer class="bg-white border-t border-slate-200 p-3 space-y-2">
                         <p v-if="errorText" class="text-xs text-rose-600 font-semibold">{{ errorText }}</p>
-                        <p v-if="active.status === 'CLOSED'" class="text-xs text-slate-500">Utas ini telah ditutup operator.</p>
+                        <p v-if="active.kind !== 'app' && active.status === 'CLOSED'" class="text-xs text-slate-500">Utas ini telah ditutup operator.</p>
+
+                        <!-- Layanan Aplikasi: alur konfirmasi -->
+                        <template v-if="active.kind === 'app'">
+                            <div v-if="active.can_respond" class="flex flex-wrap items-center gap-2 rounded-2xl bg-amber-50 border border-amber-200 px-3 py-2">
+                                <span class="text-xs text-amber-900 font-semibold flex-1">Permintaan chat menunggu konfirmasi Anda. Identitas Anda tampil sebagai "Layanan Aplikasi".</span>
+                                <button type="button" @click="respondRequest('reject')" class="px-3 py-1.5 rounded-xl bg-white border border-rose-200 text-rose-600 text-xs font-bold hover:bg-rose-50">Tolak</button>
+                                <button type="button" @click="respondRequest('accept')" class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">Terima</button>
+                            </div>
+                            <p v-else-if="active.role === 'user' && active.awaiting_confirmation" class="text-xs rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 px-3 py-2">
+                                ⏳ Permintaan chat terkirim. Menunggu konfirmasi Layanan Aplikasi — Anda dapat membalas setelah permintaan diterima.
+                            </p>
+                            <p v-else-if="active.role === 'user' && active.status === 'PENDING'" class="text-xs text-violet-700">
+                                Tulis pesan untuk mengajukan chat. Chat dimulai setelah dikonfirmasi Layanan Aplikasi.
+                            </p>
+                            <p v-else-if="active.role === 'user' && active.status === 'CLOSED'" class="text-xs text-slate-500">
+                                Sesi telah selesai. Kirim pesan untuk mengajukan chat baru.
+                            </p>
+                        </template>
                         <div v-if="pendingFiles.length" class="flex flex-wrap gap-2">
                             <span v-for="(f, i) in pendingFiles" :key="i" class="flex items-center gap-1 bg-slate-100 rounded-lg px-2 py-1 text-[11px]">
                                 {{ f.name }} <button type="button" class="text-rose-600 font-bold" @click="removeFile(i)">×</button>
@@ -485,13 +539,13 @@ onUnmounted(() => {
 
                         <div v-else class="flex items-end gap-2">
                             <input ref="fileInput" type="file" multiple class="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,audio/*" @change="pickFiles" />
-                            <button type="button" @click="fileInput.click()" :disabled="active.status === 'CLOSED'" title="Lampirkan foto/berkas"
+                            <button type="button" @click="fileInput.click()" :disabled="inputLocked" title="Lampirkan foto/berkas"
                                     class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-slate-200 disabled:opacity-40">📎</button>
-                            <textarea v-model="text" rows="1" @keydown.enter="onEnter" @input="onTyping" :disabled="active.status === 'CLOSED'"
+                            <textarea v-model="text" rows="1" @keydown.enter="onEnter" @input="onTyping" :disabled="inputLocked"
                                       placeholder="Ketik pesan" class="flex-1 resize-none rounded-2xl border-slate-200 bg-slate-50 text-sm px-4 py-2.5 max-h-32 focus:ring-blue-500 focus:border-blue-600"></textarea>
                             <button v-if="text.trim() || pendingFiles.length" type="button" @click="send" :disabled="sending"
                                     class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-700 disabled:opacity-50">➤</button>
-                            <button v-else type="button" @click="startRecording" :disabled="active.status === 'CLOSED'" title="Rekam pesan suara"
+                            <button v-else type="button" @click="startRecording" :disabled="inputLocked" title="Rekam pesan suara"
                                     class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-700 disabled:opacity-40">🎤</button>
                         </div>
                     </footer>

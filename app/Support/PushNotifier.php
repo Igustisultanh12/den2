@@ -181,11 +181,21 @@ class PushNotifier
 
     public static function chatMessage(LiveChatMessage $m): void
     {
-        if (strtoupper((string) $m->sender_type) === 'SYSTEM') {
-            return;
-        }
         $thread = LiveChatThread::find($m->thread_id);
         if (!$thread) {
+            return;
+        }
+        if (strtoupper((string) $m->sender_type) === 'SYSTEM') {
+            // Hanya kabar Layanan Aplikasi (permintaan diterima/ditolak/diakhiri) yang dikirim ke personel.
+            if ($thread->isAppSupport()) {
+                self::queue([(int) $thread->user_id], [
+                    'type' => 'chat',
+                    'id' => (string) $m->id,
+                    'title' => \App\Support\ChatConversations::APP_SUPPORT_NAME,
+                    'body' => mb_substr((string) $m->message, 0, 240),
+                    'thread_uuid' => (string) $thread->uuid,
+                ]);
+            }
             return;
         }
         // Chat pribadi → lawan bicara; utas layanan → operator atau personel pemilik utas.

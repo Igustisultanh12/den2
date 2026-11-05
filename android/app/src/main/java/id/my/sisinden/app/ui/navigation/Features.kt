@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Create
+import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.People
@@ -26,6 +27,7 @@ enum class FeatureGroup(val title: String) {
     ADMINISTRASI("Administrasi Surat"),
     KEUANGAN("Keuangan"),
     PERSONEL("Personel & Disiplin"),
+    SISTEM("Sistem & Server"),
 }
 
 /**
@@ -53,7 +55,8 @@ enum class Feature(
     MITRA(Routes.MITRA, "Mitra", "Pembayaran mitra bulanan", Icons.Outlined.People, Perm.MITRA_VIEW, FeatureGroup.KEUANGAN, Tone.WARNING),
     TRACKING(Routes.TRACKING, "Pantau Personel", "Posisi realtime personel", Icons.Outlined.PersonPinCircle, Perm.TRACKING_VIEW, FeatureGroup.PERSONEL, Tone.INFO),
     VIOLATIONS(Routes.VIOLATIONS, "Pelanggaran", "Catatan disiplin prajurit", Icons.Outlined.Gavel, Perm.VIOLATIONS_VIEW, FeatureGroup.PERSONEL, Tone.DANGER),
-    USERS(Routes.USERS, "Kelola Pengguna", "Akun & status personel", Icons.Outlined.Group, Perm.USERS_VIEW, FeatureGroup.PERSONEL, Tone.NEUTRAL);
+    USERS(Routes.USERS, "Kelola Pengguna", "Akun & status personel", Icons.Outlined.Group, Perm.USERS_VIEW, FeatureGroup.PERSONEL, Tone.NEUTRAL),
+    SYSTEM_CHECK(Routes.SYSTEM_CHECK, "Cek Sistem", "Server, disk & kesehatan", Icons.Outlined.Dns, Perm.SYSTEM_VIEW, FeatureGroup.SISTEM, Tone.NEUTRAL);
 
     /** Warna ubin bergradien (gaya "Fitur Utama" Livin) — tiap modul punya warna sendiri. */
     val gradient: TileGradient
@@ -70,6 +73,7 @@ enum class Feature(
             TRACKING -> TilePalette.Teal
             VIOLATIONS -> TilePalette.Rose
             USERS -> TilePalette.Slate
+            SYSTEM_CHECK -> TilePalette.Slate
         }
 
     companion object {
@@ -103,6 +107,7 @@ object Routes {
     const val TRACKING = "tracking"
     const val SETTINGS = "settings"
     const val CHAT = "chat"
+    const val SYSTEM_CHECK = "system_check"
 
     // Berparameter — Chat & panggilan
     const val CHAT_THREAD = "chat_thread/{uuid}?title={title}"
