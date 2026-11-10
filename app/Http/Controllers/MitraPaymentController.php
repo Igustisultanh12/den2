@@ -55,7 +55,8 @@ class MitraPaymentController extends Controller
             'mitras' => $mitras,
             'currentYear' => $tahun,
             'availableYears' => array_values($availableYears),
-            'canEdit' => $canAccess,
+            // Pengguna yang lolos cek fitur 'mitra' di atas berhak mengelola data
+            'canEdit' => true,
         ]);
     }
 

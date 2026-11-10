@@ -121,6 +121,25 @@ class FeatureAccessTest extends TestCase
         $this->assertTrue(\App\Support\MobileAccess::can($pers, 'skhpp.view'));
     }
 
+    public function test_mitra_and_violations_pages_render_for_users_with_access(): void
+    {
+        // Regresi: MitraPaymentController@index memakai $canAccess yang sudah dihapus
+        // sehingga /mitras selalu 500 "Undefined variable $canAccess".
+        foreach (['admin', 'super_admin', 'komandan'] as $role) {
+            $u = $this->user($role, ['can_access_mitra' => true]);
+            $this->actingAs($u)->get(route('mitras.index'))
+                ->assertOk()
+                ->assertInertia(fn ($page) => $page->component('Mitra/Index')->where('canEdit', true));
+            $this->actingAs($u)->get(route('soldier-violations.index'))
+                ->assertOk()
+                ->assertInertia(fn ($page) => $page->component('SoldierViolations/Index'));
+        }
+
+        $pers = $this->user('personel', ['feature_access' => ['mitra', 'violations']]);
+        $this->actingAs($pers)->get(route('mitras.index'))->assertOk();
+        $this->actingAs($pers)->get(route('soldier-violations.index'))->assertOk();
+    }
+
     public function test_users_page_ships_feature_catalog_and_effective_features(): void
     {
         $admin = $this->user('admin');
