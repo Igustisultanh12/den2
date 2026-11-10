@@ -7,6 +7,10 @@ use App\Http\Middleware\LogVisitor;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\OfficeOnly; // Pastikan ini di-import
 
+// Helper global API mobile. Harus dimuat di sini (bukan di file route) karena
+// saat route di-cache file routes/*.php tidak dieksekusi lagi.
+require_once __DIR__.'/../app/Support/mobile_helpers.php';
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
